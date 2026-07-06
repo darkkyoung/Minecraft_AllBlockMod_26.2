@@ -12,6 +12,8 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 public final class AllBlocksSaveManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -39,7 +41,8 @@ public final class AllBlocksSaveManager {
             state.loadFrom(
                     data.running,
                     parseMode(data.mode),
-                    Math.max(0L, data.elapsedTicks)
+                    Math.max(0L, data.elapsedTicks),
+                    data.collectedBlocks == null ? new HashMap<>() : data.collectedBlocks
             );
 
             AllBlocksMod.LOGGER.info("Loaded AllBlocks challenge state from {}", path);
@@ -62,6 +65,7 @@ public final class AllBlocksSaveManager {
             data.elapsedTicks = state.getElapsedTicks();
             data.currentDay = state.getCurrentDay();
             data.formattedTime = state.getFormattedElapsedTime();
+            data.collectedBlocks = new HashMap<>(state.getCollectedBlocks());
 
             try (Writer writer = Files.newBufferedWriter(path)) {
                 GSON.toJson(data, writer);
@@ -93,5 +97,6 @@ public final class AllBlocksSaveManager {
         long elapsedTicks;
         int currentDay;
         String formattedTime;
+        Map<String, ChallengeState.CollectedBlockData> collectedBlocks;
     }
 }

@@ -21,6 +21,8 @@ public final class AllBlocksCommands {
                                     .executes(context -> stop(context.getSource())))
                             .then(Commands.literal("status")
                                     .executes(context -> status(context.getSource())))
+                            .then(Commands.literal("progress")
+                                    .executes(context -> progress(context.getSource())))
             );
         });
     }
@@ -50,13 +52,22 @@ public final class AllBlocksCommands {
 
         String finalTime = ChallengeManager.getFormattedElapsedTime();
         int finalDay = ChallengeManager.getCurrentDay();
+        int collected = ChallengeManager.getCollectedCount();
+        int total = ChallengeManager.getTotalTargetCount();
+        double percent = ChallengeManager.getProgressPercent();
 
         MinecraftServer server = source.getServer();
         ChallengeManager.stop(server);
 
         source.sendSuccess(
-                () -> Component.literal("[AllBlocks] Challenge stopped. Final Day: "
-                        + finalDay + " / Time: " + finalTime),
+                () -> Component.literal(String.format(
+                        "[AllBlocks] Challenge stopped. Final Day: %d / Time: %s / Progress: %d/%d (%.2f%%)",
+                        finalDay,
+                        finalTime,
+                        collected,
+                        total,
+                        percent
+                )),
                 false
         );
 
@@ -66,18 +77,42 @@ public final class AllBlocksCommands {
     private static int status(CommandSourceStack source) {
         if (ChallengeManager.isRunning()) {
             source.sendSuccess(
-                    () -> Component.literal("[AllBlocks] Status: Running / Mode: "
-                            + ChallengeManager.getMode().getDisplayName()
-                            + " / Day: " + ChallengeManager.getCurrentDay()
-                            + " / Time: " + ChallengeManager.getFormattedElapsedTime()),
+                    () -> Component.literal(String.format(
+                            "[AllBlocks] Status: Running / Mode: %s / Day: %d / Time: %s / Progress: %d/%d (%.2f%%)",
+                            ChallengeManager.getMode().getDisplayName(),
+                            ChallengeManager.getCurrentDay(),
+                            ChallengeManager.getFormattedElapsedTime(),
+                            ChallengeManager.getCollectedCount(),
+                            ChallengeManager.getTotalTargetCount(),
+                            ChallengeManager.getProgressPercent()
+                    )),
                     false
             );
         } else {
             source.sendSuccess(
-                    () -> Component.literal("[AllBlocks] Status: Not running."),
+                    () -> Component.literal(String.format(
+                            "[AllBlocks] Status: Not running. Last Progress: %d/%d (%.2f%%)",
+                            ChallengeManager.getCollectedCount(),
+                            ChallengeManager.getTotalTargetCount(),
+                            ChallengeManager.getProgressPercent()
+                    )),
                     false
             );
         }
+
+        return 1;
+    }
+
+    private static int progress(CommandSourceStack source) {
+        source.sendSuccess(
+                () -> Component.literal(String.format(
+                        "[AllBlocks] Progress: %d/%d (%.2f%%)",
+                        ChallengeManager.getCollectedCount(),
+                        ChallengeManager.getTotalTargetCount(),
+                        ChallengeManager.getProgressPercent()
+                )),
+                false
+        );
 
         return 1;
     }

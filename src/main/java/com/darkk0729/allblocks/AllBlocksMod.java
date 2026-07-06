@@ -1,6 +1,7 @@
 package com.darkk0729.allblocks;
 
 import com.darkk0729.allblocks.challenge.ChallengeManager;
+import com.darkk0729.allblocks.collection.TargetBlockRegistry;
 import com.darkk0729.allblocks.command.AllBlocksCommands;
 import com.darkk0729.allblocks.event.ChallengeTicker;
 import net.fabricmc.api.ModInitializer;
@@ -15,6 +16,8 @@ public class AllBlocksMod implements ModInitializer {
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing All Blocks Challenge");
+
+        TargetBlockRegistry.initialize();
 
         AllBlocksCommands.register();
         ChallengeTicker.register();
