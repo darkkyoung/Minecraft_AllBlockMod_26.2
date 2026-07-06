@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 
 public final class AllBlocksCommands {
     private AllBlocksCommands() {
@@ -30,11 +31,14 @@ public final class AllBlocksCommands {
             return 0;
         }
 
-        ChallengeManager.startSolo();
+        MinecraftServer server = source.getServer();
+        ChallengeManager.startSolo(server);
+
         source.sendSuccess(
                 () -> Component.literal("[AllBlocks] All Blocks Challenge started. Mode: Solo"),
                 false
         );
+
         return 1;
     }
 
@@ -44,11 +48,18 @@ public final class AllBlocksCommands {
             return 0;
         }
 
-        ChallengeManager.stop();
+        String finalTime = ChallengeManager.getFormattedElapsedTime();
+        int finalDay = ChallengeManager.getCurrentDay();
+
+        MinecraftServer server = source.getServer();
+        ChallengeManager.stop(server);
+
         source.sendSuccess(
-                () -> Component.literal("[AllBlocks] All Blocks Challenge stopped."),
+                () -> Component.literal("[AllBlocks] Challenge stopped. Final Day: "
+                        + finalDay + " / Time: " + finalTime),
                 false
         );
+
         return 1;
     }
 
@@ -56,7 +67,9 @@ public final class AllBlocksCommands {
         if (ChallengeManager.isRunning()) {
             source.sendSuccess(
                     () -> Component.literal("[AllBlocks] Status: Running / Mode: "
-                            + ChallengeManager.getMode().getDisplayName()),
+                            + ChallengeManager.getMode().getDisplayName()
+                            + " / Day: " + ChallengeManager.getCurrentDay()
+                            + " / Time: " + ChallengeManager.getFormattedElapsedTime()),
                     false
             );
         } else {

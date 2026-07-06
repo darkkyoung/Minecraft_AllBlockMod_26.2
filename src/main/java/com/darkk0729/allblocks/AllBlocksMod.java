@@ -1,7 +1,10 @@
 package com.darkk0729.allblocks;
 
+import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.command.AllBlocksCommands;
+import com.darkk0729.allblocks.event.ChallengeTicker;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +15,11 @@ public class AllBlocksMod implements ModInitializer {
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing All Blocks Challenge");
+
         AllBlocksCommands.register();
+        ChallengeTicker.register();
+
+        ServerLifecycleEvents.SERVER_STARTED.register(ChallengeManager::load);
+        ServerLifecycleEvents.SERVER_STOPPING.register(ChallengeManager::save);
     }
 }
