@@ -7,7 +7,7 @@ import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Allblocks implements ModInitializer {
+public class AllBlocksMod implements ModInitializer {
 	public static final String MOD_ID = "allblocks";
 
 	// This logger is used to write text to the console and the log file.

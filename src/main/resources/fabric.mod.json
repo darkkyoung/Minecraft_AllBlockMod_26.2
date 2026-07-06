@@ -2,24 +2,23 @@
 	"schemaVersion": 1,
 	"id": "allblocks",
 	"version": "${version}",
-	"name": "allblocks",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "All Blocks Challenge",
+	"description": "A survival challenge mod where players collect blocks, fill the block encyclopedia, compete through rankings, and trigger challenge events.",
 	"authors": [
-		"Me!"
+		"darkkyoung"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/darkkyoung/Minecraft_AllBlockMod_26.2"
 	},
-	"license": "CC0-1.0",
+	"license": "All Rights Reserved",
 	"icon": "assets/allblocks/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.darkk0729.allblocks.Allblocks"
+          "com.darkk0729.allblocks.AllBlocksMod"
 		],
 		"client": [
-			"com.darkk0729.allblocks.client.AllblocksClient"
+          "com.darkk0729.allblocks.client.AllBlocksClient"
 		]
 	},
 	"mixins": [
