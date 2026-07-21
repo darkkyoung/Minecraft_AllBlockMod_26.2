@@ -4,6 +4,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class ChallengeState {
     public static final long TICKS_PER_SECOND = 20L;
@@ -77,7 +80,9 @@ public class ChallengeState {
     }
 
     public boolean collectBlock(String blockId, UUID ownerUuid, String ownerName) {
-        if (collectedBlocks.containsKey(blockId)) {
+        CollectedBlockData existingData = collectedBlocks.get(blockId);
+
+        if (existingData != null && existingData.state == BlockCollectionState.CLAIMED) {
             return false;
         }
 
@@ -109,6 +114,82 @@ public class ChallengeState {
 
     public Map<String, CollectedBlockData> getCollectedBlocks() {
         return Collections.unmodifiableMap(collectedBlocks);
+    }
+
+    public int releaseRandomOwnedBlocks(UUID ownerUuid, int minPercent, int maxPercent) {
+        if (ownerUuid == null) {
+            return 0;
+        }
+
+        String ownerId = ownerUuid.toString();
+        List<String> ownedBlockIds = new ArrayList<>();
+
+        for (Map.Entry<String, CollectedBlockData> entry : collectedBlocks.entrySet()) {
+            CollectedBlockData data = entry.getValue();
+
+            if (data == null) {
+                continue;
+            }
+
+            if (data.state != BlockCollectionState.CLAIMED) {
+                continue;
+            }
+
+            if (!ownerId.equals(data.ownerUuid)) {
+                continue;
+            }
+
+            ownedBlockIds.add(entry.getKey());
+        }
+
+        if (ownedBlockIds.isEmpty()) {
+            return 0;
+        }
+
+        int safeMinPercent = Math.max(0, minPercent);
+        int safeMaxPercent = Math.max(safeMinPercent, maxPercent);
+
+        int minLossCount = safeMinPercent <= 0
+                ? 0
+                : Math.max(1, (int) Math.ceil(ownedBlockIds.size() * (safeMinPercent / 100.0D)));
+
+        int maxLossCount = (int) Math.floor(ownedBlockIds.size() * (safeMaxPercent / 100.0D));
+
+        if (safeMinPercent > 0 && maxLossCount == 0) {
+            maxLossCount = 1;
+        }
+
+        maxLossCount = Math.min(maxLossCount, ownedBlockIds.size());
+        minLossCount = Math.min(minLossCount, maxLossCount);
+
+        int lossCount;
+
+        if (maxLossCount <= minLossCount) {
+            lossCount = minLossCount;
+        } else {
+            lossCount = ThreadLocalRandom.current().nextInt(minLossCount, maxLossCount + 1);
+        }
+
+        if (lossCount <= 0) {
+            return 0;
+        }
+
+        Collections.shuffle(ownedBlockIds, ThreadLocalRandom.current());
+
+        for (int i = 0; i < lossCount; i++) {
+            String blockId = ownedBlockIds.get(i);
+            CollectedBlockData data = collectedBlocks.get(blockId);
+
+            if (data == null) {
+                continue;
+            }
+
+            data.ownerUuid = "";
+            data.ownerName = "";
+            data.state = BlockCollectionState.RELEASED;
+        }
+
+        return lossCount;
     }
 
     public boolean tick() {

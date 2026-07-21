@@ -152,6 +152,38 @@ public final class ChallengeManager {
         return collected;
     }
 
+    public static void handlePlayerDeath(MinecraftServer server, ServerPlayer player, boolean pvpDeath) {
+        if (server == null || player == null) {
+            return;
+        }
+
+        if (!state.isRunning()) {
+            return;
+        }
+
+        int minPercent = pvpDeath ? 5 : 0;
+        int maxPercent = pvpDeath ? 20 : 10;
+
+        int releasedCount = state.releaseRandomOwnedBlocks(
+                player.getUUID(),
+                minPercent,
+                maxPercent
+        );
+
+        save(server);
+        updateProgressBossBar(server);
+
+        if (releasedCount > 0) {
+            player.sendSystemMessage(Component.literal(
+                    "[AllBlocks] Death penalty: You lost " + releasedCount + " collected block(s)."
+            ));
+        } else {
+            player.sendSystemMessage(Component.literal(
+                    "[AllBlocks] Death penalty: No collected blocks were lost."
+            ));
+        }
+    }
+
     private static void recreateProgressBossBar(MinecraftServer server) {
         runServerCommand(server, "bossbar remove " + PROGRESS_BOSSBAR_ID);
 
