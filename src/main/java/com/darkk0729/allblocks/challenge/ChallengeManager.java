@@ -8,6 +8,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import com.darkk0729.allblocks.event.ChallengeEventManager;
 
 import java.util.Locale;
 
@@ -61,6 +62,22 @@ public final class ChallengeManager {
         }
 
         return (getCollectedCount() * 100.0D) / total;
+    }
+
+    public static int getLastProgressEventTier() {
+        return state.getLastProgressEventTier();
+    }
+
+    public static int getLastDayRaidEventDay() {
+        return state.getLastDayRaidEventDay();
+    }
+
+    public static void setLastDayRaidEventDay(int day) {
+        state.setLastDayRaidEventDay(day);
+    }
+
+    public static void setLastProgressEventTier(int tier) {
+        state.setLastProgressEventTier(tier);
     }
 
     public static void load(MinecraftServer server) {
@@ -123,6 +140,7 @@ public final class ChallengeManager {
         }
 
         BlockCollectionTracker.tick(server);
+        ChallengeEventManager.tick(server);
 
         ticksSinceLastBossBarUpdate++;
         if (ticksSinceLastBossBarUpdate >= BOSS_BAR_UPDATE_INTERVAL_TICKS) {

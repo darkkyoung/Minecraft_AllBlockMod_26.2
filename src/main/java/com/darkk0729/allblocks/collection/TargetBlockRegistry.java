@@ -6,9 +6,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 
+import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 public final class TargetBlockRegistry {
     private static final Set<String> EXCLUDED_BLOCK_IDS = Set.of(
@@ -37,7 +39,9 @@ public final class TargetBlockRegistry {
             "minecraft:player_wall_head"
     );
 
-    private static final Set<String> TARGET_BLOCK_IDS = new HashSet<>();
+    private static final List<String> TARGET_BLOCK_IDS = new ArrayList<>();
+    private static final List<Block> TARGET_BLOCKS = new ArrayList<>();
+
     private static boolean initialized = false;
 
     private TargetBlockRegistry() {
@@ -49,6 +53,7 @@ public final class TargetBlockRegistry {
         }
 
         TARGET_BLOCK_IDS.clear();
+        TARGET_BLOCKS.clear();
 
         for (Block block : BuiltInRegistries.BLOCK) {
             var blockId = BuiltInRegistries.BLOCK.getKey(block);
@@ -65,12 +70,12 @@ public final class TargetBlockRegistry {
 
             Item item = block.asItem();
 
-            // 아이템 형태가 없는 블록은 생존 도감 대상에서 제외
             if (item == Items.AIR) {
                 continue;
             }
 
             TARGET_BLOCK_IDS.add(id);
+            TARGET_BLOCKS.add(block);
         }
 
         initialized = true;
@@ -86,7 +91,16 @@ public final class TargetBlockRegistry {
         return TARGET_BLOCK_IDS.size();
     }
 
-    public static Set<String> getTargetBlockIds() {
-        return Collections.unmodifiableSet(TARGET_BLOCK_IDS);
+    public static List<String> getTargetBlockIds() {
+        return Collections.unmodifiableList(TARGET_BLOCK_IDS);
+    }
+
+    public static Block getRandomTargetBlock() {
+        if (TARGET_BLOCKS.isEmpty()) {
+            return null;
+        }
+
+        int index = ThreadLocalRandom.current().nextInt(TARGET_BLOCKS.size());
+        return TARGET_BLOCKS.get(index);
     }
 }

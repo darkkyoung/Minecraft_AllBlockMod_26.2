@@ -42,6 +42,8 @@ public final class AllBlocksSaveManager {
                     data.running,
                     parseMode(data.mode),
                     Math.max(0L, data.elapsedTicks),
+                    Math.max(0, data.lastProgressEventTier),
+                    Math.max(0, data.lastDayRaidEventDay),
                     data.collectedBlocks == null ? new HashMap<>() : data.collectedBlocks
             );
 
@@ -65,6 +67,8 @@ public final class AllBlocksSaveManager {
             data.elapsedTicks = state.getElapsedTicks();
             data.currentDay = state.getCurrentDay();
             data.formattedTime = state.getFormattedElapsedTime();
+            data.lastProgressEventTier = state.getLastProgressEventTier();
+            data.lastDayRaidEventDay = state.getLastDayRaidEventDay();
             data.collectedBlocks = new HashMap<>(state.getCollectedBlocks());
 
             try (Writer writer = Files.newBufferedWriter(path)) {
@@ -97,6 +101,8 @@ public final class AllBlocksSaveManager {
         long elapsedTicks;
         int currentDay;
         String formattedTime;
+        int lastProgressEventTier;
+        int lastDayRaidEventDay;
         Map<String, ChallengeState.CollectedBlockData> collectedBlocks;
     }
 }

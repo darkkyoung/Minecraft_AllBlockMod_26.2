@@ -16,6 +16,8 @@ public class ChallengeState {
     private boolean running;
     private ChallengeMode mode;
     private long elapsedTicks;
+    private int lastProgressEventTier;
+    private int lastDayRaidEventDay;
 
     private final Map<String, CollectedBlockData> collectedBlocks = new HashMap<>();
 
@@ -23,6 +25,8 @@ public class ChallengeState {
         this.running = false;
         this.mode = ChallengeMode.SOLO;
         this.elapsedTicks = 0L;
+        this.lastProgressEventTier = 0;
+        this.lastDayRaidEventDay = 0;
     }
 
     public boolean isRunning() {
@@ -35,6 +39,22 @@ public class ChallengeState {
 
     public long getElapsedTicks() {
         return elapsedTicks;
+    }
+
+    public int getLastProgressEventTier() {
+        return lastProgressEventTier;
+    }
+
+    public int getLastDayRaidEventDay() {
+        return lastDayRaidEventDay;
+    }
+
+    public void setLastDayRaidEventDay(int lastDayRaidEventDay) {
+        this.lastDayRaidEventDay = Math.max(0, Math.min(100, lastDayRaidEventDay));
+    }
+
+    public void setLastProgressEventTier(int lastProgressEventTier) {
+        this.lastProgressEventTier = Math.max(0, Math.min(10, lastProgressEventTier));
     }
 
     public int getCurrentDay() {
@@ -55,6 +75,8 @@ public class ChallengeState {
         this.running = true;
         this.mode = mode;
         this.elapsedTicks = 0L;
+        this.lastProgressEventTier = 0;
+        this.lastDayRaidEventDay = 0;
         this.collectedBlocks.clear();
     }
 
@@ -66,11 +88,15 @@ public class ChallengeState {
             boolean running,
             ChallengeMode mode,
             long elapsedTicks,
+            int lastProgressEventTier,
+            int lastDayRaidEventDay,
             Map<String, CollectedBlockData> loadedCollectedBlocks
     ) {
         this.running = running;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
         this.elapsedTicks = Math.max(0L, elapsedTicks);
+        this.lastProgressEventTier = Math.max(0, Math.min(10, lastProgressEventTier));
+        this.lastDayRaidEventDay = Math.max(0, Math.min(100, lastDayRaidEventDay));
 
         this.collectedBlocks.clear();
 
