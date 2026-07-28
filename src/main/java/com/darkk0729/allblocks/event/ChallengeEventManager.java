@@ -24,6 +24,30 @@ public final class ChallengeEventManager {
     private ChallengeEventManager() {
     }
 
+    public static void startDebugProgressEvent(MinecraftServer server, int progressPercent) {
+        if (server == null) {
+            return;
+        }
+
+        if (!ChallengeManager.isRunning()) {
+            broadcast(server, Component.literal("[AllBlocks] Start the challenge first."));
+            return;
+        }
+
+        if (progressPercent < 10 || progressPercent > 100 || progressPercent % 10 != 0) {
+            broadcast(server, Component.literal("[AllBlocks] Debug progress must be 10, 20, 30, ..., 100."));
+            return;
+        }
+
+        int tier = progressPercent / 10;
+
+        broadcast(server, Component.literal(
+                "[AllBlocks] Debug progress event requested: " + progressPercent + "%"
+        ));
+
+        triggerProgressEvent(server, tier);
+    }
+
     public static void tick(MinecraftServer server) {
         if (!ChallengeManager.isRunning()) {
             return;
@@ -79,7 +103,7 @@ public final class ChallengeEventManager {
         }
 
         int effectCount = getDebuffCount(progressPercent);
-        int durationSeconds = progressPercent;
+        int durationSeconds = getDebuffDurationSeconds(progressPercent);
 
         for (ServerPlayer player : players) {
             List<DebuffType> debuffs = new ArrayList<>(List.of(DebuffType.values()));
@@ -107,8 +131,15 @@ public final class ChallengeEventManager {
         return 1;
     }
 
+    private static int getDebuffDurationSeconds(int progressPercent) {
+        // n%일 때 3n초.
+        // 단, 전체 디버프 기본 지속시간은 최대 150초.
+        return Math.min(progressPercent * 3, 150);
+    }
+
     private static void applyDebuff(ServerPlayer player, DebuffType type, int durationSeconds) {
-        int durationTicks = Math.max(1, durationSeconds) * 20;
+        int finalDurationSeconds = getFinalDebuffDurationSeconds(type, durationSeconds);
+        int durationTicks = Math.max(1, finalDurationSeconds) * 20;
 
         switch (type) {
             case SLOWNESS -> player.addEffect(new MobEffectInstance(
@@ -118,7 +149,7 @@ public final class ChallengeEventManager {
             ));
             case BLINDNESS -> player.addEffect(new MobEffectInstance(
                     MobEffects.BLINDNESS,
-                    Math.min(durationTicks, 30 * 20),
+                    durationTicks,
                     0
             ));
             case HUNGER -> player.addEffect(new MobEffectInstance(
@@ -131,7 +162,32 @@ public final class ChallengeEventManager {
                     durationTicks,
                     0
             ));
+            case MINING_FATIGUE -> player.addEffect(new MobEffectInstance(
+                    MobEffects.MINING_FATIGUE,
+                    durationTicks,
+                    0
+            ));
+            case NAUSEA -> player.addEffect(new MobEffectInstance(
+                    MobEffects.NAUSEA,
+                    durationTicks,
+                    0
+            ));
+            case POISON -> player.addEffect(new MobEffectInstance(
+                    MobEffects.POISON,
+                    durationTicks,
+                    0
+            ));
+            case WITHER -> player.addEffect(new MobEffectInstance(
+                    MobEffects.WITHER,
+                    durationTicks,
+                    0
+            ));
         }
+    }
+
+    private static int getFinalDebuffDurationSeconds(DebuffType type, int durationSeconds) {
+        int maxSeconds = type == DebuffType.NAUSEA ? 30 : 150;
+        return Math.min(Math.max(1, durationSeconds), maxSeconds);
     }
 
     private static void triggerRandomTeleportEvent(MinecraftServer server, int progressPercent) {
@@ -299,6 +355,10 @@ public final class ChallengeEventManager {
         SLOWNESS,
         BLINDNESS,
         HUNGER,
-        WEAKNESS
+        WEAKNESS,
+        MINING_FATIGUE,
+        NAUSEA,
+        POISON,
+        WITHER
     }
 }

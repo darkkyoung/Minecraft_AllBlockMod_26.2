@@ -6,6 +6,10 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import com.darkk0729.allblocks.event.DayRaidManager;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.darkk0729.allblocks.event.ChallengeEventManager;
+import com.mojang.brigadier.context.CommandContext;
 
 public final class AllBlocksCommands {
     private AllBlocksCommands() {
@@ -23,7 +27,63 @@ public final class AllBlocksCommands {
                                     .executes(context -> status(context.getSource())))
                             .then(Commands.literal("progress")
                                     .executes(context -> progress(context.getSource())))
-            );
+                            .then(Commands.literal("debug")
+                                    .then(Commands.literal("raid")
+                                            .then(Commands.argument("day", IntegerArgumentType.integer(10, 90))
+                                                    .executes((CommandContext<CommandSourceStack> context) -> {
+                                                        int day = IntegerArgumentType.getInteger(context, "day");
+
+                                                        if (day % 10 != 0) {
+                                                            context.getSource().sendSuccess(
+                                                                    () -> Component.literal("[AllBlocks] Raid day must be 10, 20, 30, ..., 90."),
+                                                                    false
+                                                            );
+                                                            return 0;
+                                                        }
+
+                                                        DayRaidManager.startDebugRaid(
+                                                                context.getSource().getServer(),
+                                                                day
+                                                        );
+
+                                                        context.getSource().sendSuccess(
+                                                                () -> Component.literal("[AllBlocks] Debug raid requested: Day " + day),
+                                                                false
+                                                        );
+
+                                                        return 1;
+                                                    })
+                                            )
+                                    )
+                                    .then(Commands.literal("progress")
+                                            .then(Commands.argument("percent", IntegerArgumentType.integer(10, 100))
+                                                    .executes((CommandContext<CommandSourceStack> context) -> {
+                                                        int percent = IntegerArgumentType.getInteger(context, "percent");
+
+                                                        if (percent % 10 != 0) {
+                                                            context.getSource().sendSuccess(
+                                                                    () -> Component.literal("[AllBlocks] Progress percent must be 10, 20, 30, ..., 100."),
+                                                                    false
+                                                            );
+                                                            return 0;
+                                                        }
+
+                                                        ChallengeEventManager.startDebugProgressEvent(
+                                                                context.getSource().getServer(),
+                                                                percent
+                                                        );
+
+                                                        context.getSource().sendSuccess(
+                                                                () -> Component.literal("[AllBlocks] Debug progress event requested: " + percent + "%"),
+                                                                false
+                                                        );
+
+                                                        return 1;
+                                                    })
+                                            )
+                                    )
+                            )
+                    );
         });
     }
 

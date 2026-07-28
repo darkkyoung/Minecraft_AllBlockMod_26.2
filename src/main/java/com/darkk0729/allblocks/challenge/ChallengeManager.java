@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.darkk0729.allblocks.event.ChallengeEventManager;
+import com.darkk0729.allblocks.event.DayRaidManager;
 
 import java.util.Locale;
 
@@ -64,6 +65,14 @@ public final class ChallengeManager {
         return (getCollectedCount() * 100.0D) / total;
     }
 
+    public static ChallengeState.CollectedBlockData getBlockCollectionData(String blockId) {
+        if (blockId == null) {
+            return null;
+        }
+
+        return state.getCollectedBlocks().get(blockId);
+    }
+
     public static int getLastProgressEventTier() {
         return state.getLastProgressEventTier();
     }
@@ -74,6 +83,14 @@ public final class ChallengeManager {
 
     public static void setLastDayRaidEventDay(int day) {
         state.setLastDayRaidEventDay(day);
+    }
+
+    public static void refreshProgressBossBar(MinecraftServer server) {
+        if (server == null || !state.isRunning()) {
+            return;
+        }
+
+        updateProgressBossBar(server);
     }
 
     public static void setLastProgressEventTier(int tier) {
@@ -143,9 +160,13 @@ public final class ChallengeManager {
         ChallengeEventManager.tick(server);
 
         ticksSinceLastBossBarUpdate++;
+
         if (ticksSinceLastBossBarUpdate >= BOSS_BAR_UPDATE_INTERVAL_TICKS) {
             ticksSinceLastBossBarUpdate = 0L;
-            updateProgressBossBar(server);
+
+            if (!DayRaidManager.isRaidWarningActive()) {
+                updateProgressBossBar(server);
+            }
         }
 
         ticksSinceLastSave++;
@@ -227,6 +248,10 @@ public final class ChallengeManager {
 
         int total = Math.max(1, getTotalTargetCount());
         int collected = Math.max(0, getCollectedCount());
+
+        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " color green");
+        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " style progress");
+        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " visible true");
 
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " name " + toTextJson(buildBossBarTitleText()));
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " max " + total);
