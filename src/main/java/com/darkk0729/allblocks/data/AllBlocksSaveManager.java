@@ -37,15 +37,32 @@ public final class AllBlocksSaveManager {
                 return new ChallengeState();
             }
 
+            long currentWorldTime = getCurrentWorldTime(server);
+
+            long savedElapsedTicks = Math.max(0L, data.elapsedTicks);
+            long savedWorldElapsedTicks = data.worldElapsedTicks == null
+                    ? 0L
+                    : Math.max(0L, data.worldElapsedTicks);
+
+            long startWorldTime = data.startWorldTime == null
+                    ? Math.max(0L, currentWorldTime - savedWorldElapsedTicks)
+                    : Math.max(0L, data.startWorldTime);
+
             ChallengeState state = new ChallengeState();
             state.loadFrom(
                     data.running,
                     parseMode(data.mode),
-                    Math.max(0L, data.elapsedTicks),
+                    savedElapsedTicks,
+                    startWorldTime,
+                    savedWorldElapsedTicks,
                     Math.max(0, data.lastProgressEventTier),
                     Math.max(0, data.lastDayRaidEventDay),
                     data.collectedBlocks == null ? new HashMap<>() : data.collectedBlocks
             );
+
+            if (state.isRunning()) {
+                state.syncWorldTime(currentWorldTime);
+            }
 
             AllBlocksMod.LOGGER.info("Loaded AllBlocks challenge state from {}", path);
             return state;
@@ -64,7 +81,10 @@ public final class AllBlocksSaveManager {
             SaveData data = new SaveData();
             data.running = state.isRunning();
             data.mode = state.getMode().name();
+            data.startWorldTime = state.getStartWorldTime();
             data.elapsedTicks = state.getElapsedTicks();
+            data.startWorldTime = state.getStartWorldTime();
+            data.worldElapsedTicks = state.getWorldElapsedTicks();
             data.currentDay = state.getCurrentDay();
             data.formattedTime = state.getFormattedElapsedTime();
             data.lastProgressEventTier = state.getLastProgressEventTier();
@@ -77,6 +97,14 @@ public final class AllBlocksSaveManager {
         } catch (Exception e) {
             AllBlocksMod.LOGGER.error("Failed to save AllBlocks challenge state.", e);
         }
+    }
+
+    private static long getCurrentWorldTime(MinecraftServer server) {
+        if (server == null || server.overworld() == null) {
+            return 0L;
+        }
+
+        return Math.max(0L, server.overworld().getOverworldClockTime());
     }
 
     private static Path getSavePath(MinecraftServer server) {
@@ -99,6 +127,8 @@ public final class AllBlocksSaveManager {
         boolean running;
         String mode;
         long elapsedTicks;
+        Long startWorldTime;
+        Long worldElapsedTicks;
         int currentDay;
         String formattedTime;
         int lastProgressEventTier;

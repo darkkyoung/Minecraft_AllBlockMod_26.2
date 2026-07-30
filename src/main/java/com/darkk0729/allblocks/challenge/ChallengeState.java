@@ -15,7 +15,14 @@ public class ChallengeState {
 
     private boolean running;
     private ChallengeMode mode;
+
+    // 실제 플레이타임 타이머
     private long elapsedTicks;
+
+    // 인게임 월드 Day 계산용
+    private long startWorldTime;
+    private long worldElapsedTicks;
+
     private int lastProgressEventTier;
     private int lastDayRaidEventDay;
 
@@ -25,6 +32,8 @@ public class ChallengeState {
         this.running = false;
         this.mode = ChallengeMode.SOLO;
         this.elapsedTicks = 0L;
+        this.startWorldTime = 0L;
+        this.worldElapsedTicks = 0L;
         this.lastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
     }
@@ -39,6 +48,14 @@ public class ChallengeState {
 
     public long getElapsedTicks() {
         return elapsedTicks;
+    }
+
+    public long getStartWorldTime() {
+        return startWorldTime;
+    }
+
+    public long getWorldElapsedTicks() {
+        return worldElapsedTicks;
     }
 
     public int getLastProgressEventTier() {
@@ -57,10 +74,12 @@ public class ChallengeState {
         this.lastProgressEventTier = Math.max(0, Math.min(10, lastProgressEventTier));
     }
 
+    // Day는 실제 플레이타임이 아니라 인게임 월드 시간 기준
     public int getCurrentDay() {
-        return (int) (elapsedTicks / TICKS_PER_DAY) + 1;
+        return (int) (worldElapsedTicks / TICKS_PER_DAY) + 1;
     }
 
+    // 타이머는 실제 플레이타임 기준
     public String getFormattedElapsedTime() {
         long totalSeconds = elapsedTicks / TICKS_PER_SECOND;
 
@@ -72,9 +91,17 @@ public class ChallengeState {
     }
 
     public void start(ChallengeMode mode) {
+        start(mode, 0L);
+    }
+
+    public void start(ChallengeMode mode, long startWorldTime) {
         this.running = true;
-        this.mode = mode;
+        this.mode = mode == null ? ChallengeMode.SOLO : mode;
+
         this.elapsedTicks = 0L;
+        this.startWorldTime = Math.max(0L, startWorldTime);
+        this.worldElapsedTicks = 0L;
+
         this.lastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
         this.collectedBlocks.clear();
@@ -88,13 +115,19 @@ public class ChallengeState {
             boolean running,
             ChallengeMode mode,
             long elapsedTicks,
+            long startWorldTime,
+            long worldElapsedTicks,
             int lastProgressEventTier,
             int lastDayRaidEventDay,
             Map<String, CollectedBlockData> loadedCollectedBlocks
     ) {
         this.running = running;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
+
         this.elapsedTicks = Math.max(0L, elapsedTicks);
+        this.startWorldTime = Math.max(0L, startWorldTime);
+        this.worldElapsedTicks = Math.max(0L, worldElapsedTicks);
+
         this.lastProgressEventTier = Math.max(0, Math.min(10, lastProgressEventTier));
         this.lastDayRaidEventDay = Math.max(0, Math.min(100, lastDayRaidEventDay));
 
@@ -103,6 +136,37 @@ public class ChallengeState {
         if (loadedCollectedBlocks != null) {
             this.collectedBlocks.putAll(loadedCollectedBlocks);
         }
+    }
+
+    public void syncWorldTime(long currentWorldTime) {
+        if (!running) {
+            return;
+        }
+
+        this.worldElapsedTicks = Math.max(0L, currentWorldTime - startWorldTime);
+    }
+
+    public boolean tick(long currentWorldTime) {
+        if (!running) {
+            return false;
+        }
+
+        // 실제 플레이타임 타이머
+        elapsedTicks++;
+
+        // 인게임 Day 카운트
+        syncWorldTime(currentWorldTime);
+
+        return worldElapsedTicks >= TICKS_PER_DAY * MAX_DAYS;
+    }
+
+    public boolean tick() {
+        if (!running) {
+            return false;
+        }
+
+        elapsedTicks++;
+        return false;
     }
 
     public boolean collectBlock(String blockId, UUID ownerUuid, String ownerName) {
@@ -216,16 +280,6 @@ public class ChallengeState {
         }
 
         return lossCount;
-    }
-
-    public boolean tick() {
-        if (!running) {
-            return false;
-        }
-
-        elapsedTicks++;
-
-        return elapsedTicks >= TICKS_PER_DAY * MAX_DAYS;
     }
 
     public enum BlockCollectionState {

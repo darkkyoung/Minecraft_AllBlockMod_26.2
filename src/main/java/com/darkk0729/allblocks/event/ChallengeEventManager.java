@@ -252,7 +252,7 @@ public final class ChallengeEventManager {
             return;
         }
 
-        Block fillBlock = TargetBlockRegistry.getRandomTargetBlock();
+        Block fillBlock = TargetBlockRegistry.getRandomFillEventBlock();
 
         if (fillBlock == null) {
             fillBlock = Blocks.OBSIDIAN;

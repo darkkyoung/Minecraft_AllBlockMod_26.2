@@ -10,9 +10,19 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import net.minecraft.world.entity.boss.wither.WitherBoss;
+import net.minecraft.world.phys.AABB;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
 public final class DayRaidManager {
     private static final String PROGRESS_BOSSBAR_ID = "allblocks:progress";
     private static final int RAID_WARNING_TICKS = 20 * 5;
+
+    private static final int DAY90_WITHER_TARGET_INTERVAL_TICKS = 60;
+    private static final double DAY90_WITHER_PLAYER_PRIORITY_RANGE = 160.0D;
 
     public static boolean isRaidWarningActive() {
         return activeRaid != null;
@@ -21,14 +31,20 @@ public final class DayRaidManager {
     private static ActiveRaid activeRaid;
     private static int raidPursuitTickCounter = 0;
 
+    private static final Set<UUID> day90WitherIds = new HashSet<>();
+
     private DayRaidManager() {
     }
 
     public static void tick(MinecraftServer server) {
         if (!ChallengeManager.isRunning()) {
             activeRaid = null;
+            raidPursuitTickCounter = 0;
+            day90WitherIds.clear();
             return;
         }
+
+        tickDay90WitherPlayerPriority(server);
 
         if (activeRaid != null) {
             tickActiveRaidWarning(server);
@@ -143,6 +159,7 @@ public final class DayRaidManager {
         applySkeletonBows(server);
         applyRaidSunProtection(server);
         applyCommonRaidMobAttributes(server);
+        applyDaySpecificRaidEffects(server, raidDay);
 
         runCommand(server, "team join allblocks_raid @e[tag=allblocks_raid_mob]");
         broadcast(server, Component.literal("[AllBlocks] Day " + raidDay + " Raid has started."));
@@ -151,13 +168,26 @@ public final class DayRaidManager {
     private static void applyCommonRaidMobAttributes(MinecraftServer server) {
         runCommand(server, "execute as @e[tag=allblocks_raid_mob] run attribute @s minecraft:generic.follow_range base set 64");
         runCommand(server, "execute as @e[tag=allblocks_raid_mob] run attribute @s minecraft:follow_range base set 64");
+
+        // Base raid speed: Speed II
+        runCommand(server, "effect give @e[tag=allblocks_raid_mob] minecraft:speed 999999 1 true");
+    }
+
+    private static void applyDaySpecificRaidEffects(MinecraftServer server, int raidDay) {
+        switch (raidDay) {
+            case 30 -> applyDay30Speed(server);
+            case 60 -> applyDay60Speed(server);
+            case 70 -> applyDay70Effects(server);
+            default -> {
+            }
+        }
     }
 
     private static void spawnRaidForPlayer(ServerPlayer player, int raidDay) {
         switch (raidDay) {
             case 10 -> spawnSameType(player, "minecraft:zombie", randomInt(5, 10));
             case 20 -> spawnDay20Raid(player);
-            case 30 -> spawnSameType(player, "minecraft:silverfish", randomInt(30, 40));
+            case 30 -> spawnDay30Raid(player);
             case 40 -> spawnSameType(player, "minecraft:witch", randomInt(7, 10));
             case 50 -> spawnDay50Raid(player);
             case 60 -> spawnDay60Raid(player);
@@ -179,6 +209,10 @@ public final class DayRaidManager {
                 spawnMob(player, "minecraft:cave_spider");
             }
         }
+    }
+
+    private static void spawnDay30Raid(ServerPlayer player) {
+        spawnDay30SameType(player, "minecraft:silverfish", randomInt(30, 40));
     }
 
     private static void spawnDay50Raid(ServerPlayer player) {
@@ -210,10 +244,6 @@ public final class DayRaidManager {
         spawnDay60SameType(player, "minecraft:zombie", zombieCount);
         spawnDay60SameType(player, "minecraft:skeleton", skeletonCount);
         spawnDay60SameType(player, "minecraft:creeper", creeperCount);
-
-        if (player.level() instanceof ServerLevel level) {
-            applyDay60Speed(level.getServer());
-        }
     }
 
     private static void spawnDay70Raid(ServerPlayer player) {
@@ -237,7 +267,6 @@ public final class DayRaidManager {
             MinecraftServer server = level.getServer();
 
             applyDay70Armor(server);
-            applyDay70Effects(server);
             applyDay70FollowRange(server);
             applyDay70Scale(server);
             applyDay70WaterMovement(server);
@@ -317,6 +346,7 @@ public final class DayRaidManager {
                         + " {PersistenceRequired:1b,Tags:[\"allblocks_raid_mob\",\"allblocks_day90_wither\"]}"
         );
 
+        rememberNearestDay90Wither(level, x, y, z);
         applyDay90WitherAttributes(server);
 
         player.sendSystemMessage(Component.literal(
@@ -325,13 +355,131 @@ public final class DayRaidManager {
     }
 
     private static void applyDay90WitherAttributes(MinecraftServer server) {
-        runCommand(server, "execute as @e[tag=allblocks_day90_wither] run attribute @s minecraft:generic.follow_range base set 120");
-        runCommand(server, "execute as @e[tag=allblocks_day90_wither] run attribute @s minecraft:follow_range base set 120");
+        runCommand(server, "execute as @e[tag=allblocks_day90_wither] run attribute @s minecraft:generic.follow_range base set 160");
+        runCommand(server, "execute as @e[tag=allblocks_day90_wither] run attribute @s minecraft:follow_range base set 160");
+    }
+
+    private static void rememberNearestDay90Wither(ServerLevel level, double x, double y, double z) {
+        AABB searchBox = new AABB(
+                x - 8.0D,
+                y - 8.0D,
+                z - 8.0D,
+                x + 8.0D,
+                y + 8.0D,
+                z + 8.0D
+        );
+
+        List<WitherBoss> withers = level.getEntitiesOfClass(
+                WitherBoss.class,
+                searchBox,
+                wither -> wither.isAlive()
+        );
+
+        WitherBoss nearestWither = null;
+        double nearestDistanceSqr = Double.MAX_VALUE;
+
+        for (WitherBoss wither : withers) {
+            double distanceSqr = wither.distanceToSqr(x, y, z);
+
+            if (distanceSqr < nearestDistanceSqr) {
+                nearestDistanceSqr = distanceSqr;
+                nearestWither = wither;
+            }
+        }
+
+        if (nearestWither != null) {
+            day90WitherIds.add(nearestWither.getUUID());
+        }
+    }
+
+    private static void tickDay90WitherPlayerPriority(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+
+        raidPursuitTickCounter++;
+
+        if (raidPursuitTickCounter < DAY90_WITHER_TARGET_INTERVAL_TICKS) {
+            return;
+        }
+
+        raidPursuitTickCounter = 0;
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!player.isAlive()) {
+                continue;
+            }
+
+            if (!(player.level() instanceof ServerLevel level)) {
+                continue;
+            }
+
+            AABB searchBox = player.getBoundingBox().inflate(DAY90_WITHER_PLAYER_PRIORITY_RANGE);
+
+            List<WitherBoss> withers = level.getEntitiesOfClass(
+                    WitherBoss.class,
+                    searchBox,
+                    wither -> wither.isAlive() && day90WitherIds.contains(wither.getUUID())
+            );
+
+            for (WitherBoss wither : withers) {
+                ServerPlayer targetPlayer = findNearestPlayerForWither(server, wither, DAY90_WITHER_PLAYER_PRIORITY_RANGE);
+
+                if (targetPlayer == null) {
+                    continue;
+                }
+
+                forceWitherTargetPlayer(wither, targetPlayer);
+            }
+        }
+    }
+
+    private static ServerPlayer findNearestPlayerForWither(MinecraftServer server, WitherBoss wither, double maxDistance) {
+        ServerPlayer nearestPlayer = null;
+        double nearestDistanceSqr = maxDistance * maxDistance;
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!player.isAlive()) {
+                continue;
+            }
+
+            if (player.level() != wither.level()) {
+                continue;
+            }
+
+            double distanceSqr = player.distanceToSqr(wither);
+
+            if (distanceSqr < nearestDistanceSqr) {
+                nearestDistanceSqr = distanceSqr;
+                nearestPlayer = player;
+            }
+        }
+
+        return nearestPlayer;
+    }
+
+    private static void forceWitherTargetPlayer(WitherBoss wither, ServerPlayer targetPlayer) {
+        wither.setTarget(targetPlayer);
+
+        int targetEntityId = targetPlayer.getId();
+
+        // 위더의 중앙 머리와 양쪽 머리 타겟을 모두 플레이어로 고정한다.
+        wither.setAlternativeTarget(0, targetEntityId);
+        wither.setAlternativeTarget(1, targetEntityId);
+        wither.setAlternativeTarget(2, targetEntityId);
+
+        wither.getLookControl().setLookAt(targetPlayer, 30.0F, 30.0F);
     }
 
     private static void spawnSameType(ServerPlayer targetPlayer, String entityId, int count) {
         for (int i = 0; i < count; i++) {
             spawnMob(targetPlayer, entityId);
+        }
+    }
+
+    private static void spawnDay30SameType(ServerPlayer targetPlayer, String entityId, int count) {
+        for (int i = 0; i < count; i++) {
+            spawnMob(targetPlayer, entityId, "allblocks_day30_mob");
         }
     }
 
@@ -428,6 +576,11 @@ public final class DayRaidManager {
 
     private static void applyDay60Speed(MinecraftServer server) {
         runCommand(server, "effect give @e[tag=allblocks_day60_mob] minecraft:speed 999999 3 true");
+    }
+
+    private static void applyDay30Speed(MinecraftServer server) {
+        // Speed III
+        runCommand(server, "effect give @e[tag=allblocks_day30_mob] minecraft:speed 999999 2 true");
     }
 
     private static void spawnMob(ServerPlayer targetPlayer, String entityId) {

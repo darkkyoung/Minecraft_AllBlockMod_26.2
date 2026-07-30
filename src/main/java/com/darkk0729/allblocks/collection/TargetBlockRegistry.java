@@ -80,8 +80,132 @@ public final class TargetBlockRegistry {
             "minecraft:chorus_plant"
     );
 
+    private static final Set<String> FILL_EVENT_EXCLUDED_BLOCK_IDS = Set.of(
+            // Support-required / unstable redstone or utility blocks
+            "minecraft:lever",
+            "minecraft:tripwire_hook",
+            "minecraft:tripwire",
+            "minecraft:ladder",
+            "minecraft:scaffolding",
+            "minecraft:repeater",
+            "minecraft:comparator",
+
+            // Common plants / vegetation
+            "minecraft:grass",
+            "minecraft:tall_grass",
+            "minecraft:fern",
+            "minecraft:large_fern",
+            "minecraft:dead_bush",
+
+            "minecraft:dandelion",
+            "minecraft:poppy",
+            "minecraft:blue_orchid",
+            "minecraft:allium",
+            "minecraft:azure_bluet",
+            "minecraft:red_tulip",
+            "minecraft:orange_tulip",
+            "minecraft:white_tulip",
+            "minecraft:pink_tulip",
+            "minecraft:oxeye_daisy",
+            "minecraft:cornflower",
+            "minecraft:lily_of_the_valley",
+            "minecraft:wither_rose",
+            "minecraft:torchflower",
+
+            "minecraft:sunflower",
+            "minecraft:lilac",
+            "minecraft:rose_bush",
+            "minecraft:peony",
+            "minecraft:pitcher_plant",
+
+            "minecraft:brown_mushroom",
+            "minecraft:red_mushroom",
+            "minecraft:crimson_fungus",
+            "minecraft:warped_fungus",
+            "minecraft:crimson_roots",
+            "minecraft:warped_roots",
+            "minecraft:nether_sprouts",
+
+            "minecraft:hanging_roots",
+            "minecraft:spore_blossom",
+            "minecraft:pink_petals",
+            "minecraft:wildflowers",
+            "minecraft:leaf_litter",
+            "minecraft:short_dry_grass",
+            "minecraft:tall_dry_grass",
+            "minecraft:bush",
+            "minecraft:firefly_bush",
+            "minecraft:cactus_flower",
+
+            // Crops / stems / vines
+            "minecraft:wheat",
+            "minecraft:carrots",
+            "minecraft:potatoes",
+            "minecraft:beetroots",
+            "minecraft:melon_stem",
+            "minecraft:pumpkin_stem",
+            "minecraft:attached_melon_stem",
+            "minecraft:attached_pumpkin_stem",
+            "minecraft:sweet_berry_bush",
+
+            "minecraft:cave_vines",
+            "minecraft:cave_vines_plant",
+            "minecraft:weeping_vines",
+            "minecraft:weeping_vines_plant",
+            "minecraft:twisting_vines",
+            "minecraft:twisting_vines_plant",
+            "minecraft:vine",
+            "minecraft:glow_lichen",
+
+            "minecraft:sugar_cane",
+            "minecraft:bamboo",
+            "minecraft:bamboo_sapling",
+            "minecraft:cactus",
+            "minecraft:cocoa",
+
+            "minecraft:seagrass",
+            "minecraft:tall_seagrass",
+            "minecraft:kelp",
+            "minecraft:kelp_plant",
+            "minecraft:sea_pickle",
+            "minecraft:lily_pad",
+
+            "minecraft:small_dripleaf",
+            "minecraft:big_dripleaf",
+            "minecraft:big_dripleaf_stem",
+            "minecraft:pointed_dripstone",
+
+            // Decoration blocks that depend on support / orientation
+            "minecraft:flower_pot",
+
+            // Extra unstable plant-like blocks
+            "minecraft:azalea",
+            "minecraft:flowering_azalea",
+            "minecraft:mangrove_propagule",
+
+            // Amethyst clusters / buds. Collectible, but bad for mass fill events.
+            "minecraft:small_amethyst_bud",
+            "minecraft:medium_amethyst_bud",
+            "minecraft:large_amethyst_bud",
+            "minecraft:amethyst_cluster",
+
+            // Thin / attachment-sensitive blocks
+            "minecraft:snow",
+            "minecraft:sculk_vein",
+            "minecraft:lantern",
+            "minecraft:soul_lantern",
+            "minecraft:bell",
+
+            // Extra crop / plant blocks
+            "minecraft:nether_wart",
+            "minecraft:torchflower_crop",
+            "minecraft:pitcher_crop",
+            "minecraft:chorus_flower"
+    );
+
     private static final List<String> TARGET_BLOCK_IDS = new ArrayList<>();
     private static final List<Block> TARGET_BLOCKS = new ArrayList<>();
+    private static final List<Block> FILL_EVENT_BLOCKS = new ArrayList<>();
 
     private static boolean initialized = false;
 
@@ -95,6 +219,7 @@ public final class TargetBlockRegistry {
 
         TARGET_BLOCK_IDS.clear();
         TARGET_BLOCKS.clear();
+        FILL_EVENT_BLOCKS.clear();
 
         for (Block block : BuiltInRegistries.BLOCK) {
             var blockId = BuiltInRegistries.BLOCK.getKey(block);
@@ -128,11 +253,83 @@ public final class TargetBlockRegistry {
 
             TARGET_BLOCK_IDS.add(id);
             TARGET_BLOCKS.add(block);
+
+            if (!isExcludedFromFillEvent(id)) {
+                FILL_EVENT_BLOCKS.add(block);
+            }
         }
 
         initialized = true;
 
-        AllBlocksMod.LOGGER.info("AllBlocks target blocks loaded: {}", TARGET_BLOCK_IDS.size());
+        AllBlocksMod.LOGGER.info(
+                "AllBlocks target blocks loaded: {}, fill event blocks loaded: {}",
+                TARGET_BLOCK_IDS.size(),
+                FILL_EVENT_BLOCKS.size()
+        );
+    }
+
+    private static boolean isExcludedFromFillEvent(String blockId) {
+        if (blockId == null) {
+            return true;
+        }
+
+        String path = blockId;
+
+        int namespaceIndex = blockId.indexOf(':');
+        if (namespaceIndex >= 0 && namespaceIndex + 1 < blockId.length()) {
+            path = blockId.substring(namespaceIndex + 1);
+        }
+
+        // 1. 버튼 / 압력판 / 횃불 / 레일류
+        if (path.endsWith("_button")
+                || path.endsWith("_pressure_plate")
+                || path.endsWith("_torch")
+                || path.endsWith("_rail")) {
+            return true;
+        }
+
+        // 2. 묘목 / 주아류
+        if (path.endsWith("_sapling")
+                || path.endsWith("_propagule")) {
+            return true;
+        }
+
+        // 3. 문 종류
+        // trapdoor는 oak_trapdoor처럼 끝이 "_door"가 아니라 "pdoor"라서 여기에는 안 걸림.
+        if (path.endsWith("_door")) {
+            return true;
+        }
+
+        // 4. 표지판 / 배너 / 카펫 / 양초류
+        if (path.endsWith("_sign")
+                || path.endsWith("_banner")
+                || path.endsWith("_carpet")
+                || path.endsWith("_candle")
+                || path.contains("candle_cake")) {
+            return true;
+        }
+
+        // 5. 머리 / 해골류
+        if (path.endsWith("_skull")
+                || path.endsWith("_wall_skull")
+                || path.endsWith("_head")
+                || path.endsWith("_wall_head")) {
+            return true;
+        }
+
+        // 6. 화분류
+        if (path.startsWith("potted_")) {
+            return true;
+        }
+
+        // 7. 산호 식물 / 산호 부채류
+        if (path.endsWith("_coral")
+                || path.endsWith("_coral_fan")
+                || path.endsWith("_coral_wall_fan")) {
+            return true;
+        }
+
+        return FILL_EVENT_EXCLUDED_BLOCK_IDS.contains(blockId);
     }
 
     public static boolean isTargetBlock(String blockId) {
@@ -158,5 +355,18 @@ public final class TargetBlockRegistry {
 
         int index = ThreadLocalRandom.current().nextInt(TARGET_BLOCKS.size());
         return TARGET_BLOCKS.get(index);
+    }
+
+    public static Block getRandomFillEventBlock() {
+        if (FILL_EVENT_BLOCKS.isEmpty()) {
+            return getRandomTargetBlock();
+        }
+
+        int index = ThreadLocalRandom.current().nextInt(FILL_EVENT_BLOCKS.size());
+        return FILL_EVENT_BLOCKS.get(index);
+    }
+
+    public static int getFillEventBlockCount() {
+        return FILL_EVENT_BLOCKS.size();
     }
 }

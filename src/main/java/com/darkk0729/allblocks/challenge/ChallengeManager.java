@@ -10,6 +10,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.darkk0729.allblocks.event.ChallengeEventManager;
 import com.darkk0729.allblocks.event.DayRaidManager;
+import com.darkk0729.allblocks.event.FinalDayManager;
+
 
 import java.util.Locale;
 
@@ -37,6 +39,10 @@ public final class ChallengeManager {
 
     public static long getElapsedTicks() {
         return state.getElapsedTicks();
+    }
+
+    public static long getWorldElapsedTicks() {
+        return state.getWorldElapsedTicks();
     }
 
     public static int getCurrentDay() {
@@ -99,6 +105,11 @@ public final class ChallengeManager {
 
     public static void load(MinecraftServer server) {
         state = AllBlocksSaveManager.load(server);
+
+        if (state.isRunning()) {
+            state.syncWorldTime(getCurrentWorldTime(server));
+        }
+
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
         bossBarCreated = false;
@@ -123,9 +134,12 @@ public final class ChallengeManager {
     }
 
     public static void startSolo(MinecraftServer server) {
-        state.start(ChallengeMode.SOLO);
+        runServerCommand(server, "time of minecraft:overworld set 0");
+
+        state.start(ChallengeMode.SOLO, getCurrentWorldTime(server));
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
+        FinalDayManager.reset();
 
         save(server);
         recreateProgressBossBar(server);
@@ -136,6 +150,7 @@ public final class ChallengeManager {
         state.stop();
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
+        FinalDayManager.reset();
 
         save(server);
         removeProgressBossBar(server);
@@ -146,25 +161,32 @@ public final class ChallengeManager {
             return;
         }
 
-        boolean shouldEnd = state.tick();
-
-        if (shouldEnd) {
-            state.stop();
-            save(server);
-            removeProgressBossBar(server);
-            broadcast(server, Component.literal("[AllBlocks] Day 101 reached. Challenge automatically stopped."));
-            return;
-        }
+        boolean shouldEnd = state.tick(getCurrentWorldTime(server));
 
         BlockCollectionTracker.tick(server);
         ChallengeEventManager.tick(server);
+        DayRaidManager.tick(server);
+        FinalDayManager.tick(server);
+
+        if (shouldEnd) {
+            FinalDayManager.completeChallenge(server);
+
+            state.stop();
+            ticksSinceLastSave = 0L;
+            ticksSinceLastBossBarUpdate = 0L;
+            FinalDayManager.reset();
+
+            save(server);
+            removeProgressBossBar(server);
+            return;
+        }
 
         ticksSinceLastBossBarUpdate++;
 
         if (ticksSinceLastBossBarUpdate >= BOSS_BAR_UPDATE_INTERVAL_TICKS) {
             ticksSinceLastBossBarUpdate = 0L;
 
-            if (!DayRaidManager.isRaidWarningActive()) {
+            if (!DayRaidManager.isRaidWarningActive() && !FinalDayManager.isFinalDayActive()) {
                 updateProgressBossBar(server);
             }
         }
@@ -223,6 +245,37 @@ public final class ChallengeManager {
         }
     }
 
+    public static void debugSetDay(MinecraftServer server, int day) {
+        if (server == null) {
+            return;
+        }
+
+        if (!state.isRunning()) {
+            broadcast(server, Component.literal("[AllBlocks] Challenge is not running."));
+            return;
+        }
+
+        int safeDay = Math.max(1, Math.min(101, day));
+        long targetWorldElapsedTicks = (safeDay - 1L) * ChallengeState.TICKS_PER_DAY;
+        long targetWorldTime = state.getStartWorldTime() + targetWorldElapsedTicks;
+
+        runServerCommand(server, "time of minecraft:overworld set " + targetWorldTime);
+
+        state.syncWorldTime(getCurrentWorldTime(server));
+
+        if (state.getCurrentDay() != 100) {
+            FinalDayManager.reset();
+        }
+
+        save(server);
+        updateProgressBossBar(server);
+
+        broadcast(server, Component.literal(
+                "[AllBlocks] Debug day set to Day " + state.getCurrentDay()
+                        + " | Timer " + state.getFormattedElapsedTime()
+        ));
+    }
+
     private static void recreateProgressBossBar(MinecraftServer server) {
         runServerCommand(server, "bossbar remove " + PROGRESS_BOSSBAR_ID);
 
@@ -239,6 +292,10 @@ public final class ChallengeManager {
     private static void updateProgressBossBar(MinecraftServer server) {
         if (!state.isRunning()) {
             removeProgressBossBar(server);
+            return;
+        }
+
+        if (FinalDayManager.isFinalDayActive()) {
             return;
         }
 
@@ -262,6 +319,14 @@ public final class ChallengeManager {
     private static void removeProgressBossBar(MinecraftServer server) {
         runServerCommand(server, "bossbar remove " + PROGRESS_BOSSBAR_ID);
         bossBarCreated = false;
+    }
+
+    private static long getCurrentWorldTime(MinecraftServer server) {
+        if (server == null || server.overworld() == null) {
+            return 0L;
+        }
+
+        return Math.max(0L, server.overworld().getOverworldClockTime());
     }
 
     private static String buildBossBarTitleText() {

@@ -55,29 +55,11 @@ public final class AllBlocksCommands {
                                                     })
                                             )
                                     )
-                                    .then(Commands.literal("progress")
-                                            .then(Commands.argument("percent", IntegerArgumentType.integer(10, 100))
-                                                    .executes((CommandContext<CommandSourceStack> context) -> {
-                                                        int percent = IntegerArgumentType.getInteger(context, "percent");
-
-                                                        if (percent % 10 != 0) {
-                                                            context.getSource().sendSuccess(
-                                                                    () -> Component.literal("[AllBlocks] Progress percent must be 10, 20, 30, ..., 100."),
-                                                                    false
-                                                            );
-                                                            return 0;
-                                                        }
-
-                                                        ChallengeEventManager.startDebugProgressEvent(
-                                                                context.getSource().getServer(),
-                                                                percent
-                                                        );
-
-                                                        context.getSource().sendSuccess(
-                                                                () -> Component.literal("[AllBlocks] Debug progress event requested: " + percent + "%"),
-                                                                false
-                                                        );
-
+                                    .then(Commands.literal("day")
+                                            .then(Commands.argument("day", IntegerArgumentType.integer(1, 101))
+                                                    .executes(context -> {
+                                                        int day = IntegerArgumentType.getInteger(context, "day");
+                                                        ChallengeManager.debugSetDay(context.getSource().getServer(), day);
                                                         return 1;
                                                     })
                                             )
