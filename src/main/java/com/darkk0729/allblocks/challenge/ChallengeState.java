@@ -15,6 +15,8 @@ public class ChallengeState {
 
     private boolean running;
     private ChallengeMode mode;
+    private boolean finished;
+    private ChallengeResult result;
 
     // 실제 플레이타임 타이머
     private long elapsedTicks;
@@ -30,6 +32,8 @@ public class ChallengeState {
 
     public ChallengeState() {
         this.running = false;
+        this.finished = false;
+        this.result = ChallengeResult.NONE;
         this.mode = ChallengeMode.SOLO;
         this.elapsedTicks = 0L;
         this.startWorldTime = 0L;
@@ -40,6 +44,14 @@ public class ChallengeState {
 
     public boolean isRunning() {
         return running;
+    }
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public ChallengeResult getResult() {
+        return result;
     }
 
     public ChallengeMode getMode() {
@@ -96,12 +108,14 @@ public class ChallengeState {
 
     public void start(ChallengeMode mode, long startWorldTime) {
         this.running = true;
+        this.finished = false;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
 
         this.elapsedTicks = 0L;
         this.startWorldTime = Math.max(0L, startWorldTime);
         this.worldElapsedTicks = 0L;
 
+        this.result = ChallengeResult.NONE;
         this.lastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
         this.collectedBlocks.clear();
@@ -109,19 +123,36 @@ public class ChallengeState {
 
     public void stop() {
         this.running = false;
+        this.finished = false;
+        this.result = ChallengeResult.NONE;
+    }
+
+    public void finish(ChallengeResult result) {
+        this.running = false;
+        this.finished = true;
+        this.result = result == null ? ChallengeResult.FAIL : result;
     }
 
     public void loadFrom(
             boolean running,
+            boolean finished,
             ChallengeMode mode,
             long elapsedTicks,
             long startWorldTime,
             long worldElapsedTicks,
+            ChallengeResult result,
             int lastProgressEventTier,
             int lastDayRaidEventDay,
             Map<String, CollectedBlockData> loadedCollectedBlocks
     ) {
-        this.running = running;
+        this.finished = finished;
+        this.result = result == null ? ChallengeResult.NONE : result;
+
+        if (this.result == ChallengeResult.NONE) {
+            this.finished = false;
+        }
+
+        this.running = running && !this.finished;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
 
         this.elapsedTicks = Math.max(0L, elapsedTicks);
@@ -280,6 +311,12 @@ public class ChallengeState {
         }
 
         return lossCount;
+    }
+
+    public enum ChallengeResult {
+        NONE,
+        CLEAR,
+        FAIL
     }
 
     public enum BlockCollectionState {

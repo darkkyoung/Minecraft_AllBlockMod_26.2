@@ -4,6 +4,7 @@ import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.collection.TargetBlockRegistry;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
+import com.darkk0729.allblocks.challenge.ChallengeState;
 
 public final class FinalDayManager {
     private static final int FINAL_DAY = 100;
@@ -63,29 +64,28 @@ public final class FinalDayManager {
         }
     }
 
-    public static void completeChallenge(MinecraftServer server) {
+    public static void showResult(MinecraftServer server, ChallengeState.ChallengeResult result) {
         if (server == null) {
             return;
         }
 
         int collected = ChallengeManager.getCollectedCount();
         int total = TargetBlockRegistry.getTargetBlocks().size();
-        boolean completedAllBlocks = total > 0 && collected >= total;
 
-        if (completedAllBlocks) {
+        if (result == ChallengeState.ChallengeResult.CLEAR) {
             runCommand(server, "title @a times 10 70 20");
             runCommand(server, "title @a title " + jsonText("CLEAR", "green"));
             runCommand(server, "title @a subtitle " + jsonText("모든 블록 수집 완료 | 수집 " + collected + " / " + total, "yellow"));
             runCommand(server, "playsound minecraft:entity.player.levelup master @a ~ ~ ~ 1 1");
 
-            runCommand(server, "tellraw @a " + jsonText("[AllBlocks] 챌린지 클리어! 모든 블록을 수집했습니다. 최종 수집: " + collected + " / " + total, "green"));
+            runCommand(server, "tellraw @a " + jsonText("[Block Race] 챌린지 클리어! 모든 블록을 수집했습니다. 최종 기록: " + collected + " / " + total, "green"));
         } else {
             runCommand(server, "title @a times 10 80 20");
             runCommand(server, "title @a title " + jsonText("FAIL", "red"));
-            runCommand(server, "title @a subtitle " + jsonText("모든 블록을 수집하지 못했습니다\n" + "수집 " + collected + " / " + total, "gray"));
+            runCommand(server, "title @a subtitle " + jsonText("모든 블록을 수집하지 못했습니다 | 수집 " + collected + " / " + total, "gray"));
             runCommand(server, "playsound minecraft:entity.wither.death master @a ~ ~ ~ 1 0.8");
 
-            runCommand(server, "tellraw @a " + jsonText("[AllBlocks] 챌린지 실패. 100일이 끝났지만 모든 블록을 수집하지 못했습니다. 최종 수집: " + collected + " / " + total, "red"));
+            runCommand(server, "tellraw @a " + jsonText("[Block Race] 챌린지 실패. 모든 블록을 수집하지 못했습니다. 최종 기록: " + collected + " / " + total, "red"));
         }
 
         reset();

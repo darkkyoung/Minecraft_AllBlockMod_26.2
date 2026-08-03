@@ -51,10 +51,12 @@ public final class AllBlocksSaveManager {
             ChallengeState state = new ChallengeState();
             state.loadFrom(
                     data.running,
+                    data.finished,
                     parseMode(data.mode),
                     savedElapsedTicks,
                     startWorldTime,
                     savedWorldElapsedTicks,
+                    parseResult(data.result),
                     Math.max(0, data.lastProgressEventTier),
                     Math.max(0, data.lastDayRaidEventDay),
                     data.collectedBlocks == null ? new HashMap<>() : data.collectedBlocks
@@ -80,6 +82,8 @@ public final class AllBlocksSaveManager {
 
             SaveData data = new SaveData();
             data.running = state.isRunning();
+            data.finished = state.isFinished();
+            data.result = state.getResult().name();
             data.mode = state.getMode().name();
             data.startWorldTime = state.getStartWorldTime();
             data.elapsedTicks = state.getElapsedTicks();
@@ -123,12 +127,28 @@ public final class AllBlocksSaveManager {
         }
     }
 
+    private static ChallengeState.ChallengeResult parseResult(String resultName) {
+        if (resultName == null || resultName.isBlank()) {
+            return ChallengeState.ChallengeResult.NONE;
+        }
+
+        try {
+            return ChallengeState.ChallengeResult.valueOf(resultName);
+        } catch (IllegalArgumentException e) {
+            return ChallengeState.ChallengeResult.NONE;
+        }
+    }
+
     private static final class SaveData {
         boolean running;
+        boolean finished;
+        String result;
         String mode;
+
         long elapsedTicks;
         Long startWorldTime;
         Long worldElapsedTicks;
+
         int currentDay;
         String formattedTime;
         int lastProgressEventTier;

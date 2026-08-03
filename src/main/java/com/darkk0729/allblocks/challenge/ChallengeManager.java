@@ -11,6 +11,8 @@ import net.minecraft.server.level.ServerPlayer;
 import com.darkk0729.allblocks.event.ChallengeEventManager;
 import com.darkk0729.allblocks.event.DayRaidManager;
 import com.darkk0729.allblocks.event.FinalDayManager;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.block.Block;
 
 
 import java.util.Locale;
@@ -31,6 +33,18 @@ public final class ChallengeManager {
 
     public static boolean isRunning() {
         return state.isRunning();
+    }
+
+    public static boolean isFinished() {
+        return state.isFinished();
+    }
+
+    public static ChallengeState.ChallengeResult getResult() {
+        return state.getResult();
+    }
+
+    public static boolean shouldShowHud() {
+        return state.isRunning() || state.isFinished();
     }
 
     public static ChallengeMode getMode() {
@@ -92,7 +106,7 @@ public final class ChallengeManager {
     }
 
     public static void refreshProgressBossBar(MinecraftServer server) {
-        if (server == null || !state.isRunning()) {
+        if (server == null || !shouldShowHud()) {
             return;
         }
 
@@ -169,15 +183,9 @@ public final class ChallengeManager {
         FinalDayManager.tick(server);
 
         if (shouldEnd) {
-            FinalDayManager.completeChallenge(server);
-
-            state.stop();
-            ticksSinceLastSave = 0L;
-            ticksSinceLastBossBarUpdate = 0L;
-            FinalDayManager.reset();
-
-            save(server);
-            removeProgressBossBar(server);
+            finishChallenge(server, getCollectedCount() >= getTotalTargetCount()
+                    ? ChallengeState.ChallengeResult.CLEAR
+                    : ChallengeState.ChallengeResult.FAIL);
             return;
         }
 
@@ -206,11 +214,82 @@ public final class ChallengeManager {
         );
 
         if (collected) {
+            if (getCollectedCount() >= getTotalTargetCount()) {
+                finishChallenge(server, ChallengeState.ChallengeResult.CLEAR);
+            } else {
+                save(server);
+                updateProgressBossBar(server);
+            }
+        }
+
+        return collected;
+    }
+
+    public static void debugCollectBlocks(MinecraftServer server, ServerPlayer player, int count) {
+        if (server == null || player == null) {
+            return;
+        }
+
+        if (!state.isRunning()) {
+            player.sendSystemMessage(Component.literal("[Block Race Debug] 챌린지가 시작되지 않았습니다."));
+            return;
+        }
+
+        int safeCount = Math.max(1, count);
+        int collectedNow = 0;
+
+        for (Block block : TargetBlockRegistry.getTargetBlocks()) {
+            String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
+
+            boolean collected = state.collectBlock(
+                    blockId,
+                    player.getUUID(),
+                    player.getName().getString()
+            );
+
+            if (!collected) {
+                continue;
+            }
+
+            collectedNow++;
+
+            if (collectedNow >= safeCount) {
+                break;
+            }
+        }
+
+        if (getCollectedCount() >= getTotalTargetCount()) {
+            finishChallenge(server, ChallengeState.ChallengeResult.CLEAR);
+        } else {
             save(server);
             updateProgressBossBar(server);
         }
 
-        return collected;
+        player.sendSystemMessage(Component.literal(
+                "[Block Race Debug] 도감 블록 " + collectedNow + "개를 획득 처리했습니다. 현재 "
+                        + getCollectedCount() + "/" + getTotalTargetCount()
+                        + " (" + String.format(Locale.ROOT, "%.1f", getProgressPercent()) + "%)"
+        ));
+    }
+
+    private static void finishChallenge(MinecraftServer server, ChallengeState.ChallengeResult result) {
+        if (server == null) {
+            return;
+        }
+
+        if (!state.isRunning()) {
+            return;
+        }
+
+        state.finish(result);
+        ticksSinceLastSave = 0L;
+        ticksSinceLastBossBarUpdate = 0L;
+        FinalDayManager.reset();
+
+        save(server);
+        updateProgressBossBar(server);
+
+        FinalDayManager.showResult(server, result);
     }
 
     public static void handlePlayerDeath(MinecraftServer server, ServerPlayer player, boolean pvpDeath) {
@@ -290,7 +369,7 @@ public final class ChallengeManager {
     }
 
     private static void updateProgressBossBar(MinecraftServer server) {
-        if (!state.isRunning()) {
+        if (!shouldShowHud()) {
             removeProgressBossBar(server);
             return;
         }

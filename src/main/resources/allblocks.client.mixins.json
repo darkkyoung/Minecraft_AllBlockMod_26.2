@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.darkk0729.allblocks.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "BossHealthOverlayMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

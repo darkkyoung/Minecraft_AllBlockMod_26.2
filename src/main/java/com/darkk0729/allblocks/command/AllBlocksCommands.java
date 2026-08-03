@@ -10,6 +10,7 @@ import com.darkk0729.allblocks.event.DayRaidManager;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.darkk0729.allblocks.event.ChallengeEventManager;
 import com.mojang.brigadier.context.CommandContext;
+import net.minecraft.server.level.ServerPlayer;
 
 public final class AllBlocksCommands {
     private AllBlocksCommands() {
@@ -64,6 +65,22 @@ public final class AllBlocksCommands {
                                                     })
                                             )
                                     )
+                                    .then(Commands.literal("collect")
+                                            .then(Commands.argument("count", IntegerArgumentType.integer(1, 2000))
+                                                    .executes(context -> {
+                                                        ServerPlayer player = context.getSource().getPlayerOrException();
+                                                        int count = IntegerArgumentType.getInteger(context, "count");
+
+                                                        ChallengeManager.debugCollectBlocks(
+                                                                context.getSource().getServer(),
+                                                                player,
+                                                                count
+                                                        );
+
+                                                        return 1;
+                                                    })
+                                            )
+                                    )
                             )
                     );
         });
@@ -87,8 +104,8 @@ public final class AllBlocksCommands {
     }
 
     private static int stop(CommandSourceStack source) {
-        if (!ChallengeManager.isRunning()) {
-            source.sendFailure(Component.literal("[AllBlocks] No challenge is currently running."));
+        if (!ChallengeManager.shouldShowHud()) {
+            source.sendFailure(Component.literal("[Block Race] 종료할 챌린지가 없습니다."));
             return 0;
         }
 
@@ -103,7 +120,7 @@ public final class AllBlocksCommands {
 
         source.sendSuccess(
                 () -> Component.literal(String.format(
-                        "[AllBlocks] Challenge stopped. Final Day: %d / Time: %s / Progress: %d/%d (%.2f%%)",
+                        "[Block Race] 챌린지를 종료했습니다. 최종 Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
                         finalDay,
                         finalTime,
                         collected,
@@ -120,7 +137,7 @@ public final class AllBlocksCommands {
         if (ChallengeManager.isRunning()) {
             source.sendSuccess(
                     () -> Component.literal(String.format(
-                            "[AllBlocks] Status: Running / Mode: %s / Day: %d / Time: %s / Progress: %d/%d (%.2f%%)",
+                            "[Block Race] 상태: 진행 중 / 모드: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
                             ChallengeManager.getMode().getDisplayName(),
                             ChallengeManager.getCurrentDay(),
                             ChallengeManager.getFormattedElapsedTime(),
@@ -130,17 +147,36 @@ public final class AllBlocksCommands {
                     )),
                     false
             );
-        } else {
+
+            return 1;
+        }
+
+        if (ChallengeManager.isFinished()) {
             source.sendSuccess(
                     () -> Component.literal(String.format(
-                            "[AllBlocks] Status: Not running. Last Progress: %d/%d (%.2f%%)",
+                            "[Block Race] 상태: 결과 확정 / 결과: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
+                            ChallengeManager.getResult(),
+                            ChallengeManager.getCurrentDay(),
+                            ChallengeManager.getFormattedElapsedTime(),
                             ChallengeManager.getCollectedCount(),
                             ChallengeManager.getTotalTargetCount(),
                             ChallengeManager.getProgressPercent()
                     )),
                     false
             );
+
+            return 1;
         }
+
+        source.sendSuccess(
+                () -> Component.literal(String.format(
+                        "[Block Race] 상태: 대기 중 / 마지막 도감: %d/%d (%.2f%%)",
+                        ChallengeManager.getCollectedCount(),
+                        ChallengeManager.getTotalTargetCount(),
+                        ChallengeManager.getProgressPercent()
+                )),
+                false
+        );
 
         return 1;
     }

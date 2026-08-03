@@ -6,12 +6,15 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
+// import com.darkk0729.allblocks.client.hud.BlockRaceHud;
 
 public final class AllBlocksClient implements ClientModInitializer {
     private static KeyMapping openCodexKey;
 
     @Override
     public void onInitializeClient() {
+        // BlockRaceHud.register();
+
         openCodexKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.allblocks.open_codex",
                 InputConstants.Type.KEYSYM,
