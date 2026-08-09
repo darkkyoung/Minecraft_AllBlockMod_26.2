@@ -14,6 +14,16 @@ import com.darkk0729.allblocks.event.FinalDayManager;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
 
+/*
+import com.darkk0729.allblocks.network.AllBlocksSyncPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.level.ServerPlayer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+ */
+
 
 import java.util.Locale;
 
@@ -143,6 +153,61 @@ public final class ChallengeManager {
         }
     }
 
+    /*
+    public static void syncToAllPlayers(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+
+        AllBlocksSyncPayload payload = createSyncPayload();
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            ServerPlayNetworking.send(player, payload);
+        }
+    }
+
+    public static void syncToPlayer(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+
+        ServerPlayNetworking.send(player, createSyncPayload());
+    }
+
+    private static AllBlocksSyncPayload createSyncPayload() {
+        List<AllBlocksSyncPayload.BlockEntry> entries = new ArrayList<>();
+
+        for (Map.Entry<String, ChallengeState.CollectedBlockData> entry : state.getCollectedBlocks().entrySet()) {
+            String blockId = entry.getKey();
+            ChallengeState.CollectedBlockData data = entry.getValue();
+
+            if (blockId == null || data == null) {
+                continue;
+            }
+
+            entries.add(new AllBlocksSyncPayload.BlockEntry(
+                    blockId,
+                    data.ownerUuid == null ? "" : data.ownerUuid,
+                    data.ownerName == null ? "" : data.ownerName,
+                    data.state == null ? "UNCLAIMED" : data.state.name()
+            ));
+        }
+
+        return new AllBlocksSyncPayload(
+                state.isRunning(),
+                state.isFinished(),
+                state.getResult().name(),
+                state.getMode().name(),
+                state.getElapsedTicks(),
+                state.getCurrentDay(),
+                state.getCollectedCount(),
+                getTotalTargetCount(),
+                entries
+        );
+    }
+     */
+
+
     public static void save(MinecraftServer server) {
         AllBlocksSaveManager.save(server, state);
     }
@@ -158,6 +223,7 @@ public final class ChallengeManager {
         save(server);
         recreateProgressBossBar(server);
         updateProgressBossBar(server);
+        // syncToAllPlayers(server);
     }
 
     public static void stop(MinecraftServer server) {
@@ -168,6 +234,7 @@ public final class ChallengeManager {
 
         save(server);
         removeProgressBossBar(server);
+        // syncToAllPlayers(server);
     }
 
     public static void tick(MinecraftServer server) {
@@ -219,6 +286,7 @@ public final class ChallengeManager {
             } else {
                 save(server);
                 updateProgressBossBar(server);
+                // syncToAllPlayers(server);
             }
         }
 
@@ -288,6 +356,7 @@ public final class ChallengeManager {
 
         save(server);
         updateProgressBossBar(server);
+        // syncToAllPlayers(server);
 
         FinalDayManager.showResult(server, result);
     }
@@ -358,7 +427,7 @@ public final class ChallengeManager {
     private static void recreateProgressBossBar(MinecraftServer server) {
         runServerCommand(server, "bossbar remove " + PROGRESS_BOSSBAR_ID);
 
-        String titleJson = toTextJson(buildBossBarTitleText());
+        String titleJson = buildBossBarTitleJson();
 
         runServerCommand(server, "bossbar add " + PROGRESS_BOSSBAR_ID + " " + titleJson);
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " color green");
@@ -389,7 +458,7 @@ public final class ChallengeManager {
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " style progress");
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " visible true");
 
-        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " name " + toTextJson(buildBossBarTitleText()));
+        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " name " + buildBossBarTitleJson());
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " max " + total);
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " value " + Math.min(collected, total));
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " players @a");
@@ -408,20 +477,28 @@ public final class ChallengeManager {
         return Math.max(0L, server.overworld().getOverworldClockTime());
     }
 
-    private static String buildBossBarTitleText() {
-        return String.format(
+    private static String buildBossBarTitleJson() {
+        String mainText = String.format(
                 Locale.ROOT,
-                "All Blocks: %d/%d (%.2f%%) | Day %d | %s",
+                "도감 진행률 | %d / %d ",
                 getCollectedCount(),
-                getTotalTargetCount(),
-                getProgressPercent(),
-                getCurrentDay(),
-                getFormattedElapsedTime()
+                getTotalTargetCount()
         );
-    }
 
-    private static String toTextJson(String text) {
-        return "{\"text\":\"" + escapeJson(text) + "\"}";
+        String percentText = String.format(
+                Locale.ROOT,
+                "(%.2f%%)",
+                getProgressPercent()
+        );
+
+        return "{"
+                + "\"text\":\"" + escapeJson(mainText) + "\","
+                + "\"color\":\"white\","
+                + "\"extra\":[{"
+                + "\"text\":\"" + escapeJson(percentText) + "\","
+                + "\"color\":\"gold\""
+                + "}]"
+                + "}";
     }
 
     private static String escapeJson(String text) {

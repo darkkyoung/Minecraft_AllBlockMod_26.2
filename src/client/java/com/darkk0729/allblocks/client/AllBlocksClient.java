@@ -1,19 +1,19 @@
 package com.darkk0729.allblocks.client;
 
+import com.darkk0729.allblocks.client.hud.ChallengeInfoHud;
 import com.darkk0729.allblocks.client.screen.BlockCodexScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
-// import com.darkk0729.allblocks.client.hud.BlockRaceHud;
 
 public final class AllBlocksClient implements ClientModInitializer {
     private static KeyMapping openCodexKey;
 
     @Override
     public void onInitializeClient() {
-        // BlockRaceHud.register();
+        ChallengeInfoHud.register();
 
         openCodexKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.allblocks.open_codex",

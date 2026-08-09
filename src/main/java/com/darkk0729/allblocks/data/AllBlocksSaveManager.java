@@ -87,7 +87,6 @@ public final class AllBlocksSaveManager {
             data.mode = state.getMode().name();
             data.startWorldTime = state.getStartWorldTime();
             data.elapsedTicks = state.getElapsedTicks();
-            data.startWorldTime = state.getStartWorldTime();
             data.worldElapsedTicks = state.getWorldElapsedTicks();
             data.currentDay = state.getCurrentDay();
             data.formattedTime = state.getFormattedElapsedTime();
