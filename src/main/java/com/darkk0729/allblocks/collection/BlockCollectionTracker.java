@@ -2,7 +2,6 @@ package com.darkk0729.allblocks.collection;
 
 import com.darkk0729.allblocks.challenge.ChallengeManager;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -65,9 +64,6 @@ public final class BlockCollectionTracker {
             boolean newlyCollected = ChallengeManager.collectBlock(server, player, id);
 
             if (newlyCollected) {
-                player.sendSystemMessage(Component.literal(
-                        "[AllBlocks] New block collected: " + id
-                ));
             }
         }
     }

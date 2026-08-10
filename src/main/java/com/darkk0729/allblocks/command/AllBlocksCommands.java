@@ -1,15 +1,15 @@
 package com.darkk0729.allblocks.command;
 
+import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeManager;
+import com.darkk0729.allblocks.event.DayRaidManager;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import com.darkk0729.allblocks.event.DayRaidManager;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.darkk0729.allblocks.event.ChallengeEventManager;
-import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class AllBlocksCommands {
@@ -20,8 +20,70 @@ public final class AllBlocksCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(
                     Commands.literal("allblocks")
+                            .then(Commands.literal("menu")
+                                    .executes(context -> {
+                                        ChallengeMenuMessages.showWelcome(context.getSource());
+                                        return 1;
+                                    })
+                                    .then(Commands.literal("modes")
+                                            .executes(context -> {
+                                                ChallengeMenuMessages.showModeMenu(context.getSource());
+                                                return 1;
+                                            })
+                                    )
+                                    .then(Commands.literal("single")
+                                            .executes(context -> {
+                                                ChallengeMenuMessages.showSingleDifficultyMenu(context.getSource());
+                                                return 1;
+                                            })
+                                    )
+                                    .then(Commands.literal("coop")
+                                            .executes(context -> {
+                                                ChallengeMenuMessages.showCoopDifficultyMenu(context.getSource());
+                                                return 1;
+                                            })
+                                    )
+                                    .then(Commands.literal("race")
+                                            .executes(context -> {
+                                                ChallengeMenuMessages.showRaceDifficultyMenu(context.getSource());
+                                                return 1;
+                                            })
+                                    )
+                                    .then(Commands.literal("comingsoon")
+                                            .then(Commands.literal("coop")
+                                                    .executes(context -> {
+                                                        ChallengeMenuMessages.showCoopComingSoon(context.getSource());
+                                                        return 1;
+                                                    })
+                                            )
+                                            .then(Commands.literal("race")
+                                                    .executes(context -> {
+                                                        ChallengeMenuMessages.showRaceComingSoon(context.getSource());
+                                                        return 1;
+                                                    })
+                                            )
+                                    )
+                            )
                             .then(Commands.literal("start")
-                                    .executes(context -> start(context.getSource())))
+                                    .executes(context -> showStartUsage(context.getSource()))
+                                    .then(Commands.literal("single")
+                                            .then(Commands.literal("easy")
+                                                    .executes(context -> startSingle(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.EASY
+                                                    )))
+                                            .then(Commands.literal("normal")
+                                                    .executes(context -> startSingle(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.NORMAL
+                                                    )))
+                                            .then(Commands.literal("hard")
+                                                    .executes(context -> startSingle(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.HARD
+                                                    )))
+                                    )
+                            )
                             .then(Commands.literal("stop")
                                     .executes(context -> stop(context.getSource())))
                             .then(Commands.literal("status")
@@ -82,21 +144,30 @@ public final class AllBlocksCommands {
                                             )
                                     )
                             )
-                    );
+            );
         });
     }
 
-    private static int start(CommandSourceStack source) {
+    private static int showStartUsage(CommandSourceStack source) {
+        ChallengeMenuMessages.showSingleDifficultyMenu(source);
+        return 1;
+    }
+
+    private static int startSingle(CommandSourceStack source, ChallengeDifficulty difficulty) {
         if (ChallengeManager.isRunning()) {
-            source.sendFailure(Component.literal("[AllBlocks] Challenge is already running."));
+            source.sendFailure(Component.literal("[올블록 챌린지] 이미 챌린지가 진행 중입니다."));
             return 0;
         }
 
         MinecraftServer server = source.getServer();
-        ChallengeManager.startSolo(server);
+        ChallengeManager.startSingle(server, difficulty);
 
         source.sendSuccess(
-                () -> Component.literal("[AllBlocks] All Blocks Challenge started. Mode: Solo"),
+                () -> Component.literal(
+                        "[올블록 챌린지] 싱글 "
+                                + difficulty.getDisplayName()
+                                + " 난이도로 챌린지를 시작했습니다."
+                ),
                 false
         );
 
@@ -105,7 +176,7 @@ public final class AllBlocksCommands {
 
     private static int stop(CommandSourceStack source) {
         if (!ChallengeManager.shouldShowHud()) {
-            source.sendFailure(Component.literal("[Block Race] 종료할 챌린지가 없습니다."));
+            source.sendFailure(Component.literal("[올블록 챌린지] 종료할 챌린지가 없습니다."));
             return 0;
         }
 
@@ -120,7 +191,7 @@ public final class AllBlocksCommands {
 
         source.sendSuccess(
                 () -> Component.literal(String.format(
-                        "[Block Race] 챌린지를 종료했습니다. 최종 Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
+                        "[올블록 챌린지] 챌린지를 종료했습니다. 최종 Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
                         finalDay,
                         finalTime,
                         collected,
@@ -137,8 +208,9 @@ public final class AllBlocksCommands {
         if (ChallengeManager.isRunning()) {
             source.sendSuccess(
                     () -> Component.literal(String.format(
-                            "[Block Race] 상태: 진행 중 / 모드: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
+                            "[올블록 챌린지] 상태: 진행 중 / 모드: %s / 난이도: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
                             ChallengeManager.getMode().getDisplayName(),
+                            ChallengeManager.getDifficulty().getDisplayName(),
                             ChallengeManager.getCurrentDay(),
                             ChallengeManager.getFormattedElapsedTime(),
                             ChallengeManager.getCollectedCount(),
@@ -154,8 +226,9 @@ public final class AllBlocksCommands {
         if (ChallengeManager.isFinished()) {
             source.sendSuccess(
                     () -> Component.literal(String.format(
-                            "[Block Race] 상태: 결과 확정 / 결과: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
+                            "[올블록 챌린지] 상태: 결과 확정 / 결과: %s / 난이도: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
                             ChallengeManager.getResult(),
+                            ChallengeManager.getDifficulty().getDisplayName(),
                             ChallengeManager.getCurrentDay(),
                             ChallengeManager.getFormattedElapsedTime(),
                             ChallengeManager.getCollectedCount(),
@@ -170,7 +243,7 @@ public final class AllBlocksCommands {
 
         source.sendSuccess(
                 () -> Component.literal(String.format(
-                        "[Block Race] 상태: 대기 중 / 마지막 도감: %d/%d (%.2f%%)",
+                        "[올블록 챌린지] 상태: 대기 중 / 마지막 도감: %d/%d (%.2f%%)",
                         ChallengeManager.getCollectedCount(),
                         ChallengeManager.getTotalTargetCount(),
                         ChallengeManager.getProgressPercent()
@@ -184,7 +257,7 @@ public final class AllBlocksCommands {
     private static int progress(CommandSourceStack source) {
         source.sendSuccess(
                 () -> Component.literal(String.format(
-                        "[AllBlocks] Progress: %d/%d (%.2f%%)",
+                        "[올블록 챌린지] 도감 진행률: %d/%d (%.2f%%)",
                         ChallengeManager.getCollectedCount(),
                         ChallengeManager.getTotalTargetCount(),
                         ChallengeManager.getProgressPercent()

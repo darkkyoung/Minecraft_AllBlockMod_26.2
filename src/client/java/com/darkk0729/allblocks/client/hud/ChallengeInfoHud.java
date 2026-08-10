@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
+import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 
 public final class ChallengeInfoHud {
     private static final Identifier HUD_ID =
@@ -16,6 +17,10 @@ public final class ChallengeInfoHud {
     private static final int COLOR_DAY = 0xFFFFD85A;
     private static final int COLOR_TEXT = 0xFFFFFFFF;
     private static final int COLOR_TEXT_DIM = 0xFFBDBDBD;
+
+    private static final int COLOR_DIFFICULTY_EASY = 0xFF55FF55;
+    private static final int COLOR_DIFFICULTY_NORMAL = 0xFFFFFF55;
+    private static final int COLOR_DIFFICULTY_HARD = 0xFFFF5555;
 
     private ChallengeInfoHud() {
     }
@@ -48,16 +53,32 @@ public final class ChallengeInfoHud {
         String dayText = ChallengeManager.getCurrentDay() + "일차";
         String timerText = "타이머 : " + ChallengeManager.getFormattedElapsedTime();
         String xyzText = "좌표 : " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
-        String biomeText = "생물 균계 : " + getBiomeName(client, pos);
+        String biomeText = "생물 군계 : " + getBiomeName(client, pos);
+        String difficultyText = "난이도 : " + ChallengeManager.getDifficulty().getDisplayName();
 
         int x = 8;
         int y = 8;
 
         drawScaledText(graphics, client, dayText, x, y, COLOR_DAY, true, 2.0F);
 
-        graphics.text(client.font, timerText, x, y + 25, COLOR_TEXT, true);
-        graphics.text(client.font, xyzText, x, y + 39, COLOR_TEXT, true);
-        graphics.text(client.font, biomeText, x, y + 53, COLOR_TEXT, true);
+        graphics.text(client.font, timerText, x, y + 27, COLOR_TEXT, true);
+        graphics.text(client.font, xyzText, x, y + 41, COLOR_TEXT_DIM, true);
+        graphics.text(client.font, biomeText, x, y + 55, COLOR_TEXT_DIM, true);
+        graphics.text(client.font, difficultyText, x, y + 69, getDifficultyColor(), true);
+    }
+
+    private static int getDifficultyColor() {
+        ChallengeDifficulty difficulty = ChallengeManager.getDifficulty();
+
+        if (difficulty == null) {
+            return COLOR_DIFFICULTY_HARD;
+        }
+
+        return switch (difficulty) {
+            case EASY -> COLOR_DIFFICULTY_EASY;
+            case NORMAL -> COLOR_DIFFICULTY_NORMAL;
+            case HARD -> COLOR_DIFFICULTY_HARD;
+        };
     }
 
     private static String getBiomeName(Minecraft client, BlockPos pos) {

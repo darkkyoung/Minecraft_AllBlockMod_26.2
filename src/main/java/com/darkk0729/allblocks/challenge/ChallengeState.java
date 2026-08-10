@@ -15,6 +15,7 @@ public class ChallengeState {
 
     private boolean running;
     private ChallengeMode mode;
+    private ChallengeDifficulty difficulty;
     private boolean finished;
     private ChallengeResult result;
 
@@ -24,6 +25,7 @@ public class ChallengeState {
     // 인게임 월드 Day 계산용
     private long startWorldTime;
     private long worldElapsedTicks;
+    private long lastWorldClockTime;
 
     private int lastProgressEventTier;
     private int lastDayRaidEventDay;
@@ -35,9 +37,11 @@ public class ChallengeState {
         this.finished = false;
         this.result = ChallengeResult.NONE;
         this.mode = ChallengeMode.SOLO;
+        this.difficulty = ChallengeDifficulty.HARD;
         this.elapsedTicks = 0L;
         this.startWorldTime = 0L;
         this.worldElapsedTicks = 0L;
+        this.lastWorldClockTime = 0L;
         this.lastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
     }
@@ -56,6 +60,14 @@ public class ChallengeState {
 
     public ChallengeMode getMode() {
         return mode;
+    }
+
+    public ChallengeDifficulty getDifficulty() {
+        return difficulty;
+    }
+
+    public ChallengeRules getRules() {
+        return ChallengeRules.from(difficulty);
     }
 
     public long getElapsedTicks() {
@@ -103,17 +115,26 @@ public class ChallengeState {
     }
 
     public void start(ChallengeMode mode) {
-        start(mode, 0L);
+        start(mode, ChallengeDifficulty.HARD, 0L);
     }
 
     public void start(ChallengeMode mode, long startWorldTime) {
+        start(mode, ChallengeDifficulty.HARD, startWorldTime);
+    }
+
+    public void start(ChallengeMode mode, ChallengeDifficulty difficulty, long startWorldTime) {
         this.running = true;
         this.finished = false;
+
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
+        this.difficulty = difficulty == null ? ChallengeDifficulty.HARD : difficulty;
+
+        long safeStartWorldTime = Math.max(0L, startWorldTime);
 
         this.elapsedTicks = 0L;
-        this.startWorldTime = Math.max(0L, startWorldTime);
+        this.startWorldTime = safeStartWorldTime;
         this.worldElapsedTicks = 0L;
+        this.lastWorldClockTime = safeStartWorldTime;
 
         this.result = ChallengeResult.NONE;
         this.lastProgressEventTier = 0;
@@ -137,6 +158,7 @@ public class ChallengeState {
             boolean running,
             boolean finished,
             ChallengeMode mode,
+            ChallengeDifficulty difficulty,
             long elapsedTicks,
             long startWorldTime,
             long worldElapsedTicks,
@@ -154,6 +176,7 @@ public class ChallengeState {
 
         this.running = running && !this.finished;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
+        this.difficulty = difficulty == null ? ChallengeDifficulty.HARD : difficulty;
 
         this.elapsedTicks = Math.max(0L, elapsedTicks);
         this.startWorldTime = Math.max(0L, startWorldTime);
@@ -169,12 +192,38 @@ public class ChallengeState {
         }
     }
 
+    public void setWorldElapsedTicks(long worldElapsedTicks) {
+        this.worldElapsedTicks = Math.max(0L, worldElapsedTicks);
+    }
+
+    public void resetWorldClockTracker(long currentWorldTime) {
+        this.lastWorldClockTime = Math.max(0L, currentWorldTime);
+    }
+
     public void syncWorldTime(long currentWorldTime) {
         if (!running) {
             return;
         }
 
-        this.worldElapsedTicks = Math.max(0L, currentWorldTime - startWorldTime);
+        long safeCurrentWorldTime = Math.max(0L, currentWorldTime);
+        long safeLastWorldClockTime = Math.max(0L, lastWorldClockTime);
+
+        long delta = safeCurrentWorldTime - safeLastWorldClockTime;
+
+        /*
+         * 26.x의 overworld clock 값이 하루 주기처럼 되감기는 경우를 대비한다.
+         * 자연스럽게 하루가 넘어가며 current가 last보다 작아졌다면,
+         * 24000틱을 더해서 실제 경과량으로 보정한다.
+         */
+        if (delta < 0L) {
+            delta += TICKS_PER_DAY;
+        }
+
+        if (delta > 0L) {
+            this.worldElapsedTicks += delta;
+        }
+
+        this.lastWorldClockTime = safeCurrentWorldTime;
     }
 
     public boolean tick(long currentWorldTime) {

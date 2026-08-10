@@ -1,6 +1,7 @@
 package com.darkk0729.allblocks.data;
 
 import com.darkk0729.allblocks.AllBlocksMod;
+import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeMode;
 import com.darkk0729.allblocks.challenge.ChallengeState;
 import com.google.gson.Gson;
@@ -40,6 +41,7 @@ public final class AllBlocksSaveManager {
             long currentWorldTime = getCurrentWorldTime(server);
 
             long savedElapsedTicks = Math.max(0L, data.elapsedTicks);
+
             long savedWorldElapsedTicks = data.worldElapsedTicks == null
                     ? 0L
                     : Math.max(0L, data.worldElapsedTicks);
@@ -53,6 +55,7 @@ public final class AllBlocksSaveManager {
                     data.running,
                     data.finished,
                     parseMode(data.mode),
+                    parseDifficulty(data.difficulty),
                     savedElapsedTicks,
                     startWorldTime,
                     savedWorldElapsedTicks,
@@ -75,6 +78,10 @@ public final class AllBlocksSaveManager {
     }
 
     public static void save(MinecraftServer server, ChallengeState state) {
+        if (server == null || state == null) {
+            return;
+        }
+
         Path path = getSavePath(server);
 
         try {
@@ -85,9 +92,12 @@ public final class AllBlocksSaveManager {
             data.finished = state.isFinished();
             data.result = state.getResult().name();
             data.mode = state.getMode().name();
-            data.startWorldTime = state.getStartWorldTime();
+            data.difficulty = state.getDifficulty().name();
+
             data.elapsedTicks = state.getElapsedTicks();
+            data.startWorldTime = state.getStartWorldTime();
             data.worldElapsedTicks = state.getWorldElapsedTicks();
+
             data.currentDay = state.getCurrentDay();
             data.formattedTime = state.getFormattedElapsedTime();
             data.lastProgressEventTier = state.getLastProgressEventTier();
@@ -126,6 +136,18 @@ public final class AllBlocksSaveManager {
         }
     }
 
+    private static ChallengeDifficulty parseDifficulty(String difficultyName) {
+        if (difficultyName == null || difficultyName.isBlank()) {
+            return ChallengeDifficulty.HARD;
+        }
+
+        try {
+            return ChallengeDifficulty.valueOf(difficultyName);
+        } catch (IllegalArgumentException e) {
+            return ChallengeDifficulty.HARD;
+        }
+    }
+
     private static ChallengeState.ChallengeResult parseResult(String resultName) {
         if (resultName == null || resultName.isBlank()) {
             return ChallengeState.ChallengeResult.NONE;
@@ -143,6 +165,7 @@ public final class AllBlocksSaveManager {
         boolean finished;
         String result;
         String mode;
+        String difficulty;
 
         long elapsedTicks;
         Long startWorldTime;

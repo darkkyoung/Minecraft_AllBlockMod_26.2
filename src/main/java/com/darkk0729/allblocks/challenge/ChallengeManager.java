@@ -14,6 +14,9 @@ import com.darkk0729.allblocks.event.FinalDayManager;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
 
+import com.darkk0729.allblocks.network.CodexToastPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
 /*
 import com.darkk0729.allblocks.network.AllBlocksSyncPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -59,6 +62,10 @@ public final class ChallengeManager {
 
     public static ChallengeMode getMode() {
         return state.getMode();
+    }
+
+    public static ChallengeDifficulty getDifficulty() {
+        return state.getDifficulty();
     }
 
     public static long getElapsedTicks() {
@@ -131,7 +138,7 @@ public final class ChallengeManager {
         state = AllBlocksSaveManager.load(server);
 
         if (state.isRunning()) {
-            state.syncWorldTime(getCurrentWorldTime(server));
+            state.resetWorldClockTracker(getCurrentWorldTime(server));
         }
 
         ticksSinceLastSave = 0L;
@@ -213,9 +220,17 @@ public final class ChallengeManager {
     }
 
     public static void startSolo(MinecraftServer server) {
+        startSingle(server, ChallengeDifficulty.HARD);
+    }
+
+    public static void startSingle(MinecraftServer server, ChallengeDifficulty difficulty) {
         runServerCommand(server, "time of minecraft:overworld set 0");
 
-        state.start(ChallengeMode.SOLO, getCurrentWorldTime(server));
+        ChallengeDifficulty safeDifficulty = difficulty == null
+                ? ChallengeDifficulty.HARD
+                : difficulty;
+
+        state.start(ChallengeMode.SOLO, safeDifficulty, getCurrentWorldTime(server));
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
         FinalDayManager.reset();
@@ -223,7 +238,6 @@ public final class ChallengeManager {
         save(server);
         recreateProgressBossBar(server);
         updateProgressBossBar(server);
-        // syncToAllPlayers(server);
     }
 
     public static void stop(MinecraftServer server) {
@@ -242,14 +256,25 @@ public final class ChallengeManager {
             return;
         }
 
+        ChallengeRules rules = state.getRules();
+
         boolean shouldEnd = state.tick(getCurrentWorldTime(server));
 
         BlockCollectionTracker.tick(server);
-        ChallengeEventManager.tick(server);
-        DayRaidManager.tick(server);
-        FinalDayManager.tick(server);
 
-        if (shouldEnd) {
+        if (rules.progressEventsEnabled()) {
+            ChallengeEventManager.tick(server);
+        }
+
+        if (rules.dayRaidEventsEnabled()) {
+            DayRaidManager.tick(server);
+        }
+
+        if (rules.finalDayLimitEnabled()) {
+            FinalDayManager.tick(server);
+        }
+
+        if (shouldEnd && rules.finalDayLimitEnabled()) {
             finishChallenge(server, getCollectedCount() >= getTotalTargetCount()
                     ? ChallengeState.ChallengeResult.CLEAR
                     : ChallengeState.ChallengeResult.FAIL);
@@ -281,6 +306,8 @@ public final class ChallengeManager {
         );
 
         if (collected) {
+            sendCodexToast(player, blockId);
+
             if (getCollectedCount() >= getTotalTargetCount()) {
                 finishChallenge(server, ChallengeState.ChallengeResult.CLEAR);
             } else {
@@ -291,6 +318,18 @@ public final class ChallengeManager {
         }
 
         return collected;
+    }
+
+    private static void sendCodexToast(ServerPlayer player, String blockId) {
+        if (player == null || blockId == null || blockId.isBlank()) {
+            return;
+        }
+
+        try {
+            ServerPlayNetworking.send(player, new CodexToastPayload(blockId));
+        } catch (Exception e) {
+            AllBlocksMod.LOGGER.warn("Failed to send codex toast payload for block: {}", blockId, e);
+        }
     }
 
     public static void debugCollectBlocks(MinecraftServer server, ServerPlayer player, int count) {
@@ -409,9 +448,10 @@ public final class ChallengeManager {
 
         runServerCommand(server, "time of minecraft:overworld set " + targetWorldTime);
 
-        state.syncWorldTime(getCurrentWorldTime(server));
+        state.setWorldElapsedTicks(targetWorldElapsedTicks);
+        state.resetWorldClockTracker(getCurrentWorldTime(server));
 
-        if (state.getCurrentDay() != 100) {
+        if (!state.getRules().finalDayLimitEnabled() || state.getCurrentDay() != 100) {
             FinalDayManager.reset();
         }
 
