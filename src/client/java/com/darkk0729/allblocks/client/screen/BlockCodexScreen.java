@@ -10,6 +10,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,11 +23,16 @@ public final class BlockCodexScreen extends Screen {
     private static final int SLOT_SIZE = 20;
     private static final int SLOT_GAP = 2;
 
-    private static final int PANEL_WIDTH = 342;
-    private static final int PANEL_HEIGHT = 252;
+    private static final int PANEL_WIDTH = 380;
+    private static final int PANEL_HEIGHT = 300;
 
-    private static final int HEADER_HEIGHT = 58;
-    private static final int FOOTER_HEIGHT = 28;
+    private static final int HEADER_HEIGHT = 108;
+    private static final int FOOTER_HEIGHT = 30;
+
+    private static final int CLOSE_BUTTON_SIZE = 14;
+    private static final int PLAYER_ICON_SIZE = 24;
+
+    private static final int FILTER_Y_OFFSET = 78;
 
     private static final int COLOR_OVERLAY = 0x99000000;
     private static final int COLOR_PANEL = 0xEE2B241C;
@@ -76,7 +82,7 @@ public final class BlockCodexScreen extends Screen {
 
         drawBackground(graphics);
         drawMainPanel(graphics, panelX, panelY);
-        drawHeader(graphics, panelX, panelY, filteredBlocks.size());
+        drawHeader(graphics, panelX, panelY, filteredBlocks.size(), mouseX, mouseY);
         drawFilters(graphics, panelX, panelY, mouseX, mouseY);
         drawBlockGrid(graphics, panelX, panelY, mouseX, mouseY, filteredBlocks);
         drawFooter(graphics, panelX, panelY, maxPage, mouseX, mouseY);
@@ -104,6 +110,10 @@ public final class BlockCodexScreen extends Screen {
         int panelX = getPanelX();
         int panelY = getPanelY();
 
+        if (handleCloseClick(panelX, panelY, mouseX, mouseY)) {
+            return true;
+        }
+
         if (handleFilterClick(panelX, panelY, mouseX, mouseY)) {
             return true;
         }
@@ -119,6 +129,18 @@ public final class BlockCodexScreen extends Screen {
         return super.mouseClicked(event, doubleClick);
     }
 
+    private boolean handleCloseClick(int panelX, int panelY, double mouseX, double mouseY) {
+        int x = getCloseButtonX(panelX);
+        int y = getCloseButtonY(panelY);
+
+        if (!isInside(mouseX, mouseY, x, y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE)) {
+            return false;
+        }
+
+        this.onClose();
+        return true;
+    }
+
     private void drawBackground(GuiGraphicsExtractor graphics) {
         graphics.fill(0, 0, this.width, this.height, COLOR_OVERLAY);
     }
@@ -128,34 +150,120 @@ public final class BlockCodexScreen extends Screen {
         graphics.outline(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, COLOR_PANEL_BORDER);
     }
 
-    private void drawHeader(GuiGraphicsExtractor graphics, int panelX, int panelY, int filteredCount) {
-        graphics.text(this.font, "블록 도감", panelX + 12, panelY + 10, COLOR_TEXT, false);
+    private void drawHeader(
+            GuiGraphicsExtractor graphics,
+            int panelX,
+            int panelY,
+            int filteredCount,
+            int mouseX,
+            int mouseY
+    ) {
+        int centerX = panelX + PANEL_WIDTH / 2;
+
+        drawScaledCenteredText(
+                graphics,
+                "블록 도감",
+                centerX,
+                panelY + 10,
+                0xFFFFD85A,
+                true,
+                1.6F
+        );
+
+        drawCloseButton(graphics, panelX, panelY, mouseX, mouseY);
 
         int total = TargetBlockRegistry.getTotalTargetCount();
         int collected = ChallengeManager.getCollectedCount();
 
-        graphics.text(
-                this.font,
-                "수집 " + collected + " / " + total + " | 표시 " + filteredCount,
-                panelX + 12,
-                panelY + 25,
-                COLOR_TEXT_DIM,
+        drawCenteredText(
+                graphics,
+                "수집 " + collected + " / " + total,
+                centerX,
+                panelY + 35,
+                COLOR_TEXT,
                 false
         );
 
-        graphics.text(
-                this.font,
-                "B 또는 ESC: 닫기",
-                panelX + PANEL_WIDTH - 95,
-                panelY + 10,
-                COLOR_TEXT_DIM,
-                false
-        );
+        drawPlayerIconSlot(graphics, centerX - PLAYER_ICON_SIZE / 2, panelY + 49);
+    }
+
+    private void drawCloseButton(
+            GuiGraphicsExtractor graphics,
+            int panelX,
+            int panelY,
+            int mouseX,
+            int mouseY
+    ) {
+        int x = getCloseButtonX(panelX);
+        int y = getCloseButtonY(panelY);
+
+        boolean hovered = isInside(mouseX, mouseY, x, y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE);
+
+        int bgColor = hovered ? 0xFF6A2E2E : 0xFF332C24;
+        int borderColor = hovered ? 0xFFFF7777 : 0xFF8A6A3A;
+        int textColor = hovered ? 0xFFFF7777 : COLOR_TEXT;
+
+        graphics.fill(x, y, x + CLOSE_BUTTON_SIZE, y + CLOSE_BUTTON_SIZE, bgColor);
+        graphics.outline(x, y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE, borderColor);
+
+        int textX = x + (CLOSE_BUTTON_SIZE / 2) - (this.font.width("X") / 2);
+        graphics.text(this.font, "X", textX, y + 3, textColor, false);
+    }
+
+    private void drawPlayerIconSlot(GuiGraphicsExtractor graphics, int x, int y) {
+        graphics.fill(x, y, x + PLAYER_ICON_SIZE, y + PLAYER_ICON_SIZE, 0xFF1B1712);
+        graphics.outline(x, y, PLAYER_ICON_SIZE, PLAYER_ICON_SIZE, 0xFFFFD36A);
+
+        ItemStack headStack = new ItemStack(Items.PLAYER_HEAD);
+        graphics.item(headStack, x + 4, y + 4);
+    }
+
+    private void drawCenteredText(
+            GuiGraphicsExtractor graphics,
+            String text,
+            int centerX,
+            int y,
+            int color,
+            boolean shadow
+    ) {
+        int textX = centerX - this.font.width(text) / 2;
+        graphics.text(this.font, text, textX, y, color, shadow);
+    }
+
+    private void drawScaledCenteredText(
+            GuiGraphicsExtractor graphics,
+            String text,
+            int centerX,
+            int y,
+            int color,
+            boolean shadow,
+            float scale
+    ) {
+        var matrices = graphics.pose();
+
+        float textX = centerX - (this.font.width(text) * scale) / 2.0F;
+
+        matrices.pushMatrix();
+        matrices.translate(textX, y);
+        matrices.scale(scale, scale);
+
+        graphics.text(this.font, text, 0, 0, color, shadow);
+
+        matrices.popMatrix();
+    }
+
+    private int getCloseButtonX(int panelX) {
+        return panelX + PANEL_WIDTH - CLOSE_BUTTON_SIZE - 10;
+    }
+
+    private int getCloseButtonY(int panelY) {
+        return panelY + 8;
     }
 
     private void drawFilters(GuiGraphicsExtractor graphics, int panelX, int panelY, int mouseX, int mouseY) {
-        int x = panelX + 10;
-        int y = panelY + 39;
+        int totalFilterWidth = 40 + 5 + 42 + 5 + 50 + 5 + 42;
+        int x = panelX + (PANEL_WIDTH - totalFilterWidth) / 2;
+        int y = panelY + FILTER_Y_OFFSET;
 
         for (CodexFilter currentFilter : CodexFilter.values()) {
             int width = currentFilter.width;
@@ -392,8 +500,9 @@ public final class BlockCodexScreen extends Screen {
     }
 
     private boolean handleFilterClick(int panelX, int panelY, double mouseX, double mouseY) {
-        int x = panelX + 10;
-        int y = panelY + 39;
+        int totalFilterWidth = 40 + 5 + 42 + 5 + 50 + 5 + 42;
+        int x = panelX + (PANEL_WIDTH - totalFilterWidth) / 2;
+        int y = panelY + FILTER_Y_OFFSET;
 
         for (CodexFilter currentFilter : CodexFilter.values()) {
             int width = currentFilter.width;
@@ -655,10 +764,10 @@ public final class BlockCodexScreen extends Screen {
     }
 
     private enum CodexFilter {
-        ALL("전체", 36),
-        CLAIMED("획득 완료", 64),
+        ALL("전체", 40),
+        CLAIMED("획득", 42),
         UNCLAIMED("미획득", 50),
-        RELEASED("잃어버림", 58);
+        RELEASED("분실", 42);
 
         private final String label;
         private final int width;

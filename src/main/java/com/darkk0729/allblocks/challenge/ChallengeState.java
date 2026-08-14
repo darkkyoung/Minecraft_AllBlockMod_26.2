@@ -201,10 +201,6 @@ public class ChallengeState {
     }
 
     public void syncWorldTime(long currentWorldTime) {
-        if (!running) {
-            return;
-        }
-
         long safeCurrentWorldTime = Math.max(0L, currentWorldTime);
         long safeLastWorldClockTime = Math.max(0L, lastWorldClockTime);
 

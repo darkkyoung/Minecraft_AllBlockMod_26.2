@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
  */
 
-
 import java.util.Locale;
 
 public final class ChallengeManager {
@@ -443,13 +442,35 @@ public final class ChallengeManager {
         }
 
         int safeDay = Math.max(1, Math.min(101, day));
+
+        /*
+         * safeDay는 월드 절대 날짜가 아니라 "챌린지 기준 날짜"다.
+         *
+         * 1일차   -> 0틱
+         * 2일차   -> 24,000틱
+         * 30일차  -> 696,000틱
+         * 100일차 -> 2,376,000틱
+         */
         long targetWorldElapsedTicks = (safeDay - 1L) * ChallengeState.TICKS_PER_DAY;
-        long targetWorldTime = state.getStartWorldTime() + targetWorldElapsedTicks;
+
+        /*
+         * 중요:
+         * 여기에 state.getStartWorldTime()을 더하면 안 된다.
+         *
+         * 그 값을 더하면 기존 월드 절대 시간이 섞여서
+         * /allblocks debug day 30을 했는데 58일차, 59일차처럼 튀는 문제가 생긴다.
+         */
+        long targetWorldTime = targetWorldElapsedTicks;
 
         runServerCommand(server, "time of minecraft:overworld set " + targetWorldTime);
 
+        /*
+         * 챌린지 내부 Day는 월드 시간 계산 결과에 맡기지 않고 직접 고정한다.
+         * 그리고 다음 tick에서 delta가 중복으로 더해지지 않도록
+         * lastWorldClockTime도 우리가 방금 설정한 targetWorldTime으로 맞춘다.
+         */
         state.setWorldElapsedTicks(targetWorldElapsedTicks);
-        state.resetWorldClockTracker(getCurrentWorldTime(server));
+        state.resetWorldClockTracker(targetWorldTime);
 
         if (!state.getRules().finalDayLimitEnabled() || state.getCurrentDay() != 100) {
             FinalDayManager.reset();
