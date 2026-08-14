@@ -10,12 +10,25 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.item.Items;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
+import net.minecraft.client.gui.components.PlayerFaceExtractor;
+import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.input.KeyEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public final class BlockCodexScreen extends Screen {
+    private static final Identifier CODEX_BACKGROUND_TEXTURE =
+            Identifier.fromNamespaceAndPath(
+                    "allblocks",
+                    "textures/gui/block_codex_background.png"
+            );
+
+    private static final int CODEX_TEXTURE_WIDTH = 1412;
+    private static final int CODEX_TEXTURE_HEIGHT = 1114;
+
     private static final int COLUMNS = 12;
     private static final int ROWS = 7;
     private static final int ITEMS_PER_PAGE = COLUMNS * ROWS;
@@ -26,29 +39,30 @@ public final class BlockCodexScreen extends Screen {
     private static final int PANEL_WIDTH = 380;
     private static final int PANEL_HEIGHT = 300;
 
-    private static final int HEADER_HEIGHT = 108;
+    private static final int HEADER_HEIGHT = 114;
     private static final int FOOTER_HEIGHT = 30;
 
-    private static final int CLOSE_BUTTON_SIZE = 14;
-    private static final int PLAYER_ICON_SIZE = 24;
+    private static final int CLOSE_BUTTON_SIZE = 24;
+    private static final int PLAYER_ICON_SIZE = 14;
 
-    private static final int FILTER_Y_OFFSET = 78;
+    private static final int FILTER_Y_OFFSET = 95;
 
     private static final int COLOR_OVERLAY = 0x99000000;
-    private static final int COLOR_PANEL = 0xEE2B241C;
-    private static final int COLOR_PANEL_BORDER = 0xFF8A6A3A;
-    private static final int COLOR_SLOT = 0xFF3A3329;
-    private static final int COLOR_SLOT_HOVER = 0xFF5A4B36;
-    private static final int COLOR_SLOT_CLAIMED = 0xAA145C26;
-    private static final int COLOR_SLOT_UNCLAIMED = 0xFF2F2F2F;
-    private static final int COLOR_SLOT_RELEASED = 0xAA4A2368;
-    private static final int COLOR_TEXT = 0xFFFFFFFF;
-    private static final int COLOR_TEXT_DIM = 0xFFBDBDBD;
 
-    private static final int COLOR_CLAIMED = 0xFF35D05A;
-    private static final int COLOR_UNCLAIMED = 0xFF777777;
-    private static final int COLOR_RELEASED = 0xFFB45CFF;
-    private static final int COLOR_SELECTED = 0xFFFFFF55;
+    private static final int COLOR_SLOT = 0x66584634;
+    private static final int COLOR_SLOT_HOVER = 0xAA8B6A43;
+    private static final int COLOR_SLOT_CLAIMED = 0x8835A84A;   // 획득 블록 배경: 그냥 초록색
+    private static final int COLOR_SLOT_UNCLAIMED = 0x665E5548;
+    private static final int COLOR_SLOT_RELEASED = 0x666C506B;
+
+    private static final int COLOR_TEXT = 0xFF3B2818;
+    private static final int COLOR_TEXT_DIM = 0xFF78644C;
+
+    private static final int DEFAULT_PLAYER_COLOR = 0xFF4EA3FF; // 임시 플레이어 고유 색(파랑)
+    private static final int COLOR_UNCLAIMED = 0xFF71685B;
+    private static final int COLOR_RELEASED = 0xFF8E4E84;
+    private static final int COLOR_SELECTED = 0xFFE2B94B;
+    private static final int COLOR_CLAIMED = DEFAULT_PLAYER_COLOR;
 
     private int page = 0;
     private CodexFilter filter = CodexFilter.ALL;
@@ -129,6 +143,16 @@ public final class BlockCodexScreen extends Screen {
         return super.mouseClicked(event, doubleClick);
     }
 
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == InputConstants.KEY_B) {
+            this.onClose();
+            return true;
+        }
+
+        return super.keyPressed(event);
+    }
+
     private boolean handleCloseClick(int panelX, int panelY, double mouseX, double mouseY) {
         int x = getCloseButtonX(panelX);
         int y = getCloseButtonY(panelY);
@@ -145,9 +169,30 @@ public final class BlockCodexScreen extends Screen {
         graphics.fill(0, 0, this.width, this.height, COLOR_OVERLAY);
     }
 
-    private void drawMainPanel(GuiGraphicsExtractor graphics, int panelX, int panelY) {
-        graphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + PANEL_HEIGHT, COLOR_PANEL);
-        graphics.outline(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, COLOR_PANEL_BORDER);
+    private void drawMainPanel(
+            GuiGraphicsExtractor graphics,
+            int panelX,
+            int panelY
+    ) {
+        graphics.blit(
+                RenderPipelines.GUI_TEXTURED,
+                CODEX_BACKGROUND_TEXTURE,
+
+                panelX,
+                panelY,
+
+                0,
+                0,
+
+                PANEL_WIDTH,
+                PANEL_HEIGHT,
+
+                CODEX_TEXTURE_WIDTH,
+                CODEX_TEXTURE_HEIGHT,
+
+                CODEX_TEXTURE_WIDTH,
+                CODEX_TEXTURE_HEIGHT
+        );
     }
 
     private void drawHeader(
@@ -158,33 +203,78 @@ public final class BlockCodexScreen extends Screen {
             int mouseX,
             int mouseY
     ) {
-        int centerX = panelX + PANEL_WIDTH / 2;
+        int centerX =
+                panelX + PANEL_WIDTH / 2;
 
-        drawScaledCenteredText(
+        // 제목
+        drawScaledCenteredBoldText(
                 graphics,
                 "블록 도감",
                 centerX,
-                panelY + 10,
-                0xFFFFD85A,
-                true,
-                1.6F
+                panelY + 49,
+                0xFF6B3D20,
+                1.35F
         );
 
-        drawCloseButton(graphics, panelX, panelY, mouseX, mouseY);
+        drawCloseButton(
+                graphics,
+                panelX,
+                panelY,
+                mouseX,
+                mouseY
+        );
 
-        int total = TargetBlockRegistry.getTotalTargetCount();
-        int collected = ChallengeManager.getCollectedCount();
+        String playerName =
+                getHeaderPlayerName();
+
+        int playerColor =
+                getPlayerColor(playerName);
+
+        // 플레이어 얼굴
+        int playerX =
+                centerX - PLAYER_ICON_SIZE / 2;
+
+        int playerY =
+                panelY + 67;
+
+        drawPlayerIconSlot(
+                graphics,
+                playerX,
+                playerY,
+                playerColor
+        );
+
+        // 플레이어 개인 수집 개수
+        String collectedText =
+                Integer.toString(
+                        getHeaderPlayerCollectedCount()
+                );
 
         drawCenteredText(
                 graphics,
-                "수집 " + collected + " / " + total,
+                collectedText,
                 centerX,
-                panelY + 35,
+                panelY + 83,
                 COLOR_TEXT,
                 false
         );
 
-        drawPlayerIconSlot(graphics, centerX - PLAYER_ICON_SIZE / 2, panelY + 49);
+        // 얼굴에 마우스를 올리면 닉네임
+        if (isInside(
+                mouseX,
+                mouseY,
+                playerX - 2,
+                playerY - 2,
+                PLAYER_ICON_SIZE + 4,
+                PLAYER_ICON_SIZE + 4
+        )) {
+            drawTextTooltip(
+                    graphics,
+                    mouseX,
+                    mouseY,
+                    playerName
+            );
+        }
     }
 
     private void drawCloseButton(
@@ -197,25 +287,83 @@ public final class BlockCodexScreen extends Screen {
         int x = getCloseButtonX(panelX);
         int y = getCloseButtonY(panelY);
 
-        boolean hovered = isInside(mouseX, mouseY, x, y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE);
+        boolean hovered =
+                isInside(
+                        mouseX,
+                        mouseY,
+                        x,
+                        y,
+                        CLOSE_BUTTON_SIZE,
+                        CLOSE_BUTTON_SIZE
+                );
 
-        int bgColor = hovered ? 0xFF6A2E2E : 0xFF332C24;
-        int borderColor = hovered ? 0xFFFF7777 : 0xFF8A6A3A;
-        int textColor = hovered ? 0xFFFF7777 : COLOR_TEXT;
+        // X 자체는 배경 이미지에 이미 그려져 있다.
+        // 마우스를 올렸을 때만 아주 약하게 강조한다.
+        if (hovered) {
+            graphics.fill(
+                    x,
+                    y,
+                    x + CLOSE_BUTTON_SIZE,
+                    y + CLOSE_BUTTON_SIZE,
+                    0x22FFFFFF
+            );
 
-        graphics.fill(x, y, x + CLOSE_BUTTON_SIZE, y + CLOSE_BUTTON_SIZE, bgColor);
-        graphics.outline(x, y, CLOSE_BUTTON_SIZE, CLOSE_BUTTON_SIZE, borderColor);
-
-        int textX = x + (CLOSE_BUTTON_SIZE / 2) - (this.font.width("X") / 2);
-        graphics.text(this.font, "X", textX, y + 3, textColor, false);
+            graphics.outline(
+                    x,
+                    y,
+                    CLOSE_BUTTON_SIZE,
+                    CLOSE_BUTTON_SIZE,
+                    0xAAFFD580
+            );
+        }
     }
 
-    private void drawPlayerIconSlot(GuiGraphicsExtractor graphics, int x, int y) {
-        graphics.fill(x, y, x + PLAYER_ICON_SIZE, y + PLAYER_ICON_SIZE, 0xFF1B1712);
-        graphics.outline(x, y, PLAYER_ICON_SIZE, PLAYER_ICON_SIZE, 0xFFFFD36A);
+    private void drawPlayerIconSlot(
+            GuiGraphicsExtractor graphics,
+            int x,
+            int y,
+            int borderColor
+    ) {
+        // 얼굴 뒤 배경
+        graphics.fill(
+                x,
+                y,
+                x + PLAYER_ICON_SIZE,
+                y + PLAYER_ICON_SIZE,
+                0x88E4CFA7
+        );
 
-        ItemStack headStack = new ItemStack(Items.PLAYER_HEAD);
-        graphics.item(headStack, x + 4, y + 4);
+        if (this.minecraft != null && this.minecraft.player != null) {
+
+            // Minecraft 26.2의 실제 플레이어 스킨 텍스처
+            Identifier skinTexture =
+                    this.minecraft.player
+                            .getSkin()
+                            .body()
+                            .texturePath();
+
+            // 스킨에서 정면 얼굴만 추출해서 GUI에 표시
+            PlayerFaceExtractor.extractRenderState(
+                    graphics,
+                    skinTexture,
+                    x,
+                    y,
+                    PLAYER_ICON_SIZE,
+                    true,
+                    false,
+                    0xFFFFFFFF
+            );
+        }
+
+        // 플레이어 고유 색 테두리
+        drawThickOutline(
+                graphics,
+                x,
+                y,
+                PLAYER_ICON_SIZE,
+                PLAYER_ICON_SIZE,
+                borderColor
+        );
     }
 
     private void drawCenteredText(
@@ -252,12 +400,61 @@ public final class BlockCodexScreen extends Screen {
         matrices.popMatrix();
     }
 
+    private void drawScaledCenteredBoldText(
+            GuiGraphicsExtractor graphics,
+            String text,
+            int centerX,
+            int y,
+            int color,
+            float scale
+    ) {
+        var matrices = graphics.pose();
+
+        float textX =
+                centerX
+                        - (this.font.width(text) * scale) / 2.0F;
+
+        matrices.pushMatrix();
+
+        matrices.translate(
+                textX,
+                y
+        );
+
+        matrices.scale(
+                scale,
+                scale
+        );
+
+        // 기본 글자
+        graphics.text(
+                this.font,
+                text,
+                0,
+                0,
+                color,
+                false
+        );
+
+        // 오른쪽으로 1px 겹쳐서 굵게
+        graphics.text(
+                this.font,
+                text,
+                1,
+                0,
+                color,
+                false
+        );
+
+        matrices.popMatrix();
+    }
+
     private int getCloseButtonX(int panelX) {
-        return panelX + PANEL_WIDTH - CLOSE_BUTTON_SIZE - 10;
+        return panelX + PANEL_WIDTH - CLOSE_BUTTON_SIZE - 15;
     }
 
     private int getCloseButtonY(int panelY) {
-        return panelY + 8;
+        return panelY + 13;
     }
 
     private void drawFilters(GuiGraphicsExtractor graphics, int panelX, int panelY, int mouseX, int mouseY) {
@@ -270,12 +467,50 @@ public final class BlockCodexScreen extends Screen {
             boolean hovered = isInside(mouseX, mouseY, x, y, width, 15);
             boolean selected = filter == currentFilter;
 
-            int bgColor = selected ? 0xFF6A532E : hovered ? 0xFF4C4030 : 0xFF332C24;
-            int borderColor = selected ? 0xFFFFD36A : 0xFF6E604D;
+            int bgColor;
 
-            graphics.fill(x, y, x + width, y + 15, bgColor);
-            graphics.outline(x, y, width, 15, borderColor);
-            graphics.text(this.font, currentFilter.label, x + 5, y + 4, COLOR_TEXT, false);
+            if (selected) {
+                bgColor = 0xCC7C4C28;
+            } else if (hovered) {
+                bgColor = 0x88D6B980;
+            } else {
+                bgColor = 0x55E7D2AA;
+            }
+
+            int borderColor =
+                    selected
+                            ? 0xFFE0B35A
+                            : 0xFF8C6740;
+
+            int textColor =
+                    selected
+                            ? 0xFFFFF1CE
+                            : COLOR_TEXT;
+
+            graphics.fill(
+                    x,
+                    y,
+                    x + width,
+                    y + 15,
+                    bgColor
+            );
+
+            graphics.outline(
+                    x,
+                    y,
+                    width,
+                    15,
+                    borderColor
+            );
+
+            graphics.text(
+                    this.font,
+                    currentFilter.label,
+                    x + 5,
+                    y + 4,
+                    textColor,
+                    false
+            );
 
             x += width + 5;
         }
@@ -313,9 +548,26 @@ public final class BlockCodexScreen extends Screen {
         }
     }
 
-    private void drawEmptySlot(GuiGraphicsExtractor graphics, int x, int y) {
-        graphics.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, 0x66333333);
-        graphics.outline(x, y, SLOT_SIZE, SLOT_SIZE, 0xFF555555);
+    private void drawEmptySlot(
+            GuiGraphicsExtractor graphics,
+            int x,
+            int y
+    ) {
+        graphics.fill(
+                x,
+                y,
+                x + SLOT_SIZE,
+                y + SLOT_SIZE,
+                0x3349362A
+        );
+
+        graphics.outline(
+                x,
+                y,
+                SLOT_SIZE,
+                SLOT_SIZE,
+                0x88705A40
+        );
     }
 
     private void drawBlockSlot(GuiGraphicsExtractor graphics, Block block, int x, int y, int mouseX, int mouseY) {
@@ -338,12 +590,29 @@ public final class BlockCodexScreen extends Screen {
         graphics.fill(x, y, x + SLOT_SIZE, y + SLOT_SIZE, slotBackgroundColor);
 
         int borderColor = switch (status) {
-            case CLAIMED -> COLOR_CLAIMED;
+            case CLAIMED -> getOwnerColor(blockId);
             case RELEASED -> COLOR_RELEASED;
             case UNCLAIMED -> COLOR_UNCLAIMED;
         };
 
-        graphics.outline(x, y, SLOT_SIZE, SLOT_SIZE, borderColor);
+        if (status == BlockStatus.CLAIMED) {
+            drawThickOutline(
+                    graphics,
+                    x,
+                    y,
+                    SLOT_SIZE,
+                    SLOT_SIZE,
+                    borderColor
+            );
+        } else {
+            graphics.outline(
+                    x,
+                    y,
+                    SLOT_SIZE,
+                    SLOT_SIZE,
+                    borderColor
+            );
+        }
 
         if (selected) {
             graphics.outline(x - 1, y - 1, SLOT_SIZE + 2, SLOT_SIZE + 2, COLOR_SELECTED);
@@ -353,7 +622,7 @@ public final class BlockCodexScreen extends Screen {
         graphics.item(stack, x + 2, y + 2);
 
         if (status == BlockStatus.UNCLAIMED) {
-            graphics.fill(x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0x66000000);
+            graphics.fill(x + 1, y + 1, x + SLOT_SIZE - 1, y + SLOT_SIZE - 1, 0x44000000);
         }
 
         if (status == BlockStatus.RELEASED) {
@@ -361,24 +630,74 @@ public final class BlockCodexScreen extends Screen {
         }
     }
 
-    private void drawFooter(GuiGraphicsExtractor graphics, int panelX, int panelY, int maxPage, int mouseX, int mouseY) {
-        int y = panelY + PANEL_HEIGHT - FOOTER_HEIGHT + 7;
+    private void drawFooter(
+            GuiGraphicsExtractor graphics,
+            int panelX,
+            int panelY,
+            int maxPage,
+            int mouseX,
+            int mouseY
+    ) {
+        int centerX =
+                panelX + PANEL_WIDTH / 2;
 
-        int centerX = panelX + PANEL_WIDTH / 2;
+        // 우상단 페이지 표시
+        String pageText =
+                (page + 1)
+                        + " / "
+                        + (maxPage + 1);
 
-        int prevX = centerX - 58;
-        int nextX = centerX + 30;
+        int pageTextX =
+                panelX
+                        + PANEL_WIDTH
+                        - 28
+                        - this.font.width(pageText);
 
-        drawSmallButton(graphics, prevX, y, 28, 14, "<", mouseX, mouseY, page > 0);
-        drawSmallButton(graphics, nextX, y, 28, 14, ">", mouseX, mouseY, page < maxPage);
+        graphics.text(
+                this.font,
+                pageText,
+                pageTextX,
+                panelY + 49,
+                COLOR_TEXT_DIM,
+                false
+        );
 
-        String pageText = (page + 1) + " / " + (maxPage + 1);
-        int textX = centerX - (this.font.width(pageText) / 2);
+        // 하단에는 화살표만
+        int buttonY =
+                panelY + PANEL_HEIGHT - 29;
 
-        graphics.text(this.font, pageText, textX, y + 3, COLOR_TEXT, false);
+        int prevX =
+                centerX - 36;
+
+        int nextX =
+                centerX + 12;
+
+        drawThinPageButton(
+                graphics,
+                prevX,
+                buttonY,
+                24,
+                14,
+                "<",
+                mouseX,
+                mouseY,
+                page > 0
+        );
+
+        drawThinPageButton(
+                graphics,
+                nextX,
+                buttonY,
+                24,
+                14,
+                ">",
+                mouseX,
+                mouseY,
+                page < maxPage
+        );
     }
 
-    private void drawSmallButton(
+    private void drawThinPageButton(
             GuiGraphicsExtractor graphics,
             int x,
             int y,
@@ -389,17 +708,40 @@ public final class BlockCodexScreen extends Screen {
             int mouseY,
             boolean enabled
     ) {
-        boolean hovered = enabled && isInside(mouseX, mouseY, x, y, width, height);
+        boolean hovered =
+                enabled
+                        && isInside(
+                        mouseX,
+                        mouseY,
+                        x,
+                        y,
+                        width,
+                        height
+                );
 
-        int bgColor = !enabled ? 0xFF252525 : hovered ? 0xFF6A532E : 0xFF3C3228;
-        int borderColor = !enabled ? 0xFF444444 : 0xFF8A6A3A;
-        int textColor = !enabled ? 0xFF777777 : COLOR_TEXT;
+        int textColor;
 
-        graphics.fill(x, y, x + width, y + height, bgColor);
-        graphics.outline(x, y, width, height, borderColor);
+        if (!enabled) {
+            textColor = 0x6678644C;
+        } else if (hovered) {
+            textColor = 0xFF5C2F18;
+        } else {
+            textColor = 0xFF7A5738;
+        }
 
-        int textX = x + (width / 2) - (this.font.width(text) / 2);
-        graphics.text(this.font, text, textX, y + 3, textColor, false);
+        int textX =
+                x
+                        + width / 2
+                        - this.font.width(text) / 2;
+
+        graphics.text(
+                this.font,
+                text,
+                textX,
+                y + 3,
+                textColor,
+                false
+        );
     }
 
     private void drawDetailPopup(GuiGraphicsExtractor graphics, int panelX, int panelY, Block block) {
@@ -425,8 +767,21 @@ public final class BlockCodexScreen extends Screen {
             popupY = maxY;
         }
 
-        graphics.fill(popupX, popupY, popupX + popupWidth, popupY + popupHeight, 0xF01F1A14);
-        graphics.outline(popupX, popupY, popupWidth, popupHeight, 0xFFFFD36A);
+        graphics.fill(
+                popupX,
+                popupY,
+                popupX + popupWidth,
+                popupY + popupHeight,
+                0xFFF1DEB6
+        );
+
+        graphics.outline(
+                popupX,
+                popupY,
+                popupWidth,
+                popupHeight,
+                0xFF7E4E2B
+        );
 
         String blockId = getBlockId(block);
         ItemStack stack = new ItemStack(block);
@@ -478,7 +833,7 @@ public final class BlockCodexScreen extends Screen {
                 tooltipY,
                 tooltipX + tooltipWidth,
                 tooltipY + tooltipHeight,
-                0xF010100F
+                0xFFF1DEB6
         );
 
         graphics.outline(
@@ -486,12 +841,63 @@ public final class BlockCodexScreen extends Screen {
                 tooltipY,
                 tooltipWidth,
                 tooltipHeight,
-                0xFFFFD36A
+                0xFF7E4E2B
         );
 
         graphics.text(
                 this.font,
                 displayName,
+                tooltipX + padding,
+                tooltipY + 4,
+                COLOR_TEXT,
+                false
+        );
+    }
+
+    private void drawTextTooltip(
+            GuiGraphicsExtractor graphics,
+            int mouseX,
+            int mouseY,
+            String text
+    ) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+
+        int padding = 5;
+        int tooltipWidth = this.font.width(text) + padding * 2;
+        int tooltipHeight = 16;
+
+        int tooltipX = mouseX + 10;
+        int tooltipY = mouseY + 10;
+
+        if (tooltipX + tooltipWidth > this.width) {
+            tooltipX = mouseX - tooltipWidth - 10;
+        }
+
+        if (tooltipY + tooltipHeight > this.height) {
+            tooltipY = mouseY - tooltipHeight - 10;
+        }
+
+        graphics.fill(
+                tooltipX,
+                tooltipY,
+                tooltipX + tooltipWidth,
+                tooltipY + tooltipHeight,
+                0xFFF1DEB6
+        );
+
+        graphics.outline(
+                tooltipX,
+                tooltipY,
+                tooltipWidth,
+                tooltipHeight,
+                0xFF7E4E2B
+        );
+
+        graphics.text(
+                this.font,
+                text,
                 tooltipX + padding,
                 tooltipY + 4,
                 COLOR_TEXT,
@@ -520,26 +926,57 @@ public final class BlockCodexScreen extends Screen {
         return false;
     }
 
-    private boolean handlePageClick(int panelX, int panelY, double mouseX, double mouseY) {
-        List<Block> filteredBlocks = getFilteredBlocks();
-        int maxPage = getMaxPage(filteredBlocks.size());
+    private boolean handlePageClick(
+            int panelX,
+            int panelY,
+            double mouseX,
+            double mouseY
+    ) {
+        List<Block> filteredBlocks =
+                getFilteredBlocks();
 
-        int y = panelY + PANEL_HEIGHT - FOOTER_HEIGHT + 7;
+        int maxPage =
+                getMaxPage(filteredBlocks.size());
 
-        int centerX = panelX + PANEL_WIDTH / 2;
+        int centerX =
+                panelX + PANEL_WIDTH / 2;
 
-        int prevX = centerX - 58;
-        int nextX = centerX + 30;
+        int buttonY =
+                panelY + PANEL_HEIGHT - 29;
 
-        if (isInside(mouseX, mouseY, prevX, y, 28, 14) && page > 0) {
+        int prevX =
+                centerX - 36;
+
+        int nextX =
+                centerX + 12;
+
+        if (isInside(
+                mouseX,
+                mouseY,
+                prevX,
+                buttonY,
+                24,
+                14
+        ) && page > 0) {
+
             page--;
             selectedBlock = null;
+
             return true;
         }
 
-        if (isInside(mouseX, mouseY, nextX, y, 28, 14) && page < maxPage) {
+        if (isInside(
+                mouseX,
+                mouseY,
+                nextX,
+                buttonY,
+                24,
+                14
+        ) && page < maxPage) {
+
             page++;
             selectedBlock = null;
+
             return true;
         }
 
@@ -665,6 +1102,67 @@ public final class BlockCodexScreen extends Screen {
         return data.ownerName;
     }
 
+    private String getHeaderPlayerName() {
+        if (this.minecraft == null || this.minecraft.player == null) {
+            return "플레이어";
+        }
+
+        return this.minecraft.player.getName().getString();
+    }
+
+    private int getHeaderPlayerCollectedCount() {
+        if (this.minecraft == null || this.minecraft.player == null) {
+            return 0;
+        }
+
+        String playerUuid =
+                this.minecraft.player.getUUID().toString();
+
+        int count = 0;
+
+        for (Block block : TargetBlockRegistry.getTargetBlocks()) {
+            String blockId = getBlockId(block);
+
+            ChallengeState.CollectedBlockData data =
+                    ChallengeManager.getBlockCollectionData(blockId);
+
+            if (data == null || data.state == null) {
+                continue;
+            }
+
+            if (data.state != ChallengeState.BlockCollectionState.CLAIMED) {
+                continue;
+            }
+
+            if (!playerUuid.equals(data.ownerUuid)) {
+                continue;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private int getPlayerColor(String playerName) {
+        // 지금은 임시로 하나의 고정색 사용
+        // 나중에 멀티플레이 색 분기 시 여기만 바꾸면 됨
+        return DEFAULT_PLAYER_COLOR;
+    }
+
+    private int getOwnerColor(String blockId) {
+        ChallengeState.CollectedBlockData data =
+                ChallengeManager.getBlockCollectionData(blockId);
+
+        if (data == null
+                || data.ownerUuid == null
+                || data.ownerUuid.isBlank()) {
+            return DEFAULT_PLAYER_COLOR;
+        }
+
+        return getPlayerColor(data.ownerUuid);
+    }
+
     private String getDisplayBlockId(String blockId) {
         if (blockId == null) {
             return "unknown";
@@ -761,6 +1259,39 @@ public final class BlockCodexScreen extends Screen {
                 && mouseX < x + width
                 && mouseY >= y
                 && mouseY < y + height;
+    }
+
+    private void drawThickOutline(
+            GuiGraphicsExtractor graphics,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color
+    ) {
+        graphics.outline(
+                x - 2,
+                y - 2,
+                width + 4,
+                height + 4,
+                color
+        );
+
+        graphics.outline(
+                x - 1,
+                y - 1,
+                width + 2,
+                height + 2,
+                color
+        );
+
+        graphics.outline(
+                x,
+                y,
+                width,
+                height,
+                color
+        );
     }
 
     private enum CodexFilter {

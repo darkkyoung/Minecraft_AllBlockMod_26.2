@@ -9,6 +9,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public final class ChallengeInfoHud {
     private static final Identifier HUD_ID =
@@ -45,6 +47,7 @@ public final class ChallengeInfoHud {
         }
 
         drawLeftInfo(graphics, client);
+        drawCodexShortcutHint(graphics, client);
     }
 
     private static void drawLeftInfo(GuiGraphicsExtractor graphics, Minecraft client) {
@@ -62,10 +65,65 @@ public final class ChallengeInfoHud {
         drawScaledText(graphics, client, dayText, x, y, COLOR_DAY, true, 2.0F);
 
         graphics.text(client.font, timerText, x, y + 27, COLOR_TEXT, true);
-        graphics.text(client.font, xyzText, x, y + 41, COLOR_TEXT_DIM, true);
-        graphics.text(client.font, biomeText, x, y + 55, COLOR_TEXT_DIM, true);
+        graphics.text(client.font, xyzText, x, y + 41, COLOR_TEXT, true);
+        graphics.text(client.font, biomeText, x, y + 55, COLOR_TEXT, true);
         graphics.text(client.font, difficultyText, x, y + 69, getDifficultyColor(), true);
     }
+
+    private static void drawCodexShortcutHint(
+            GuiGraphicsExtractor graphics,
+            Minecraft client
+    ) {
+        int size = 20;
+
+        int x = 8;
+        int y = client.getWindow().getGuiScaledHeight() - 28;
+
+        // 인벤토리 슬롯 같은 어두운 배경
+        graphics.fill(
+                x,
+                y,
+                x + size,
+                y + size,
+                0x88000000
+        );
+
+        graphics.outline(
+                x,
+                y,
+                size,
+                size,
+                0xFF9A9A9A
+        );
+
+        // 책 아이콘
+        ItemStack bookStack = new ItemStack(Items.BOOK);
+
+        graphics.item(
+                bookStack,
+                x + 2,
+                y + 2
+        );
+
+        // 우하단 B 키 표시
+        graphics.fill(
+                x + 11,
+                y + 10,
+                x + 20,
+                y + 20,
+                0xCC171717
+        );
+
+        graphics.text(
+                client.font,
+                "B",
+                x + 13,
+                y + 11,
+                0xFFFFFFFF,
+                true
+        );
+    }
+
 
     private static int getDifficultyColor() {
         ChallengeDifficulty difficulty = ChallengeManager.getDifficulty();

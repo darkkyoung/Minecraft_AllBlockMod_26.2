@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.LinkedHashMap;
 
 public class ChallengeState {
     public static final long TICKS_PER_SECOND = 20L;
@@ -31,6 +32,7 @@ public class ChallengeState {
     private int lastDayRaidEventDay;
 
     private final Map<String, CollectedBlockData> collectedBlocks = new HashMap<>();
+    private final Map<String, ParticipantData> participants = new LinkedHashMap<>();
 
     public ChallengeState() {
         this.running = false;
@@ -140,6 +142,7 @@ public class ChallengeState {
         this.lastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
         this.collectedBlocks.clear();
+        this.participants.clear();
     }
 
     public void stop() {
@@ -165,7 +168,8 @@ public class ChallengeState {
             ChallengeResult result,
             int lastProgressEventTier,
             int lastDayRaidEventDay,
-            Map<String, CollectedBlockData> loadedCollectedBlocks
+            Map<String, CollectedBlockData> loadedCollectedBlocks,
+            Map<String, ParticipantData> loadedParticipants
     ) {
         this.finished = finished;
         this.result = result == null ? ChallengeResult.NONE : result;
@@ -189,6 +193,12 @@ public class ChallengeState {
 
         if (loadedCollectedBlocks != null) {
             this.collectedBlocks.putAll(loadedCollectedBlocks);
+        }
+
+        this.participants.clear();
+
+        if (loadedParticipants != null) {
+            this.participants.putAll(loadedParticipants);
         }
     }
 
@@ -280,6 +290,97 @@ public class ChallengeState {
 
     public Map<String, CollectedBlockData> getCollectedBlocks() {
         return Collections.unmodifiableMap(collectedBlocks);
+    }
+
+    public Map<String, ParticipantData> getParticipants() {
+        return Collections.unmodifiableMap(participants);
+    }
+
+    public ParticipantData getParticipant(String playerUuid) {
+        if (playerUuid == null || playerUuid.isBlank()) {
+            return null;
+        }
+
+        return participants.get(playerUuid);
+    }
+
+    public ParticipantData registerParticipant(UUID playerUuid, String playerName) {
+        if (playerUuid == null) {
+            return null;
+        }
+
+        String uuid = playerUuid.toString();
+
+        ParticipantData existing = participants.get(uuid);
+
+        if (existing != null) {
+            if (playerName != null && !playerName.isBlank()) {
+                existing.playerName = playerName;
+            }
+
+            return existing;
+        }
+
+        PlayerCodexColor[] colors = PlayerCodexColor.values();
+
+        PlayerCodexColor defaultColor =
+                colors[participants.size() % colors.length];
+
+        ParticipantData created = new ParticipantData(
+                uuid,
+                playerName == null ? "" : playerName,
+                defaultColor.name()
+        );
+
+        participants.put(uuid, created);
+
+        return created;
+    }
+
+    public boolean setParticipantColor(
+            UUID playerUuid,
+            PlayerCodexColor color
+    ) {
+        if (playerUuid == null || color == null) {
+            return false;
+        }
+
+        ParticipantData participant =
+                participants.get(playerUuid.toString());
+
+        if (participant == null) {
+            return false;
+        }
+
+        participant.color = color.name();
+
+        return true;
+    }
+
+    public int getOwnedBlockCount(String playerUuid) {
+        if (playerUuid == null || playerUuid.isBlank()) {
+            return 0;
+        }
+
+        int count = 0;
+
+        for (CollectedBlockData data : collectedBlocks.values()) {
+            if (data == null) {
+                continue;
+            }
+
+            if (data.state != BlockCollectionState.CLAIMED) {
+                continue;
+            }
+
+            if (!playerUuid.equals(data.ownerUuid)) {
+                continue;
+            }
+
+            count++;
+        }
+
+        return count;
     }
 
     public int releaseRandomOwnedBlocks(UUID ownerUuid, int minPercent, int maxPercent) {
@@ -382,6 +483,25 @@ public class ChallengeState {
             this.ownerUuid = ownerUuid;
             this.ownerName = ownerName;
             this.state = state;
+        }
+    }
+
+    public static class ParticipantData {
+        public String playerUuid;
+        public String playerName;
+        public String color;
+
+        public ParticipantData() {
+        }
+
+        public ParticipantData(
+                String playerUuid,
+                String playerName,
+                String color
+        ) {
+            this.playerUuid = playerUuid;
+            this.playerName = playerName;
+            this.color = color;
         }
     }
 }

@@ -17,9 +17,11 @@ public record AllBlocksSyncPayload(
         int currentDay,
         int collectedCount,
         int totalTargetCount,
+        List<ParticipantEntry> participants,
         List<BlockEntry> blocks
 ) implements CustomPacketPayload {
     private static final int MAX_BLOCK_ENTRIES = 2000;
+    private static final int MAX_PLAYER_ENTRIES = 64;
 
     public static final Identifier ID =
             Identifier.fromNamespaceAndPath("allblocks", "sync_state");
@@ -38,6 +40,25 @@ public record AllBlocksSyncPayload(
         buf.writeVarInt(currentDay);
         buf.writeVarInt(collectedCount);
         buf.writeVarInt(totalTargetCount);
+
+        int participantCount =
+                Math.min(
+                        participants == null ? 0 : participants.size(),
+                        MAX_PLAYER_ENTRIES
+                );
+
+        buf.writeVarInt(participantCount);
+
+        if (participants != null) {
+            for (int i = 0; i < participantCount; i++) {
+                ParticipantEntry entry = participants.get(i);
+
+                buf.writeUtf(safeString(entry.playerUuid()));
+                buf.writeUtf(safeString(entry.playerName()));
+                buf.writeUtf(safeString(entry.color()));
+                buf.writeVarInt(Math.max(0, entry.collectedCount()));
+            }
+        }
 
         int entryCount = Math.min(blocks == null ? 0 : blocks.size(), MAX_BLOCK_ENTRIES);
         buf.writeVarInt(entryCount);
@@ -66,6 +87,29 @@ public record AllBlocksSyncPayload(
         int collectedCount = buf.readVarInt();
         int totalTargetCount = buf.readVarInt();
 
+        int participantCount =
+                Math.max(
+                        0,
+                        Math.min(
+                                buf.readVarInt(),
+                                MAX_PLAYER_ENTRIES
+                        )
+                );
+
+        List<ParticipantEntry> participants =
+                new ArrayList<>(participantCount);
+
+        for (int i = 0; i < participantCount; i++) {
+            participants.add(
+                    new ParticipantEntry(
+                            buf.readUtf(),
+                            buf.readUtf(),
+                            buf.readUtf(),
+                            buf.readVarInt()
+                    )
+            );
+        }
+
         int entryCount = Math.max(0, Math.min(buf.readVarInt(), MAX_BLOCK_ENTRIES));
         List<BlockEntry> blocks = new ArrayList<>(entryCount);
 
@@ -87,6 +131,7 @@ public record AllBlocksSyncPayload(
                 currentDay,
                 collectedCount,
                 totalTargetCount,
+                participants,
                 blocks
         );
     }
@@ -98,6 +143,14 @@ public record AllBlocksSyncPayload(
     @Override
     public Type<? extends CustomPacketPayload> type() {
         return TYPE;
+    }
+
+    public record ParticipantEntry(
+            String playerUuid,
+            String playerName,
+            String color,
+            int collectedCount
+    ) {
     }
 
     public record BlockEntry(

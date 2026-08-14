@@ -14,8 +14,7 @@ import com.darkk0729.allblocks.network.CodexToastNetworking;
 import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.command.ChallengeMenuMessages;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-// import com.darkk0729.allblocks.network.AllBlocksNetworking;
-// import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import com.darkk0729.allblocks.network.AllBlocksNetworking;
 
 public class AllBlocksMod implements ModInitializer {
     public static final String MOD_ID = "allblocks";
@@ -26,7 +25,7 @@ public class AllBlocksMod implements ModInitializer {
         CodexToastNetworking.registerPayloads();
 
         LOGGER.info("Initializing All Blocks Challenge");
-        // AllBlocksNetworking.registerPayloads();
+        AllBlocksNetworking.registerPayloads();
 
         TargetBlockRegistry.initialize();
         AllBlocksCommands.register();
@@ -36,12 +35,22 @@ public class AllBlocksMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(ChallengeManager::load);
         ServerLifecycleEvents.SERVER_STOPPING.register(ChallengeManager::save);
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
-            server.execute(() -> {
-                if (!ChallengeManager.shouldShowHud()) {
-                    ChallengeMenuMessages.showWelcome(handler.player);
+        ServerPlayConnectionEvents.JOIN.register(
+                (handler, sender, server) -> {
+                    server.execute(() -> {
+
+                        ChallengeManager.handlePlayerJoin(
+                                server,
+                                handler.player
+                        );
+
+                        if (!ChallengeManager.shouldShowHud()) {
+                            ChallengeMenuMessages.showWelcome(
+                                    handler.player
+                            );
+                        }
+                    });
                 }
-            });
-        });
+        );
     }
 }

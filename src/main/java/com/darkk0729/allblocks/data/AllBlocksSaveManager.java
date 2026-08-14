@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 public final class AllBlocksSaveManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -62,7 +63,12 @@ public final class AllBlocksSaveManager {
                     parseResult(data.result),
                     Math.max(0, data.lastProgressEventTier),
                     Math.max(0, data.lastDayRaidEventDay),
-                    data.collectedBlocks == null ? new HashMap<>() : data.collectedBlocks
+                    data.collectedBlocks == null
+                            ? new HashMap<>()
+                            : data.collectedBlocks,
+                    data.participants == null
+                            ? new LinkedHashMap<>()
+                            : data.participants
             );
 
             if (state.isRunning()) {
@@ -176,5 +182,6 @@ public final class AllBlocksSaveManager {
         int lastProgressEventTier;
         int lastDayRaidEventDay;
         Map<String, ChallengeState.CollectedBlockData> collectedBlocks;
+        Map<String, ChallengeState.ParticipantData> participants;
     }
 }

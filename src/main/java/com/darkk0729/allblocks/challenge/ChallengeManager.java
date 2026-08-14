@@ -17,15 +17,10 @@ import net.minecraft.world.level.block.Block;
 import com.darkk0729.allblocks.network.CodexToastPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
-/*
 import com.darkk0729.allblocks.network.AllBlocksSyncPayload;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.server.level.ServerPlayer;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
- */
 
 import java.util.Locale;
 
@@ -41,6 +36,66 @@ public final class ChallengeManager {
     private static boolean bossBarCreated = false;
 
     private ChallengeManager() {
+    }
+
+    public static void handlePlayerJoin(
+            MinecraftServer server,
+            ServerPlayer player
+    ) {
+        if (server == null || player == null) {
+            return;
+        }
+
+        if (state.isRunning()) {
+            state.registerParticipant(
+                    player.getUUID(),
+                    player.getName().getString()
+            );
+
+            save(server);
+
+            // 기존 플레이어 화면에도 새 얼굴이 생겨야 하므로 전체 동기화
+            syncToAllPlayers(server);
+
+            return;
+        }
+
+        if (state.isFinished()) {
+            syncToPlayer(player);
+        }
+    }
+
+    public static void changeOwnPlayerColor(
+            MinecraftServer server,
+            ServerPlayer player,
+            String requestedColor
+    ) {
+        if (server == null || player == null) {
+            return;
+        }
+
+        PlayerCodexColor color =
+                PlayerCodexColor.fromName(requestedColor);
+
+        state.registerParticipant(
+                player.getUUID(),
+                player.getName().getString()
+        );
+
+        boolean changed =
+                state.setParticipantColor(
+                        player.getUUID(),
+                        color
+                );
+
+        if (!changed) {
+            return;
+        }
+
+        save(server);
+
+        // 다른 플레이어에게도 즉시 새 색 전달
+        syncToAllPlayers(server);
     }
 
     public static boolean isRunning() {
@@ -109,6 +164,27 @@ public final class ChallengeManager {
         return state.getCollectedBlocks().get(blockId);
     }
 
+    public static Map<String, ChallengeState.ParticipantData> getParticipants() {
+        return state.getParticipants();
+    }
+
+    private static void registerOnlinePlayers(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+
+            state.registerParticipant(
+                    player.getUUID(),
+                    player.getName().getString()
+            );
+        }
+    }
+
     public static int getLastProgressEventTier() {
         return state.getLastProgressEventTier();
     }
@@ -159,44 +235,111 @@ public final class ChallengeManager {
         }
     }
 
-    /*
-    public static void syncToAllPlayers(MinecraftServer server) {
+    public static void syncToAllPlayers(
+            MinecraftServer server
+    ) {
         if (server == null) {
             return;
         }
 
-        AllBlocksSyncPayload payload = createSyncPayload();
+        AllBlocksSyncPayload payload =
+                createSyncPayload();
 
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            ServerPlayNetworking.send(player, payload);
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+
+            ServerPlayNetworking.send(
+                    player,
+                    payload
+            );
         }
     }
 
-    public static void syncToPlayer(ServerPlayer player) {
+    public static void syncToPlayer(
+            ServerPlayer player
+    ) {
         if (player == null) {
             return;
         }
 
-        ServerPlayNetworking.send(player, createSyncPayload());
+        ServerPlayNetworking.send(
+                player,
+                createSyncPayload()
+        );
     }
 
     private static AllBlocksSyncPayload createSyncPayload() {
-        List<AllBlocksSyncPayload.BlockEntry> entries = new ArrayList<>();
 
-        for (Map.Entry<String, ChallengeState.CollectedBlockData> entry : state.getCollectedBlocks().entrySet()) {
-            String blockId = entry.getKey();
-            ChallengeState.CollectedBlockData data = entry.getValue();
+        List<AllBlocksSyncPayload.ParticipantEntry>
+                participantEntries =
+                new ArrayList<>();
+
+        for (ChallengeState.ParticipantData participant :
+                state.getParticipants().values()) {
+
+            if (participant == null) {
+                continue;
+            }
+
+            participantEntries.add(
+                    new AllBlocksSyncPayload.ParticipantEntry(
+                            participant.playerUuid == null
+                                    ? ""
+                                    : participant.playerUuid,
+
+                            participant.playerName == null
+                                    ? ""
+                                    : participant.playerName,
+
+                            participant.color == null
+                                    ? PlayerCodexColor.BLUE.name()
+                                    : participant.color,
+
+                            state.getOwnedBlockCount(
+                                    participant.playerUuid
+                            )
+                    )
+            );
+        }
+
+
+        List<AllBlocksSyncPayload.BlockEntry>
+                blockEntries =
+                new ArrayList<>();
+
+        for (Map.Entry<
+                String,
+                ChallengeState.CollectedBlockData
+                > entry :
+                state.getCollectedBlocks().entrySet()) {
+
+            String blockId =
+                    entry.getKey();
+
+            ChallengeState.CollectedBlockData data =
+                    entry.getValue();
 
             if (blockId == null || data == null) {
                 continue;
             }
 
-            entries.add(new AllBlocksSyncPayload.BlockEntry(
-                    blockId,
-                    data.ownerUuid == null ? "" : data.ownerUuid,
-                    data.ownerName == null ? "" : data.ownerName,
-                    data.state == null ? "UNCLAIMED" : data.state.name()
-            ));
+            blockEntries.add(
+                    new AllBlocksSyncPayload.BlockEntry(
+                            blockId,
+
+                            data.ownerUuid == null
+                                    ? ""
+                                    : data.ownerUuid,
+
+                            data.ownerName == null
+                                    ? ""
+                                    : data.ownerName,
+
+                            data.state == null
+                                    ? "UNCLAIMED"
+                                    : data.state.name()
+                    )
+            );
         }
 
         return new AllBlocksSyncPayload(
@@ -208,10 +351,10 @@ public final class ChallengeManager {
                 state.getCurrentDay(),
                 state.getCollectedCount(),
                 getTotalTargetCount(),
-                entries
+                participantEntries,
+                blockEntries
         );
     }
-     */
 
 
     public static void save(MinecraftServer server) {
@@ -230,6 +373,7 @@ public final class ChallengeManager {
                 : difficulty;
 
         state.start(ChallengeMode.SOLO, safeDifficulty, getCurrentWorldTime(server));
+        registerOnlinePlayers(server);
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
         FinalDayManager.reset();
@@ -237,6 +381,7 @@ public final class ChallengeManager {
         save(server);
         recreateProgressBossBar(server);
         updateProgressBossBar(server);
+        syncToAllPlayers(server);
     }
 
     public static void stop(MinecraftServer server) {
@@ -298,6 +443,11 @@ public final class ChallengeManager {
     }
 
     public static boolean collectBlock(MinecraftServer server, ServerPlayer player, String blockId) {
+        state.registerParticipant(
+                player.getUUID(),
+                player.getName().getString()
+        );
+
         boolean collected = state.collectBlock(
                 blockId,
                 player.getUUID(),
@@ -312,7 +462,7 @@ public final class ChallengeManager {
             } else {
                 save(server);
                 updateProgressBossBar(server);
-                // syncToAllPlayers(server);
+                syncToAllPlayers(server);
             }
         }
 
@@ -419,6 +569,7 @@ public final class ChallengeManager {
 
         save(server);
         updateProgressBossBar(server);
+        syncToAllPlayers(server);
 
         if (releasedCount > 0) {
             player.sendSystemMessage(Component.literal(
