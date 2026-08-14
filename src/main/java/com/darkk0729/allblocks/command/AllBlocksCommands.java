@@ -119,7 +119,7 @@ public final class AllBlocksCommands {
                                             )
                                     )
                                     .then(Commands.literal("day")
-                                            .then(Commands.argument("day", IntegerArgumentType.integer(1, 101))
+                                            .then(Commands.argument("day", IntegerArgumentType.integer(1, 100))
                                                     .executes(context -> {
                                                         int day = IntegerArgumentType.getInteger(context, "day");
                                                         ChallengeManager.debugSetDay(context.getSource().getServer(), day);

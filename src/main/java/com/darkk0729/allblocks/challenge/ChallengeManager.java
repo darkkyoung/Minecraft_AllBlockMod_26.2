@@ -134,6 +134,10 @@ public final class ChallengeManager {
         return state.getCurrentDay();
     }
 
+    public static int getDisplayedDay() {
+        return state.getCurrentDay() + 1;
+    }
+
     public static String getFormattedElapsedTime() {
         return state.getFormattedElapsedTime();
     }
@@ -348,7 +352,7 @@ public final class ChallengeManager {
                 state.getResult().name(),
                 state.getMode().name(),
                 state.getElapsedTicks(),
-                state.getCurrentDay(),
+                getDisplayedDay(),
                 state.getCollectedCount(),
                 getTotalTargetCount(),
                 participantEntries,
@@ -592,16 +596,16 @@ public final class ChallengeManager {
             return;
         }
 
-        int safeDay = Math.max(1, Math.min(101, day));
-
         /*
-         * safeDay는 월드 절대 날짜가 아니라 "챌린지 기준 날짜"다.
+         * safeDay는 챌린지 기준 날짜.
          *
-         * 1일차   -> 0틱
-         * 2일차   -> 24,000틱
-         * 30일차  -> 696,000틱
-         * 100일차 -> 2,376,000틱
+         * 0일차   -> 0틱
+         * 1일차   -> 24,000틱
+         * 10일차  -> 240,000틱
+         * 30일차  -> 720,000틱
+         * 100일차 -> 2,400,000틱
          */
+        int safeDay = Math.max(1, Math.min(100, day));
         long targetWorldElapsedTicks = (safeDay - 1L) * ChallengeState.TICKS_PER_DAY;
 
         /*

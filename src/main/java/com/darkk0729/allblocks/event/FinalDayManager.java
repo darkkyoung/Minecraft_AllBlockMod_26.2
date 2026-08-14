@@ -7,10 +7,11 @@ import net.minecraft.server.MinecraftServer;
 import com.darkk0729.allblocks.challenge.ChallengeState;
 
 public final class FinalDayManager {
-    private static final int FINAL_DAY = 100;
+    private static final int FINAL_DAY = 99;
     private static final long TICKS_PER_SECOND = 20L;
     private static final long TICKS_PER_DAY = 24000L;
-    private static final long FINAL_END_TICKS = FINAL_DAY * TICKS_PER_DAY;
+    private static final long FINAL_END_TICKS =
+            (FINAL_DAY + 1L) * TICKS_PER_DAY;
 
     private static final String PROGRESS_BOSSBAR_ID = "allblocks:progress";
 

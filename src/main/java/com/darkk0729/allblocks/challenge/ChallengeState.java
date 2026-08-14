@@ -102,7 +102,7 @@ public class ChallengeState {
 
     // Day는 실제 플레이타임이 아니라 인게임 월드 시간 기준
     public int getCurrentDay() {
-        return (int) (worldElapsedTicks / TICKS_PER_DAY) + 1;
+        return (int) (worldElapsedTicks / TICKS_PER_DAY);
     }
 
     // 타이머는 실제 플레이타임 기준
