@@ -20,8 +20,8 @@ public record ChallengeRules(
             );
 
             case NORMAL -> new ChallengeRules(
-                    false,  // 현재 보통 전용 이벤트는 아직 없음
-                    false,  // Day 습격 없음
+                    true,   // 진행률 이벤트 있음
+                    true,   // Day 습격 있음
                     true,   // 100일 제한 있음
                     true    // 사망 패널티 있음
             );

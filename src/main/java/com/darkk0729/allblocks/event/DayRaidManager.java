@@ -1,6 +1,7 @@
 package com.darkk0729.allblocks.event;
 
 import com.darkk0729.allblocks.challenge.ChallengeManager;
+import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -145,24 +146,110 @@ public final class DayRaidManager {
         }
     }
 
-    private static void triggerRaid(MinecraftServer server, int raidDay) {
-        List<ServerPlayer> players = server.getPlayerList().getPlayers();
+    private static void triggerRaid(
+            MinecraftServer server,
+            int raidDay
+    ) {
+        List<ServerPlayer> players =
+                server.getPlayerList().getPlayers();
 
         if (players.isEmpty()) {
             return;
         }
 
+        ChallengeDifficulty difficulty =
+                ChallengeManager.getDifficulty();
+
         for (ServerPlayer player : players) {
-            spawnRaidForPlayer(player, raidDay);
+
+            if (difficulty
+                    == ChallengeDifficulty.NORMAL) {
+
+                spawnNormalRaidForPlayer(
+                        player,
+                        raidDay
+                );
+
+            } else {
+
+                // HARD
+                spawnHardRaidForPlayer(
+                        player,
+                        raidDay
+                );
+            }
         }
 
+        // 스켈레톤 활 보장
         applySkeletonBows(server);
-        applyRaidSunProtection(server);
-        applyCommonRaidMobAttributes(server);
-        applyDaySpecificRaidEffects(server, raidDay);
 
-        runCommand(server, "team join allblocks_raid @e[tag=allblocks_raid_mob]");
-        broadcast(server, Component.literal("[AllBlocks] Day " + raidDay + " Raid has started."));
+        if (difficulty
+                == ChallengeDifficulty.NORMAL) {
+
+            // NORMAL
+            applyNormalRaidMobAttributes(server);
+            applyNormalDaySpecificRaidEffects(
+                    server,
+                    raidDay
+            );
+
+        } else {
+
+            // HARD 기존 동작
+            applyRaidSunProtection(server);
+            applyCommonRaidMobAttributes(server);
+            applyDaySpecificRaidEffects(
+                    server,
+                    raidDay
+            );
+        }
+
+        /*
+         * Day 90 위더는 NORMAL / HARD 동일.
+         *
+         * 공통 follow_range 적용 뒤 마지막에 다시 160으로
+         * 덮어써야 실제 최종 값이 160으로 유지된다.
+         */
+        if (raidDay == 90) {
+            applyDay90WitherAttributes(server);
+        }
+
+        runCommand(
+                server,
+                "team join allblocks_raid "
+                        + "@e[tag=allblocks_raid_mob]"
+        );
+
+        broadcast(
+                server,
+                Component.literal(
+                        "[AllBlocks] Day "
+                                + raidDay
+                                + " Raid has started."
+                )
+        );
+    }
+
+    private static void applyNormalRaidMobAttributes(
+            MinecraftServer server
+    ) {
+        runCommand(
+                server,
+                "execute as "
+                        + "@e[tag=allblocks_raid_mob] "
+                        + "run attribute @s "
+                        + "minecraft:generic.follow_range "
+                        + "base set 32"
+        );
+
+        runCommand(
+                server,
+                "execute as "
+                        + "@e[tag=allblocks_raid_mob] "
+                        + "run attribute @s "
+                        + "minecraft:follow_range "
+                        + "base set 32"
+        );
     }
 
     private static void applyCommonRaidMobAttributes(MinecraftServer server) {
@@ -183,7 +270,10 @@ public final class DayRaidManager {
         }
     }
 
-    private static void spawnRaidForPlayer(ServerPlayer player, int raidDay) {
+    private static void spawnHardRaidForPlayer(
+            ServerPlayer player,
+            int raidDay
+    ) {
         switch (raidDay) {
             case 10 -> spawnSameType(player, "minecraft:zombie", randomInt(5, 10));
             case 20 -> spawnDay20Raid(player);
@@ -197,6 +287,311 @@ public final class DayRaidManager {
             default -> {
             }
         }
+    }
+
+    private static void spawnNormalRaidForPlayer(
+            ServerPlayer player,
+            int raidDay
+    ) {
+        switch (raidDay) {
+
+            // Day 10
+            // 좀비 3~5
+            case 10 ->
+                    spawnSameType(
+                            player,
+                            "minecraft:zombie",
+                            randomInt(3, 5)
+                    );
+
+
+            // Day 20
+            // 스켈레톤 + 일반 거미
+            // 총 5~7
+            case 20 ->
+                    spawnNormalDay20Raid(player);
+
+
+            // Day 30
+            // 좀벌레 10~20 + Speed I
+            case 30 ->
+                    spawnNormalDay30Raid(player);
+
+
+            // Day 40
+            // 마녀 정확히 5
+            case 40 ->
+                    spawnSameType(
+                            player,
+                            "minecraft:witch",
+                            5
+                    );
+
+
+            // Day 50
+            // 약탈자 + 변명자 총 7~15
+            // 변명자 30~40%
+            case 50 ->
+                    spawnNormalDay50Raid(player);
+
+
+            // Day 60
+            // 아기 좀비 10~15
+            case 60 ->
+                    spawnNormalDay60Raid(player);
+
+
+            // Day 70
+            // 난폭한 피글린 10~15
+            case 70 ->
+                    spawnNormalDay70Raid(player);
+
+
+            // Day 80
+            // 소환사 7~10
+            case 80 ->
+                    spawnSameType(
+                            player,
+                            "minecraft:evoker",
+                            randomInt(7, 10)
+                    );
+
+
+            // Day 90
+            // HARD와 동일한 위더
+            case 90 ->
+                    spawnDay90Raid(player);
+
+
+            default -> {
+            }
+        }
+    }
+
+    private static void spawnNormalDay20Raid(
+            ServerPlayer player
+    ) {
+        int total =
+                randomInt(5, 7);
+
+        for (int i = 0; i < total; i++) {
+
+            if (ThreadLocalRandom
+                    .current()
+                    .nextBoolean()) {
+
+                spawnMob(
+                        player,
+                        "minecraft:skeleton"
+                );
+
+            } else {
+
+                spawnMob(
+                        player,
+                        "minecraft:spider"
+                );
+            }
+        }
+    }
+
+    private static void spawnNormalDay30Raid(
+            ServerPlayer player
+    ) {
+        int count =
+                randomInt(10, 20);
+
+        for (int i = 0; i < count; i++) {
+
+            spawnMob(
+                    player,
+                    "minecraft:silverfish",
+                    "allblocks_normal_day30_mob"
+            );
+        }
+    }
+
+    private static void applyNormalDaySpecificRaidEffects(
+            MinecraftServer server,
+            int raidDay
+    ) {
+        switch (raidDay) {
+
+            case 30 ->
+                    applyNormalDay30Speed(server);
+
+            default -> {
+            }
+        }
+    }
+
+    private static void applyNormalDay30Speed(
+            MinecraftServer server
+    ) {
+        // Speed I = amplifier 0
+        runCommand(
+                server,
+                "effect give "
+                        + "@e[tag=allblocks_normal_day30_mob] "
+                        + "minecraft:speed 999999 0 true"
+        );
+    }
+
+    private static void spawnNormalDay50Raid(
+            ServerPlayer player
+    ) {
+        int total =
+                randomInt(7, 15);
+
+        int vindicatorPercent =
+                randomInt(30, 40);
+
+        int vindicatorCount =
+                Math.round(
+                        total
+                                * (vindicatorPercent / 100.0F)
+                );
+
+        int pillagerCount =
+                total - vindicatorCount;
+
+        spawnSameType(
+                player,
+                "minecraft:pillager",
+                pillagerCount
+        );
+
+        spawnSameType(
+                player,
+                "minecraft:vindicator",
+                vindicatorCount
+        );
+    }
+
+    private static void spawnNormalDay60Raid(
+            ServerPlayer player
+    ) {
+        int count =
+                randomInt(10, 15);
+
+        for (int i = 0; i < count; i++) {
+            spawnNormalBabyZombie(player);
+        }
+    }
+
+    private static void spawnNormalBabyZombie(
+            ServerPlayer targetPlayer
+    ) {
+        if (!(targetPlayer.level()
+                instanceof ServerLevel level)) {
+            return;
+        }
+
+        BlockPos spawnPos =
+                findSpawnPosition(
+                        level,
+                        targetPlayer.blockPosition()
+                );
+
+        if (spawnPos == null) {
+            targetPlayer.sendSystemMessage(
+                    Component.literal(
+                            "[AllBlocks] Normal baby zombie "
+                                    + "spawn failed: "
+                                    + "no valid position found."
+                    )
+            );
+
+            return;
+        }
+
+        double x =
+                spawnPos.getX() + 0.5D;
+
+        double y =
+                spawnPos.getY();
+
+        double z =
+                spawnPos.getZ() + 0.5D;
+
+        MinecraftServer server =
+                level.getServer();
+
+        runCommand(
+                server,
+                "summon minecraft:zombie "
+                        + x + " "
+                        + y + " "
+                        + z + " "
+                        + "{"
+                        + "PersistenceRequired:1b,"
+                        + "IsBaby:1b,"
+                        + "Tags:[\"allblocks_raid_mob\"]"
+                        + "}"
+        );
+    }
+
+    private static void spawnNormalDay70Raid(
+            ServerPlayer player
+    ) {
+        int count =
+                randomInt(10, 15);
+
+        for (int i = 0; i < count; i++) {
+            spawnNormalPiglinBrute(player);
+        }
+    }
+
+    private static void spawnNormalPiglinBrute(
+            ServerPlayer targetPlayer
+    ) {
+        if (!(targetPlayer.level()
+                instanceof ServerLevel level)) {
+            return;
+        }
+
+        BlockPos spawnPos =
+                findSpawnPosition(
+                        level,
+                        targetPlayer.blockPosition()
+                );
+
+        if (spawnPos == null) {
+            targetPlayer.sendSystemMessage(
+                    Component.literal(
+                            "[AllBlocks] Normal Piglin Brute "
+                                    + "spawn failed: "
+                                    + "no valid position found."
+                    )
+            );
+
+            return;
+        }
+
+        double x =
+                spawnPos.getX() + 0.5D;
+
+        double y =
+                spawnPos.getY();
+
+        double z =
+                spawnPos.getZ() + 0.5D;
+
+        MinecraftServer server =
+                level.getServer();
+
+        runCommand(
+                server,
+                "summon minecraft:piglin_brute "
+                        + x + " "
+                        + y + " "
+                        + z + " "
+                        + "{"
+                        + "PersistenceRequired:1b,"
+                        + "IsImmuneToZombification:1b,"
+                        + "Tags:[\"allblocks_raid_mob\"]"
+                        + "}"
+        );
     }
 
     private static void spawnDay20Raid(ServerPlayer player) {
@@ -631,7 +1026,11 @@ public final class DayRaidManager {
         return tags.toString();
     }
 
-    private static BlockPos findSpawnPosition(ServerLevel level, BlockPos playerPos) {
+    private static BlockPos findSpawnPosition(
+            ServerLevel level,
+            BlockPos playerPos
+    ) {
+        // 1차: 기존처럼 플레이어 바로 주변 탐색
         for (int attempt = 0; attempt < 40; attempt++) {
             int dx = randomInt(-5, 5);
             int dz = randomInt(-5, 5);
@@ -641,7 +1040,31 @@ public final class DayRaidManager {
             }
 
             for (int dy = 5; dy >= -5; dy--) {
-                BlockPos pos = playerPos.offset(dx, dy, dz);
+                BlockPos pos =
+                        playerPos.offset(dx, dy, dz);
+
+                if (isValidSpawnSpace(level, pos)) {
+                    return pos;
+                }
+            }
+        }
+
+        /*
+         * 2차:
+         * 플레이어가 공중에 있는 경우
+         * 아래쪽 지면까지 넓게 탐색한다.
+         */
+        for (int attempt = 0; attempt < 30; attempt++) {
+            int dx = randomInt(-8, 8);
+            int dz = randomInt(-8, 8);
+
+            if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) {
+                continue;
+            }
+
+            for (int dy = 4; dy >= -384; dy--) {
+                BlockPos pos =
+                        playerPos.offset(dx, dy, dz);
 
                 if (isValidSpawnSpace(level, pos)) {
                     return pos;
@@ -652,7 +1075,11 @@ public final class DayRaidManager {
         return null;
     }
 
-    private static BlockPos findBossSpawnPosition(ServerLevel level, BlockPos playerPos) {
+    private static BlockPos findBossSpawnPosition(
+            ServerLevel level,
+            BlockPos playerPos
+    ) {
+        // 1차: 기존 주변 탐색
         for (int attempt = 0; attempt < 50; attempt++) {
             int dx = randomInt(-6, 6);
             int dz = randomInt(-6, 6);
@@ -662,7 +1089,30 @@ public final class DayRaidManager {
             }
 
             for (int dy = 6; dy >= -4; dy--) {
-                BlockPos pos = playerPos.offset(dx, dy, dz);
+                BlockPos pos =
+                        playerPos.offset(dx, dy, dz);
+
+                if (isValidBossSpawnSpace(level, pos)) {
+                    return pos;
+                }
+            }
+        }
+
+        /*
+         * 2차:
+         * 공중에 있을 경우 아래 지면까지 탐색.
+         */
+        for (int attempt = 0; attempt < 30; attempt++) {
+            int dx = randomInt(-8, 8);
+            int dz = randomInt(-8, 8);
+
+            if (Math.abs(dx) <= 2 && Math.abs(dz) <= 2) {
+                continue;
+            }
+
+            for (int dy = 5; dy >= -384; dy--) {
+                BlockPos pos =
+                        playerPos.offset(dx, dy, dz);
 
                 if (isValidBossSpawnSpace(level, pos)) {
                     return pos;

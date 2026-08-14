@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 
 public final class ChallengeEventManager {
     private static final int MAX_PROGRESS_TIER = 10;
@@ -54,7 +55,6 @@ public final class ChallengeEventManager {
         }
 
         checkProgressEvents(server);
-        DayRaidManager.tick(server);
     }
 
     private static void checkProgressEvents(MinecraftServer server) {
@@ -106,7 +106,7 @@ public final class ChallengeEventManager {
         int durationSeconds = getDebuffDurationSeconds(progressPercent);
 
         for (ServerPlayer player : players) {
-            List<DebuffType> debuffs = new ArrayList<>(List.of(DebuffType.values()));
+            List<DebuffType> debuffs = new ArrayList<>(getAvailableDebuffs());
             Collections.shuffle(debuffs, ThreadLocalRandom.current());
 
             for (int i = 0; i < effectCount && i < debuffs.size(); i++) {
@@ -117,6 +117,24 @@ public final class ChallengeEventManager {
         broadcast(server, Component.literal(
                 "[AllBlocks] Progress Event " + progressPercent + "%: Random debuff"
         ));
+    }
+
+    private static List<DebuffType> getAvailableDebuffs() {
+        if (ChallengeManager.getDifficulty()
+                == ChallengeDifficulty.NORMAL) {
+
+            return List.of(
+                    DebuffType.SLOWNESS,
+                    DebuffType.BLINDNESS,
+                    DebuffType.HUNGER,
+                    DebuffType.WEAKNESS,
+                    DebuffType.MINING_FATIGUE,
+                    DebuffType.POISON
+            );
+        }
+
+        // HARD
+        return List.of(DebuffType.values());
     }
 
     private static int getDebuffCount(int progressPercent) {
@@ -331,14 +349,31 @@ public final class ChallengeEventManager {
         return Math.max(1, progressPercent / 2);
     }
 
-    private static int getTeleportEventRadius(int progressPercent) {
-        // 텔레포트 범위: 5n 기준
-        // 10% = 반경 50블록
-        // 20% = 반경 100블록
-        // 30% = 반경 150블록
+    private static int getTeleportEventRadius(
+            int progressPercent
+    ) {
+        if (ChallengeManager.getDifficulty()
+                == ChallengeDifficulty.NORMAL) {
+
+            // NORMAL: n% × 2
+            // 10% = 20
+            // 20% = 40
+            // ...
+            // 100% = 200
+            return Math.max(
+                    1,
+                    progressPercent * 2
+            );
+        }
+
+        // HARD: n% × 5
+        // 10% = 50
         // ...
-        // 100% = 반경 500블록
-        return Math.max(1, progressPercent * 5);
+        // 100% = 500
+        return Math.max(
+                1,
+                progressPercent * 5
+        );
     }
 
     private static List<ServerPlayer> getPlayers(MinecraftServer server) {
