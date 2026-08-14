@@ -11,6 +11,8 @@ import net.minecraft.resources.Identifier;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.locale.Language;
+import net.minecraft.network.chat.Component;
 
 public final class ChallengeInfoHud {
     private static final Identifier HUD_ID =
@@ -76,8 +78,11 @@ public final class ChallengeInfoHud {
     ) {
         int size = 20;
 
-        int x = 8;
-        int y = client.getWindow().getGuiScaledHeight() - 28;
+        int hotbarRight =
+                client.getWindow().getGuiScaledWidth() / 2 + 91;
+
+        int x = hotbarRight + 6;
+        int y = client.getWindow().getGuiScaledHeight() - 22;
 
         // 인벤토리 슬롯 같은 어두운 배경
         graphics.fill(
@@ -139,17 +144,42 @@ public final class ChallengeInfoHud {
         };
     }
 
-    private static String getBiomeName(Minecraft client, BlockPos pos) {
+    private static String getBiomeName(
+            Minecraft client,
+            BlockPos pos
+    ) {
         try {
-            var biomeKeyOptional = client.level.getBiome(pos).unwrapKey();
+            var biomeKeyOptional =
+                    client.level
+                            .getBiome(pos)
+                            .unwrapKey();
 
             if (biomeKeyOptional.isEmpty()) {
-                return "Unknown";
+                return "알 수 없음";
             }
 
-            return prettifyBiomeId(biomeKeyOptional.get().toString());
+            var biomeId =
+                    biomeKeyOptional
+                            .get()
+                            .identifier();
+
+            String translationKey =
+                    biomeId.toLanguageKey("biome");
+
+            // 번역이 존재하면 현재 게임 언어 기준으로 반환
+            if (Language.getInstance().has(translationKey)) {
+                return Component
+                        .translatable(translationKey)
+                        .getString();
+            }
+
+            // 모드 생물 군계 등에 번역이 없는 경우 fallback
+            return prettifyBiomeId(
+                    biomeId.toString()
+            );
+
         } catch (Exception ignored) {
-            return "Unknown";
+            return "알 수 없음";
         }
     }
 

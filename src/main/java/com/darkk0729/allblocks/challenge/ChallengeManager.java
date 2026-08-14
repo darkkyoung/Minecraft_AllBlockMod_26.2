@@ -410,10 +410,6 @@ public final class ChallengeManager {
             ChallengeEventManager.tick(server);
         }
 
-        if (rules.dayRaidEventsEnabled()) {
-            DayRaidManager.tick(server);
-        }
-
         if (rules.finalDayLimitEnabled()) {
             FinalDayManager.tick(server);
         }

@@ -15,6 +15,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.input.KeyEvent;
+import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
+import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,6 +65,10 @@ public final class BlockCodexScreen extends Screen {
     private static final int COLOR_RELEASED = 0xFF8E4E84;
     private static final int COLOR_SELECTED = 0xFFE2B94B;
     private static final int COLOR_CLAIMED = DEFAULT_PLAYER_COLOR;
+
+    private static final int PAGE_ARROW_WIDTH = 24;
+    private static final int PAGE_ARROW_HEIGHT = 24;
+    private static final int PAGE_ARROW_MARGIN = 28;
 
     private int page = 0;
     private CodexFilter filter = CodexFilter.ALL;
@@ -245,10 +251,19 @@ public final class BlockCodexScreen extends Screen {
         );
 
         // 플레이어 개인 수집 개수
+        int playerCollected =
+                getHeaderPlayerCollectedCount();
+
+        int total =
+                ClientChallengeStateCache.isSynced()
+                        ? ClientChallengeStateCache.getTotalTargetCount()
+                        : TargetBlockRegistry.getTotalTargetCount();
+
         String collectedText =
-                Integer.toString(
-                        getHeaderPlayerCollectedCount()
-                );
+                "수집 "
+                        + playerCollected
+                        + " / "
+                        + total;
 
         drawCenteredText(
                 graphics,
@@ -408,11 +423,15 @@ public final class BlockCodexScreen extends Screen {
             int color,
             float scale
     ) {
-        var matrices = graphics.pose();
+        Component boldText =
+                Component.literal(text)
+                        .withStyle(ChatFormatting.BOLD);
 
         float textX =
                 centerX
-                        - (this.font.width(text) * scale) / 2.0F;
+                        - (this.font.width(boldText) * scale) / 2.0F;
+
+        var matrices = graphics.pose();
 
         matrices.pushMatrix();
 
@@ -426,21 +445,10 @@ public final class BlockCodexScreen extends Screen {
                 scale
         );
 
-        // 기본 글자
         graphics.text(
                 this.font,
-                text,
+                boldText,
                 0,
-                0,
-                color,
-                false
-        );
-
-        // 오른쪽으로 1px 겹쳐서 굵게
-        graphics.text(
-                this.font,
-                text,
-                1,
                 0,
                 color,
                 false
@@ -638,62 +646,103 @@ public final class BlockCodexScreen extends Screen {
             int mouseX,
             int mouseY
     ) {
-        int centerX =
-                panelX + PANEL_WIDTH / 2;
-
-        // 우상단 페이지 표시
         String pageText =
                 (page + 1)
                         + " / "
                         + (maxPage + 1);
 
-        int pageTextX =
+        // 블록 그리드 높이
+        int gridHeight =
+                ROWS * SLOT_SIZE
+                        + (ROWS - 1) * SLOT_GAP;
+
+        // 좌우 화살표 Y 위치
+        int arrowY =
+                getGridY(panelY)
+                        + gridHeight / 2
+                        - PAGE_ARROW_HEIGHT / 2;
+
+        int prevX =
+                panelX + PAGE_ARROW_MARGIN;
+
+        int nextX =
                 panelX
                         + PANEL_WIDTH
-                        - 28
-                        - this.font.width(pageText);
+                        - PAGE_ARROW_MARGIN
+                        - PAGE_ARROW_WIDTH;
 
-        graphics.text(
-                this.font,
+        // 하단 중앙 페이지 텍스트
+        int pageTextY =
+                panelY + PANEL_HEIGHT - 28;
+
+        drawCenteredText(
+                graphics,
                 pageText,
-                pageTextX,
-                panelY + 49,
+                panelX + PANEL_WIDTH / 2,
+                pageTextY,
                 COLOR_TEXT_DIM,
                 false
         );
 
-        // 하단에는 화살표만
-        int buttonY =
-                panelY + PANEL_HEIGHT - 29;
+        // 첫 페이지 아니면 왼쪽 화살표 표시
+        if (page > 0) {
+            drawSidePageArrow(
+                    graphics,
+                    prevX,
+                    arrowY,
+                    "<",
+                    mouseX,
+                    mouseY
+            );
+        }
 
-        int prevX =
-                centerX - 36;
+        // 마지막 페이지 아니면 오른쪽 화살표 표시
+        if (page < maxPage) {
+            drawSidePageArrow(
+                    graphics,
+                    nextX,
+                    arrowY,
+                    ">",
+                    mouseX,
+                    mouseY
+            );
+        }
+    }
 
-        int nextX =
-                centerX + 12;
+    private void drawSidePageArrow(
+            GuiGraphicsExtractor graphics,
+            int x,
+            int y,
+            String text,
+            int mouseX,
+            int mouseY
+    ) {
+        boolean hovered =
+                isInside(
+                        mouseX,
+                        mouseY,
+                        x,
+                        y,
+                        PAGE_ARROW_WIDTH,
+                        PAGE_ARROW_HEIGHT
+                );
 
-        drawThinPageButton(
+        int color =
+                hovered
+                        ? 0xFFC68B42
+                        : 0xFF6B3D20;
+
+        int centerX =
+                x + PAGE_ARROW_WIDTH / 2;
+
+        drawScaledCenteredText(
                 graphics,
-                prevX,
-                buttonY,
-                24,
-                14,
-                "<",
-                mouseX,
-                mouseY,
-                page > 0
-        );
-
-        drawThinPageButton(
-                graphics,
-                nextX,
-                buttonY,
-                24,
-                14,
-                ">",
-                mouseX,
-                mouseY,
-                page < maxPage
+                text,
+                centerX,
+                y + 4,
+                color,
+                false,
+                1.65F
         );
     }
 
@@ -938,26 +987,34 @@ public final class BlockCodexScreen extends Screen {
         int maxPage =
                 getMaxPage(filteredBlocks.size());
 
-        int centerX =
-                panelX + PANEL_WIDTH / 2;
+        int gridHeight =
+                ROWS * SLOT_SIZE
+                        + (ROWS - 1) * SLOT_GAP;
 
-        int buttonY =
-                panelY + PANEL_HEIGHT - 29;
+        int arrowY =
+                getGridY(panelY)
+                        + gridHeight / 2
+                        - PAGE_ARROW_HEIGHT / 2;
 
         int prevX =
-                centerX - 36;
+                panelX + PAGE_ARROW_MARGIN;
 
         int nextX =
-                centerX + 12;
+                panelX
+                        + PANEL_WIDTH
+                        - PAGE_ARROW_MARGIN
+                        - PAGE_ARROW_WIDTH;
 
-        if (isInside(
+
+        if (page > 0
+                && isInside(
                 mouseX,
                 mouseY,
                 prevX,
-                buttonY,
-                24,
-                14
-        ) && page > 0) {
+                arrowY,
+                PAGE_ARROW_WIDTH,
+                PAGE_ARROW_HEIGHT
+        )) {
 
             page--;
             selectedBlock = null;
@@ -965,14 +1022,16 @@ public final class BlockCodexScreen extends Screen {
             return true;
         }
 
-        if (isInside(
+
+        if (page < maxPage
+                && isInside(
                 mouseX,
                 mouseY,
                 nextX,
-                buttonY,
-                24,
-                14
-        ) && page < maxPage) {
+                arrowY,
+                PAGE_ARROW_WIDTH,
+                PAGE_ARROW_HEIGHT
+        )) {
 
             page++;
             selectedBlock = null;
@@ -1111,37 +1170,24 @@ public final class BlockCodexScreen extends Screen {
     }
 
     private int getHeaderPlayerCollectedCount() {
-        if (this.minecraft == null || this.minecraft.player == null) {
+        if (this.minecraft == null
+                || this.minecraft.player == null) {
             return 0;
         }
 
         String playerUuid =
-                this.minecraft.player.getUUID().toString();
+                this.minecraft.player
+                        .getUUID()
+                        .toString();
 
-        int count = 0;
+        ClientChallengeStateCache.SyncedParticipantData participant =
+                ClientChallengeStateCache.getParticipant(playerUuid);
 
-        for (Block block : TargetBlockRegistry.getTargetBlocks()) {
-            String blockId = getBlockId(block);
-
-            ChallengeState.CollectedBlockData data =
-                    ChallengeManager.getBlockCollectionData(blockId);
-
-            if (data == null || data.state == null) {
-                continue;
-            }
-
-            if (data.state != ChallengeState.BlockCollectionState.CLAIMED) {
-                continue;
-            }
-
-            if (!playerUuid.equals(data.ownerUuid)) {
-                continue;
-            }
-
-            count++;
+        if (participant == null) {
+            return 0;
         }
 
-        return count;
+        return participant.collectedCount();
     }
 
     private int getPlayerColor(String playerName) {
@@ -1269,22 +1315,18 @@ public final class BlockCodexScreen extends Screen {
             int height,
             int color
     ) {
-        graphics.outline(
-                x - 2,
-                y - 2,
-                width + 4,
-                height + 4,
-                color
-        );
+        // 바깥쪽은 반투명하게
+        int outerColor = (color & 0x00FFFFFF) | 0x88000000;
 
         graphics.outline(
                 x - 1,
                 y - 1,
                 width + 2,
                 height + 2,
-                color
+                outerColor
         );
 
+        // 안쪽은 원래 색으로 선명하게
         graphics.outline(
                 x,
                 y,

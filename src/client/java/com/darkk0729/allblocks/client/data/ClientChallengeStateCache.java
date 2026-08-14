@@ -5,6 +5,7 @@ import com.darkk0729.allblocks.network.AllBlocksSyncPayload;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.LinkedHashMap;
 
 public final class ClientChallengeStateCache {
     private static boolean synced = false;
@@ -19,6 +20,8 @@ public final class ClientChallengeStateCache {
     private static int totalTargetCount = 0;
 
     private static final Map<String, SyncedBlockData> blocks = new HashMap<>();
+    private static final Map<String, SyncedParticipantData> participants =
+            new LinkedHashMap<>();
 
     private ClientChallengeStateCache() {
     }
@@ -38,6 +41,29 @@ public final class ClientChallengeStateCache {
         currentDay = Math.max(1, payload.currentDay());
         collectedCount = Math.max(0, payload.collectedCount());
         totalTargetCount = Math.max(0, payload.totalTargetCount());
+        participants.clear();
+
+        if (payload.participants() != null) {
+            for (AllBlocksSyncPayload.ParticipantEntry entry :
+                    payload.participants()) {
+
+                if (entry == null
+                        || entry.playerUuid() == null
+                        || entry.playerUuid().isBlank()) {
+                    continue;
+                }
+
+                participants.put(
+                        entry.playerUuid(),
+                        new SyncedParticipantData(
+                                entry.playerUuid(),
+                                entry.playerName(),
+                                entry.color(),
+                                Math.max(0, entry.collectedCount())
+                        )
+                );
+            }
+        }
 
         blocks.clear();
 
@@ -67,6 +93,7 @@ public final class ClientChallengeStateCache {
         collectedCount = 0;
         totalTargetCount = 0;
         blocks.clear();
+        participants.clear();
     }
 
     public static boolean isSynced() {
@@ -133,6 +160,28 @@ public final class ClientChallengeStateCache {
 
     public static Map<String, SyncedBlockData> getBlocks() {
         return Collections.unmodifiableMap(blocks);
+    }
+
+    public static SyncedParticipantData getParticipant(
+            String playerUuid
+    ) {
+        if (playerUuid == null) {
+            return null;
+        }
+
+        return participants.get(playerUuid);
+    }
+
+    public static Map<String, SyncedParticipantData> getParticipants() {
+        return Collections.unmodifiableMap(participants);
+    }
+
+    public record SyncedParticipantData(
+            String playerUuid,
+            String playerName,
+            String color,
+            int collectedCount
+    ) {
     }
 
     public record SyncedBlockData(

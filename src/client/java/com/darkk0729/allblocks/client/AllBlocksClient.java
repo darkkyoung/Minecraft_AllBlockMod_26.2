@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import com.darkk0729.allblocks.client.network.CodexToastClientNetworking;
+import com.darkk0729.allblocks.client.network.AllBlocksClientNetworking;
 
 public final class AllBlocksClient implements ClientModInitializer {
     private static KeyMapping openCodexKey;
@@ -15,6 +16,7 @@ public final class AllBlocksClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         CodexToastClientNetworking.registerReceivers();
+        AllBlocksClientNetworking.registerReceivers();
         ChallengeInfoHud.register();
 
         openCodexKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(

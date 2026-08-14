@@ -79,7 +79,7 @@ public final class ChallengeEventManager {
     }
 
     private static int getCurrentProgressTier() {
-        int tier = (int) Math.floor(ChallengeManager.getProgressPercent() / 1.0D);
+        int tier = (int) Math.floor(ChallengeManager.getProgressPercent() / 10.0D);
         return Math.max(0, Math.min(MAX_PROGRESS_TIER, tier));
     }
 
