@@ -388,12 +388,6 @@ public final class ChallengeManager {
                 getCurrentWorldTime(server)
         );
 
-        // 이하 기존 코드 그대로
-
-        ChallengeDifficulty safeDifficulty = difficulty == null
-                ? ChallengeDifficulty.HARD
-                : difficulty;
-
         state.start(ChallengeMode.SOLO, safeDifficulty, getCurrentWorldTime(server));
         registerOnlinePlayers(server);
         ticksSinceLastSave = 0L;
