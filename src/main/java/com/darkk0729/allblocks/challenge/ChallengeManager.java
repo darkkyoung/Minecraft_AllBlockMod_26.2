@@ -369,8 +369,26 @@ public final class ChallengeManager {
         startSingle(server, ChallengeDifficulty.HARD);
     }
 
-    public static void startSingle(MinecraftServer server, ChallengeDifficulty difficulty) {
+    public static void startSingle(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty
+    ) {
+        // 26.2 World Clock을 정상 속도로 고정
+        runServerCommand(server, "time of minecraft:overworld rate 1");
+        runServerCommand(server, "time of minecraft:overworld resume");
         runServerCommand(server, "time of minecraft:overworld set 0");
+
+        ChallengeDifficulty safeDifficulty = difficulty == null
+                ? ChallengeDifficulty.HARD
+                : difficulty;
+
+        state.start(
+                ChallengeMode.SOLO,
+                safeDifficulty,
+                getCurrentWorldTime(server)
+        );
+
+        // 이하 기존 코드 그대로
 
         ChallengeDifficulty safeDifficulty = difficulty == null
                 ? ChallengeDifficulty.HARD
@@ -627,7 +645,7 @@ public final class ChallengeManager {
         state.setWorldElapsedTicks(targetWorldElapsedTicks);
         state.resetWorldClockTracker(targetWorldTime);
 
-        if (!state.getRules().finalDayLimitEnabled() || state.getCurrentDay() != 100) {
+        if (!state.getRules().finalDayLimitEnabled() || getDisplayedDay() != 100) {
             FinalDayManager.reset();
         }
 
@@ -635,7 +653,7 @@ public final class ChallengeManager {
         updateProgressBossBar(server);
 
         broadcast(server, Component.literal(
-                "[AllBlocks] Debug day set to Day " + state.getCurrentDay()
+                "[AllBlocks] Debug day set to Day " + getDisplayedDay()
                         + " | Timer " + state.getFormattedElapsedTime()
         ));
     }

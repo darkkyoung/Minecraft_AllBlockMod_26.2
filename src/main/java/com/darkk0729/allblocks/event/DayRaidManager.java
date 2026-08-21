@@ -74,7 +74,7 @@ public final class DayRaidManager {
     }
 
     private static void checkDayRaidStart(MinecraftServer server) {
-        int currentDay = ChallengeManager.getCurrentDay();
+        int currentDay = ChallengeManager.getDisplayedDay();
 
         if (currentDay < 10) {
             return;

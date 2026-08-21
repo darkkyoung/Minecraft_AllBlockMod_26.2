@@ -213,17 +213,7 @@ public class ChallengeState {
     public void syncWorldTime(long currentWorldTime) {
         long safeCurrentWorldTime = Math.max(0L, currentWorldTime);
         long safeLastWorldClockTime = Math.max(0L, lastWorldClockTime);
-
         long delta = safeCurrentWorldTime - safeLastWorldClockTime;
-
-        /*
-         * 26.x의 overworld clock 값이 하루 주기처럼 되감기는 경우를 대비한다.
-         * 자연스럽게 하루가 넘어가며 current가 last보다 작아졌다면,
-         * 24000틱을 더해서 실제 경과량으로 보정한다.
-         */
-        if (delta < 0L) {
-            delta += TICKS_PER_DAY;
-        }
 
         if (delta > 0L) {
             this.worldElapsedTicks += delta;
