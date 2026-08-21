@@ -55,7 +55,7 @@ public final class ChallengeInfoHud {
     private static void drawLeftInfo(GuiGraphicsExtractor graphics, Minecraft client) {
         BlockPos pos = client.player.blockPosition();
 
-        String dayText = ChallengeManager.getCurrentDay() + "일차";
+        String dayText = ChallengeManager.getDisplayedDay() + "일차";
         String timerText = "타이머 : " + ChallengeManager.getFormattedElapsedTime();
         String xyzText = "좌표 : " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
         String biomeText = "생물 군계 : " + getBiomeName(client, pos);

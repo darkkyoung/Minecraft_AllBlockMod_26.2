@@ -181,7 +181,7 @@ public final class AllBlocksCommands {
         }
 
         String finalTime = ChallengeManager.getFormattedElapsedTime();
-        int finalDay = ChallengeManager.getCurrentDay();
+        int finalDay = ChallengeManager.getDisplayedDay();
         int collected = ChallengeManager.getCollectedCount();
         int total = ChallengeManager.getTotalTargetCount();
         double percent = ChallengeManager.getProgressPercent();
@@ -211,7 +211,7 @@ public final class AllBlocksCommands {
                             "[올블록 챌린지] 상태: 진행 중 / 모드: %s / 난이도: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
                             ChallengeManager.getMode().getDisplayName(),
                             ChallengeManager.getDifficulty().getDisplayName(),
-                            ChallengeManager.getCurrentDay(),
+                            ChallengeManager.getDisplayedDay(),
                             ChallengeManager.getFormattedElapsedTime(),
                             ChallengeManager.getCollectedCount(),
                             ChallengeManager.getTotalTargetCount(),
@@ -229,7 +229,7 @@ public final class AllBlocksCommands {
                             "[올블록 챌린지] 상태: 결과 확정 / 결과: %s / 난이도: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
                             ChallengeManager.getResult(),
                             ChallengeManager.getDifficulty().getDisplayName(),
-                            ChallengeManager.getCurrentDay(),
+                            ChallengeManager.getDisplayedDay(),
                             ChallengeManager.getFormattedElapsedTime(),
                             ChallengeManager.getCollectedCount(),
                             ChallengeManager.getTotalTargetCount(),

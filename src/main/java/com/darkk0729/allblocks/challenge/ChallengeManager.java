@@ -382,12 +382,6 @@ public final class ChallengeManager {
                 ? ChallengeDifficulty.HARD
                 : difficulty;
 
-        state.start(
-                ChallengeMode.SOLO,
-                safeDifficulty,
-                getCurrentWorldTime(server)
-        );
-
         state.start(ChallengeMode.SOLO, safeDifficulty, getCurrentWorldTime(server));
         registerOnlinePlayers(server);
         ticksSinceLastSave = 0L;
