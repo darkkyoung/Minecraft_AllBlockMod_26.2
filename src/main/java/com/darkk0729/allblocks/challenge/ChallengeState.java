@@ -179,23 +179,6 @@ public class ChallengeState {
             this.finished = false;
         }
 
-        for (CollectedBlockData data : this.collectedBlocks.values()) {
-            if (data == null) continue;
-
-            if (data.ownerId == null) data.ownerId = "";
-            if (data.ownerName == null) data.ownerName = "";
-
-            if (data.state == BlockCollectionState.CLAIMED) {
-                if (data.ownerType == null || data.ownerType == CollectionOwnerType.NONE) {
-                    data.ownerType = CollectionOwnerType.PLAYER;
-                }
-            } else {
-                data.ownerType = CollectionOwnerType.NONE;
-                data.ownerId = "";
-                data.ownerName = "";
-            }
-        }
-
         this.running = running && !this.finished;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
         this.difficulty = difficulty == null ? ChallengeDifficulty.HARD : difficulty;
@@ -211,6 +194,23 @@ public class ChallengeState {
 
         if (loadedCollectedBlocks != null) {
             this.collectedBlocks.putAll(loadedCollectedBlocks);
+        }
+
+        for (CollectedBlockData data : this.collectedBlocks.values()) {
+            if (data == null) continue;
+
+            if (data.ownerId == null) data.ownerId = "";
+            if (data.ownerName == null) data.ownerName = "";
+
+            if (data.state == BlockCollectionState.CLAIMED) {
+                if (data.ownerType == null || data.ownerType == CollectionOwnerType.NONE) {
+                    data.ownerType = CollectionOwnerType.PLAYER;
+                }
+            } else {
+                data.ownerType = CollectionOwnerType.NONE;
+                data.ownerId = "";
+                data.ownerName = "";
+            }
         }
 
         this.participants.clear();
