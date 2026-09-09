@@ -167,6 +167,50 @@ public final class ChallengeManager {
         return state.getParticipants();
     }
 
+    public static TeamRaceTeam getParticipantTeam(String playerUuid) {
+        return state.getParticipantTeam(playerUuid);
+    }
+
+    public static boolean setParticipantTeam(
+            MinecraftServer server,
+            ServerPlayer player,
+            TeamRaceTeam team
+    ) {
+        if (server == null || player == null || team == null) {
+            return false;
+        }
+
+        state.registerParticipant(
+                player.getUUID(),
+                player.getName().getString()
+        );
+
+        boolean changed =
+                state.setParticipantTeam(
+                        player.getUUID(),
+                        team
+                );
+
+        if (!changed) {
+            return false;
+        }
+
+        save(server);
+        syncToAllPlayers(server);
+        return true;
+    }
+
+    public static int getTeamBlockCount(TeamRaceTeam team) {
+        if (team == null || !team.isAssigned()) {
+            return 0;
+        }
+
+        return state.getOwnedBlockCount(
+                CollectionOwnerType.TEAM,
+                team.getOwnerId()
+        );
+    }
+
     private static void registerOnlinePlayers(
             MinecraftServer server
     ) {
@@ -189,6 +233,19 @@ public final class ChallengeManager {
 
         if (state.getMode() == ChallengeMode.CO_OP) {
             return CollectionOwner.shared();
+        }
+
+        if (state.getMode() == ChallengeMode.TEAM_RACE) {
+            TeamRaceTeam team =
+                    state.getParticipantTeam(
+                            player.getUUID().toString()
+                    );
+
+            if (!team.isAssigned()) {
+                return null;
+            }
+
+            return CollectionOwner.team(team);
         }
 
         return CollectionOwner.player(
@@ -337,6 +394,10 @@ public final class ChallengeManager {
                                     ? PlayerCodexColor.BLUE.name()
                                     : participant.color,
 
+                            participant.teamId == null
+                                    ? TeamRaceTeam.NONE.name()
+                                    : participant.teamId,
+
                             getParticipantVisibleCollectedCount(
                                     participant.playerUuid
                             )
@@ -404,6 +465,13 @@ public final class ChallengeManager {
                     CollectionOwnerType.SHARED,
                     CollectionOwner.CO_OP_OWNER_ID
             );
+        }
+
+        if (state.getMode() == ChallengeMode.TEAM_RACE) {
+            TeamRaceTeam team =
+                    state.getParticipantTeam(playerUuid);
+
+            return getTeamBlockCount(team);
         }
 
         return state.getOwnedBlockCount(
@@ -678,6 +746,30 @@ public final class ChallengeManager {
                     + releasedCount + "개를 잃었습니다."
                     : "[AllBlocks] " + player.getName().getString()
                     + " 사망: 공용 도감에서 잃은 블록은 없습니다.";
+
+            broadcast(server, Component.literal(message));
+            return;
+        }
+
+        if (state.getMode() == ChallengeMode.TEAM_RACE) {
+            TeamRaceTeam team =
+                    state.getParticipantTeam(
+                            player.getUUID().toString()
+                    );
+
+            String message = releasedCount > 0
+                    ? "[AllBlocks] "
+                    + player.getName().getString()
+                    + " 사망: "
+                    + team.getDisplayName()
+                    + " 도감에서 블록 "
+                    + releasedCount
+                    + "개를 잃었습니다."
+                    : "[AllBlocks] "
+                    + player.getName().getString()
+                    + " 사망: "
+                    + team.getDisplayName()
+                    + " 도감에서 잃은 블록은 없습니다.";
 
             broadcast(server, Component.literal(message));
             return;

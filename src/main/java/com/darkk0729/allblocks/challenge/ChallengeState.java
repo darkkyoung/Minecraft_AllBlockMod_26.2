@@ -218,6 +218,26 @@ public class ChallengeState {
         if (loadedParticipants != null) {
             this.participants.putAll(loadedParticipants);
         }
+
+        for (ParticipantData participant : this.participants.values()) {
+            if (participant == null) continue;
+
+            if (participant.playerUuid == null) {
+                participant.playerUuid = "";
+            }
+
+            if (participant.playerName == null) {
+                participant.playerName = "";
+            }
+
+            if (participant.color == null || participant.color.isBlank()) {
+                participant.color = PlayerCodexColor.BLUE.name();
+            }
+
+            if (participant.teamId == null || participant.teamId.isBlank()) {
+                participant.teamId = TeamRaceTeam.NONE.name();
+            }
+        }
     }
 
     public void setWorldElapsedTicks(long worldElapsedTicks) {
@@ -361,6 +381,42 @@ public class ChallengeState {
         return true;
     }
 
+    public TeamRaceTeam getParticipantTeam(String playerUuid) {
+        ParticipantData participant = getParticipant(playerUuid);
+
+        if (participant == null) {
+            return TeamRaceTeam.NONE;
+        }
+
+        return TeamRaceTeam.fromName(participant.teamId);
+    }
+
+    public boolean setParticipantTeam(
+            UUID playerUuid,
+            TeamRaceTeam team
+    ) {
+        if (playerUuid == null || team == null) {
+            return false;
+        }
+
+        ParticipantData participant =
+                participants.get(playerUuid.toString());
+
+        if (participant == null) {
+            return false;
+        }
+
+        participant.teamId = team.name();
+        return true;
+    }
+
+    public void clearParticipantTeams() {
+        for (ParticipantData participant : participants.values()) {
+            if (participant == null) continue;
+            participant.teamId = TeamRaceTeam.NONE.name();
+        }
+    }
+
     public int getOwnedBlockCount(CollectionOwnerType ownerType, String ownerId) {
         if (ownerType == null || ownerType == CollectionOwnerType.NONE
                 || ownerId == null || ownerId.isBlank()) {
@@ -495,6 +551,7 @@ public class ChallengeState {
         public String playerUuid;
         public String playerName;
         public String color;
+        public String teamId = TeamRaceTeam.NONE.name();
 
         public ParticipantData() {
         }
@@ -507,6 +564,7 @@ public class ChallengeState {
             this.playerUuid = playerUuid;
             this.playerName = playerName;
             this.color = color;
+            this.teamId = TeamRaceTeam.NONE.name();
         }
     }
 }

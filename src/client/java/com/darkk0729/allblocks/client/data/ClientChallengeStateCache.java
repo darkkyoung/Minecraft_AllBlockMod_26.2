@@ -62,6 +62,7 @@ public final class ClientChallengeStateCache {
                                 entry.playerUuid(),
                                 entry.playerName(),
                                 entry.color(),
+                                entry.teamId(),
                                 Math.max(0, entry.collectedCount())
                         )
                 );
@@ -212,6 +213,7 @@ public final class ClientChallengeStateCache {
             String playerUuid,
             String playerName,
             String color,
+            String teamId,
             int collectedCount
     ) {
     }

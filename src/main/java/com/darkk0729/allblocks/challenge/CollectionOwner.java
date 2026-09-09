@@ -35,6 +35,21 @@ public record CollectionOwner(
         );
     }
 
+    public static CollectionOwner team(TeamRaceTeam team) {
+        if (team == null || !team.isAssigned()) {
+            return new CollectionOwner(
+                    CollectionOwnerType.NONE,
+                    "",
+                    ""
+            );
+        }
+
+        return team(
+                team.getOwnerId(),
+                team.getDisplayName()
+        );
+    }
+
     public static CollectionOwner team(String teamId, String teamName) {
         return new CollectionOwner(
                 CollectionOwnerType.TEAM,

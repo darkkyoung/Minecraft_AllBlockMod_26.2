@@ -56,6 +56,7 @@ public record AllBlocksSyncPayload(
                 buf.writeUtf(safeString(entry.playerUuid()));
                 buf.writeUtf(safeString(entry.playerName()));
                 buf.writeUtf(safeString(entry.color()));
+                buf.writeUtf(safeString(entry.teamId()));
                 buf.writeVarInt(Math.max(0, entry.collectedCount()));
             }
         }
@@ -106,6 +107,7 @@ public record AllBlocksSyncPayload(
                             buf.readUtf(),
                             buf.readUtf(),
                             buf.readUtf(),
+                            buf.readUtf(),
                             buf.readVarInt()
                     )
             );
@@ -151,6 +153,7 @@ public record AllBlocksSyncPayload(
             String playerUuid,
             String playerName,
             String color,
+            String teamId,
             int collectedCount
     ) {
     }
