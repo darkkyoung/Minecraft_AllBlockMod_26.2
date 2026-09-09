@@ -184,6 +184,19 @@ public final class ChallengeManager {
         }
     }
 
+    private static CollectionOwner resolveCollectionOwner(ServerPlayer player) {
+        if (player == null) return null;
+
+        if (state.getMode() == ChallengeMode.CO_OP) {
+            return CollectionOwner.shared();
+        }
+
+        return CollectionOwner.player(
+                player.getUUID(),
+                player.getName().getString()
+        );
+    }
+
     public static int getLastProgressEventTier() {
         return state.getLastProgressEventTier();
     }
@@ -324,8 +337,7 @@ public final class ChallengeManager {
                                     ? PlayerCodexColor.BLUE.name()
                                     : participant.color,
 
-                            state.getOwnedBlockCount(
-                                    CollectionOwnerType.PLAYER,
+                            getParticipantVisibleCollectedCount(
                                     participant.playerUuid
                             )
                     )
@@ -386,6 +398,19 @@ public final class ChallengeManager {
         );
     }
 
+    private static int getParticipantVisibleCollectedCount(String playerUuid) {
+        if (state.getMode() == ChallengeMode.CO_OP) {
+            return state.getOwnedBlockCount(
+                    CollectionOwnerType.SHARED,
+                    CollectionOwner.CO_OP_OWNER_ID
+            );
+        }
+
+        return state.getOwnedBlockCount(
+                CollectionOwnerType.PLAYER,
+                playerUuid
+        );
+    }
 
     public static void save(MinecraftServer server) {
         AllBlocksSaveManager.save(server, state);
@@ -399,7 +424,23 @@ public final class ChallengeManager {
             MinecraftServer server,
             ChallengeDifficulty difficulty
     ) {
-        // 26.2 World Clock을 정상 속도로 고정
+        startMode(server, ChallengeMode.SOLO, difficulty);
+    }
+
+    public static void startCoop(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty
+    ) {
+        startMode(server, ChallengeMode.CO_OP, difficulty);
+    }
+
+    private static void startMode(
+            MinecraftServer server,
+            ChallengeMode mode,
+            ChallengeDifficulty difficulty
+    ) {
+        if (server == null) return;
+
         runServerCommand(server, "time of minecraft:overworld rate 1");
         runServerCommand(server, "time of minecraft:overworld resume");
         runServerCommand(server, "time of minecraft:overworld set 0");
@@ -408,8 +449,14 @@ public final class ChallengeManager {
                 ? ChallengeDifficulty.HARD
                 : difficulty;
 
-        state.start(ChallengeMode.SOLO, safeDifficulty, getCurrentWorldTime(server));
+        state.start(
+                mode == null ? ChallengeMode.SOLO : mode,
+                safeDifficulty,
+                getCurrentWorldTime(server)
+        );
+
         registerOnlinePlayers(server);
+
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
         ticksSinceLastStatusSync = 0L;
@@ -494,10 +541,7 @@ public final class ChallengeManager {
                 player.getName().getString()
         );
 
-        CollectionOwner owner = CollectionOwner.player(
-                player.getUUID(),
-                player.getName().getString()
-        );
+        CollectionOwner owner = resolveCollectionOwner(player);
 
         boolean collected = state.collectBlock(blockId, owner);
 
@@ -541,10 +585,7 @@ public final class ChallengeManager {
         int safeCount = Math.max(1, count);
         int collectedNow = 0;
 
-        CollectionOwner owner = CollectionOwner.player(
-                player.getUUID(),
-                player.getName().getString()
-        );
+        CollectionOwner owner = resolveCollectionOwner(player);
 
         for (Block block : TargetBlockRegistry.getTargetBlocks()) {
             String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
@@ -600,21 +641,27 @@ public final class ChallengeManager {
         FinalDayManager.showResult(server, result);
     }
 
-    public static void handlePlayerDeath(MinecraftServer server, ServerPlayer player, boolean pvpDeath) {
-        if (server == null || player == null) {
-            return;
-        }
-
-        if (!state.isRunning()) {
+    public static void handlePlayerDeath(
+            MinecraftServer server,
+            ServerPlayer player,
+            boolean pvpDeath
+    ) {
+        if (server == null || player == null || !state.isRunning()) {
             return;
         }
 
         int minPercent = pvpDeath ? 5 : 0;
         int maxPercent = pvpDeath ? 20 : 10;
 
+        CollectionOwner penaltyOwner = resolveCollectionOwner(player);
+
+        if (penaltyOwner == null || !penaltyOwner.isValid()) {
+            return;
+        }
+
         int releasedCount = state.releaseRandomOwnedBlocks(
-                CollectionOwnerType.PLAYER,
-                player.getUUID().toString(),
+                penaltyOwner.type(),
+                penaltyOwner.id(),
                 minPercent,
                 maxPercent
         );
@@ -622,10 +669,25 @@ public final class ChallengeManager {
         save(server);
         updateProgressBossBar(server);
         syncToAllPlayers(server);
+        syncStatusToAllPlayers(server);
+
+        if (state.getMode() == ChallengeMode.CO_OP) {
+            String message = releasedCount > 0
+                    ? "[AllBlocks] " + player.getName().getString()
+                    + " 사망: 공용 도감에서 블록 "
+                    + releasedCount + "개를 잃었습니다."
+                    : "[AllBlocks] " + player.getName().getString()
+                    + " 사망: 공용 도감에서 잃은 블록은 없습니다.";
+
+            broadcast(server, Component.literal(message));
+            return;
+        }
 
         if (releasedCount > 0) {
             player.sendSystemMessage(Component.literal(
-                    "[AllBlocks] Death penalty: You lost " + releasedCount + " collected block(s)."
+                    "[AllBlocks] Death penalty: You lost "
+                            + releasedCount
+                            + " collected block(s)."
             ));
         } else {
             player.sendSystemMessage(Component.literal(

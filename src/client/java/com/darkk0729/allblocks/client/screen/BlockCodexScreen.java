@@ -60,6 +60,7 @@ public final class BlockCodexScreen extends Screen {
     private static final int COLOR_TEXT_DIM = 0xFF78644C;
 
     private static final int DEFAULT_PLAYER_COLOR = 0xFF4EA3FF; // 임시 플레이어 고유 색(파랑)
+    private static final int COOP_SHARED_COLOR = 0xFF55FFFF;
     private static final int COLOR_UNCLAIMED = 0xFF71685B;
     private static final int COLOR_RELEASED = 0xFF8E4E84;
     private static final int COLOR_SELECTED = 0xFFE2B94B;
@@ -1167,6 +1168,10 @@ public final class BlockCodexScreen extends Screen {
     }
 
     private int getHeaderPlayerCollectedCount() {
+        if ("CO_OP".equals(ClientChallengeStateCache.getMode())) {
+            return ClientChallengeStateCache.getCollectedCount();
+        }
+
         if (this.minecraft == null
                 || this.minecraft.player == null) {
             return 0;
@@ -1188,11 +1193,16 @@ public final class BlockCodexScreen extends Screen {
     }
 
     private int getHeaderPlayerColor() {
+        if ("CO_OP".equals(ClientChallengeStateCache.getMode())) {
+            return COOP_SHARED_COLOR;
+        }
+
         if (this.minecraft == null || this.minecraft.player == null) {
             return DEFAULT_PLAYER_COLOR;
         }
 
         String uuid = this.minecraft.player.getUUID().toString();
+
         ClientChallengeStateCache.SyncedParticipantData participant =
                 ClientChallengeStateCache.getParticipant(uuid);
 
@@ -1200,7 +1210,9 @@ public final class BlockCodexScreen extends Screen {
             return DEFAULT_PLAYER_COLOR;
         }
 
-        return PlayerCodexColor.fromName(participant.color()).getArgb();
+        return PlayerCodexColor.fromName(
+                participant.color()
+        ).getArgb();
     }
 
     private int getOwnerColor(String blockId) {
@@ -1209,6 +1221,10 @@ public final class BlockCodexScreen extends Screen {
 
         if (data == null || data.ownerId() == null || data.ownerId().isBlank()) {
             return DEFAULT_PLAYER_COLOR;
+        }
+
+        if ("SHARED".equals(data.ownerType())) {
+            return COOP_SHARED_COLOR;
         }
 
         // 현재 완성된 Solo / 향후 Block Race

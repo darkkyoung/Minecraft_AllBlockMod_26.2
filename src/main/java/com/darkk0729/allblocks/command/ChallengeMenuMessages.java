@@ -127,26 +127,44 @@ public final class ChallengeMenuMessages {
 
     private static void sendCoopDifficultyMenu(MessageSender sender) {
         sender.send(separator());
-        sender.send(Component.literal("[ 협동 난이도 선택 ]")
-                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
-        sender.send(Component.literal("모든 플레이어가 하나의 도감을 함께 완성합니다.")
-                .withStyle(ChatFormatting.WHITE));
-        sender.send(Component.literal("멀티 동기화 구현 후 사용할 수 있습니다.")
-                .withStyle(ChatFormatting.DARK_GRAY));
+        sender.send(Component.literal("[ 협동 난이도 선택 ]")
+                .withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD));
 
         sender.send(Component.literal(""));
-        sender.send(clickable("[쉬움]", ChatFormatting.GREEN, "/allblocks menu comingsoon coop")
-                .append(Component.literal(" 이벤트 없이 함께 도감을 완성합니다.")
-                        .withStyle(ChatFormatting.WHITE)));
+        sender.send(Component.literal(
+                "모든 플레이어가 하나의 공용 도감을 함께 완성합니다."
+        ).withStyle(ChatFormatting.WHITE));
 
-        sender.send(clickable("[보통]", ChatFormatting.YELLOW, "/allblocks menu comingsoon coop")
-                .append(Component.literal(" 약한 이벤트가 발생합니다.")
-                        .withStyle(ChatFormatting.WHITE)));
+        sender.send(Component.literal(
+                "한 플레이어의 획득과 손실은 모든 플레이어의 도감에 공유됩니다."
+        ).withStyle(ChatFormatting.GRAY));
 
-        sender.send(clickable("[어려움]", ChatFormatting.RED, "/allblocks menu comingsoon coop")
-                .append(Component.literal(" 강력한 이벤트가 발생합니다.")
-                        .withStyle(ChatFormatting.WHITE)));
+        sender.send(Component.literal(""));
+
+        sender.send(clickable(
+                "[쉬움]",
+                ChatFormatting.GREEN,
+                "/allblocks start coop easy"
+        ).append(Component.literal(
+                " 진행률/Day 이벤트와 100일 제한 없이 함께 수집합니다."
+        ).withStyle(ChatFormatting.WHITE)));
+
+        sender.send(clickable(
+                "[보통]",
+                ChatFormatting.YELLOW,
+                "/allblocks start coop normal"
+        ).append(Component.literal(
+                " 보통 난이도의 진행률/Day 이벤트와 100일 제한이 적용됩니다."
+        ).withStyle(ChatFormatting.WHITE)));
+
+        sender.send(clickable(
+                "[어려움]",
+                ChatFormatting.RED,
+                "/allblocks start coop hard"
+        ).append(Component.literal(
+                " 강력한 진행률/Day 이벤트와 100일 제한이 적용됩니다."
+        ).withStyle(ChatFormatting.WHITE)));
 
         sender.send(separator());
     }

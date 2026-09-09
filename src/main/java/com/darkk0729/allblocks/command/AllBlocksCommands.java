@@ -83,6 +83,23 @@ public final class AllBlocksCommands {
                                                             ChallengeDifficulty.HARD
                                                     )))
                                     )
+                                    .then(Commands.literal("coop")
+                                            .then(Commands.literal("easy")
+                                                    .executes(context -> startCoop(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.EASY
+                                                    )))
+                                            .then(Commands.literal("normal")
+                                                    .executes(context -> startCoop(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.NORMAL
+                                                    )))
+                                            .then(Commands.literal("hard")
+                                                    .executes(context -> startCoop(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.HARD
+                                                    )))
+                                    )
                             )
                             .then(Commands.literal("stop")
                                     .executes(context -> stop(context.getSource())))
@@ -149,7 +166,7 @@ public final class AllBlocksCommands {
     }
 
     private static int showStartUsage(CommandSourceStack source) {
-        ChallengeMenuMessages.showSingleDifficultyMenu(source);
+        ChallengeMenuMessages.showModeMenu(source);
         return 1;
     }
 
@@ -165,6 +182,36 @@ public final class AllBlocksCommands {
         source.sendSuccess(
                 () -> Component.literal(
                         "[올블록 챌린지] 싱글 "
+                                + difficulty.getDisplayName()
+                                + " 난이도로 챌린지를 시작했습니다."
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+    private static int startCoop(
+            CommandSourceStack source,
+            ChallengeDifficulty difficulty
+    ) {
+        if (ChallengeManager.isRunning()) {
+            source.sendFailure(Component.literal(
+                    "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
+            ));
+            return 0;
+        }
+
+        MinecraftServer server = source.getServer();
+
+        ChallengeManager.startCoop(
+                server,
+                difficulty
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "[올블록 챌린지] 협동 "
                                 + difficulty.getDisplayName()
                                 + " 난이도로 챌린지를 시작했습니다."
                 ),
