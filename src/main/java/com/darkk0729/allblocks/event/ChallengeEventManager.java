@@ -18,6 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
+import com.darkk0729.allblocks.challenge.ChallengeMode;
 
 public final class ChallengeEventManager {
     private static final int MAX_PROGRESS_TIER = 10;
@@ -85,6 +86,12 @@ public final class ChallengeEventManager {
 
     private static void triggerProgressEvent(MinecraftServer server, int tier) {
         int progressPercent = tier * 10;
+
+        if (ChallengeManager.getMode() == ChallengeMode.CO_OP) {
+            triggerCoopProgressEvent(server, progressPercent);
+            return;
+        }
+
         int eventType = ThreadLocalRandom.current().nextInt(3);
 
         switch (eventType) {
@@ -95,6 +102,76 @@ public final class ChallengeEventManager {
         }
     }
 
+    private static void triggerCoopProgressEvent(MinecraftServer server, int progressPercent) {
+        List<ServerPlayer> players = getPlayers(server);
+
+        if (players.isEmpty()) {
+            return;
+        }
+
+        for (ServerPlayer player : players) {
+            int eventType = ThreadLocalRandom.current().nextInt(3);
+
+            switch (eventType) {
+                case 0 -> {
+                    applyRandomDebuffsToPlayer(player, progressPercent);
+
+                    player.sendSystemMessage(Component.literal(
+                            "[AllBlocks] Progress Event " + progressPercent + "%: Random debuff"
+                    ));
+                }
+
+                case 1 -> {
+                    teleportPlayerRandomly(
+                            player,
+                            getTeleportEventRadius(progressPercent)
+                    );
+
+                    player.sendSystemMessage(Component.literal(
+                            "[AllBlocks] Progress Event " + progressPercent + "%: Random teleport"
+                    ));
+                }
+
+                case 2 -> {
+                    Block fillBlock =
+                            TargetBlockRegistry.getRandomFillEventBlock();
+
+                    if (fillBlock == null) {
+                        fillBlock = Blocks.OBSIDIAN;
+                    }
+
+                    int sideLength =
+                            getProgressEventSideLength(progressPercent);
+
+                    int radius =
+                            Math.max(1, sideLength / 2);
+
+                    fillBlocksAroundPlayer(
+                            player,
+                            radius,
+                            fillBlock,
+                            players
+                    );
+
+                    String fillBlockName =
+                            BuiltInRegistries.BLOCK
+                                    .getKey(fillBlock)
+                                    .toString();
+
+                    player.sendSystemMessage(Component.literal(
+                            "[AllBlocks] Progress Event "
+                                    + progressPercent
+                                    + "%: Area filled with "
+                                    + fillBlockName
+                    ));
+                }
+
+                default -> {
+                }
+            }
+        }
+    }
+
     private static void triggerDebuffEvent(MinecraftServer server, int progressPercent) {
         List<ServerPlayer> players = getPlayers(server);
 
@@ -102,21 +179,40 @@ public final class ChallengeEventManager {
             return;
         }
 
-        int effectCount = getDebuffCount(progressPercent);
-        int durationSeconds = getDebuffDurationSeconds(progressPercent);
-
         for (ServerPlayer player : players) {
-            List<DebuffType> debuffs = new ArrayList<>(getAvailableDebuffs());
-            Collections.shuffle(debuffs, ThreadLocalRandom.current());
-
-            for (int i = 0; i < effectCount && i < debuffs.size(); i++) {
-                applyDebuff(player, debuffs.get(i), durationSeconds);
-            }
+            applyRandomDebuffsToPlayer(player, progressPercent);
         }
 
         broadcast(server, Component.literal(
                 "[AllBlocks] Progress Event " + progressPercent + "%: Random debuff"
         ));
+    }
+
+    private static void applyRandomDebuffsToPlayer(
+            ServerPlayer player,
+            int progressPercent
+    ) {
+        int effectCount = getDebuffCount(progressPercent);
+        int durationSeconds = getDebuffDurationSeconds(progressPercent);
+
+        List<DebuffType> debuffs =
+                new ArrayList<>(getAvailableDebuffs());
+
+        Collections.shuffle(
+                debuffs,
+                ThreadLocalRandom.current()
+        );
+
+        for (int i = 0;
+             i < effectCount && i < debuffs.size();
+             i++) {
+
+            applyDebuff(
+                    player,
+                    debuffs.get(i),
+                    durationSeconds
+            );
+        }
     }
 
     private static List<DebuffType> getAvailableDebuffs() {
