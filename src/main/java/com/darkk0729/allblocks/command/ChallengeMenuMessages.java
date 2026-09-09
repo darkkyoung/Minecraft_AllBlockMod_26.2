@@ -35,8 +35,19 @@ public final class ChallengeMenuMessages {
         sendCoopDifficultyMenu(line -> source.sendSuccess(() -> line, false));
     }
 
-    public static void showRaceDifficultyMenu(CommandSourceStack source) {
-        sendRaceDifficultyMenu(line -> source.sendSuccess(() -> line, false));
+    public static void showRaceModeMenu(CommandSourceStack source) {
+        sendRaceModeMenu(line -> source.sendSuccess(() -> line, false));
+    }
+
+    public static void showTeamRaceDifficultyMenu(CommandSourceStack source) {
+        sendTeamRaceDifficultyMenu(line -> source.sendSuccess(() -> line, false));
+    }
+
+    public static void showBlockRaceComingSoon(CommandSourceStack source) {
+        source.sendSuccess(() -> prefix()
+                .append(Component.literal(
+                        "블록 레이스는 아직 개발 중입니다."
+                ).withStyle(ChatFormatting.WHITE)), false);
     }
 
     public static void showRaceComingSoon(CommandSourceStack source) {
@@ -163,28 +174,80 @@ public final class ChallengeMenuMessages {
         sender.send(separator());
     }
 
-    private static void sendRaceDifficultyMenu(MessageSender sender) {
+    private static void sendRaceModeMenu(MessageSender sender) {
         sender.send(separator());
-        sender.send(Component.literal("[ 경쟁 난이도 선택 ]")
-                .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
-        sender.send(Component.literal("각 플레이어가 블록 수집량을 겨룹니다.")
-                .withStyle(ChatFormatting.WHITE));
-        sender.send(Component.literal("멀티 경쟁 시스템 구현 후 사용할 수 있습니다.")
-                .withStyle(ChatFormatting.DARK_GRAY));
+        sender.send(Component.literal("[ 경쟁 모드 선택 ]")
+                .withStyle(
+                        ChatFormatting.GOLD,
+                        ChatFormatting.BOLD
+                ));
 
         sender.send(Component.literal(""));
-        sender.send(clickable("[쉬움]", ChatFormatting.GREEN, "/allblocks menu comingsoon race")
-                .append(Component.literal(" 이벤트 없이 순수하게 수집량을 겨룹니다.")
-                        .withStyle(ChatFormatting.WHITE)));
 
-        sender.send(clickable("[보통]", ChatFormatting.YELLOW, "/allblocks menu comingsoon race")
-                .append(Component.literal(" 경쟁용 보통 이벤트가 발생합니다.")
-                        .withStyle(ChatFormatting.WHITE)));
+        sender.send(
+                clickable(
+                        "[팀 레이스]",
+                        ChatFormatting.BLUE,
+                        "/allblocks menu teamrace"
+                ).append(Component.literal(
+                        " 두 팀이 블록 소유권을 두고 경쟁합니다."
+                ).withStyle(ChatFormatting.WHITE))
+        );
 
-        sender.send(clickable("[어려움]", ChatFormatting.RED, "/allblocks menu comingsoon race")
-                .append(Component.literal(" 차등 이벤트가 포함된 고난도 경쟁 모드입니다.")
-                        .withStyle(ChatFormatting.WHITE)));
+        sender.send(
+                clickable(
+                        "[블록 레이스]",
+                        ChatFormatting.RED,
+                        "/allblocks menu blockrace"
+                ).append(Component.literal(
+                        " 각 플레이어가 개인 수집량을 겨룹니다."
+                ).withStyle(ChatFormatting.WHITE))
+        );
+
+        sender.send(separator());
+    }
+
+    private static void sendTeamRaceDifficultyMenu(
+            MessageSender sender
+    ) {
+        sender.send(separator());
+
+        sender.send(Component.literal("[ 팀 레이스 난이도 선택 ]")
+                .withStyle(
+                        ChatFormatting.GOLD,
+                        ChatFormatting.BOLD
+                ));
+
+        sender.send(Component.literal(
+                "난이도 선택 후 팀 배정을 진행합니다."
+        ).withStyle(ChatFormatting.GRAY));
+
+        sender.send(Component.literal(""));
+
+        sender.send(
+                clickable(
+                        "[쉬움]",
+                        ChatFormatting.GREEN,
+                        "/allblocks teamrace begin easy"
+                )
+        );
+
+        sender.send(
+                clickable(
+                        "[보통]",
+                        ChatFormatting.YELLOW,
+                        "/allblocks teamrace begin normal"
+                )
+        );
+
+        sender.send(
+                clickable(
+                        "[어려움]",
+                        ChatFormatting.RED,
+                        "/allblocks teamrace begin hard"
+                )
+        );
 
         sender.send(separator());
     }

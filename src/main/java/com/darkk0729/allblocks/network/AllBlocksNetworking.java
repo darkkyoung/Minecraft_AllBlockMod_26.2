@@ -22,6 +22,11 @@ public final class AllBlocksNetworking {
                 ChallengeStatusPayload.CODEC
         );
 
+        PayloadTypeRegistry.clientboundPlay().register(
+                TeamRevealPayload.TYPE,
+                TeamRevealPayload.CODEC
+        );
+
         // 클라이언트 -> 서버
         PayloadTypeRegistry.serverboundPlay().register(
                 PlayerColorChangePayload.TYPE,

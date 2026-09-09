@@ -11,6 +11,8 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import com.darkk0729.allblocks.challenge.TeamRaceSetupManager;
+import com.mojang.brigadier.arguments.StringArgumentType;
 
 public final class AllBlocksCommands {
     private AllBlocksCommands() {
@@ -45,17 +47,27 @@ public final class AllBlocksCommands {
                                     )
                                     .then(Commands.literal("race")
                                             .executes(context -> {
-                                                ChallengeMenuMessages.showRaceDifficultyMenu(context.getSource());
+                                                ChallengeMenuMessages.showRaceModeMenu(
+                                                        context.getSource()
+                                                );
                                                 return 1;
                                             })
                                     )
-                                    .then(Commands.literal("comingsoon")
-                                            .then(Commands.literal("race")
-                                                    .executes(context -> {
-                                                        ChallengeMenuMessages.showRaceComingSoon(context.getSource());
-                                                        return 1;
-                                                    })
-                                            )
+                                    .then(Commands.literal("teamrace")
+                                            .executes(context -> {
+                                                ChallengeMenuMessages.showTeamRaceDifficultyMenu(
+                                                        context.getSource()
+                                                );
+                                                return 1;
+                                            })
+                                    )
+                                    .then(Commands.literal("blockrace")
+                                            .executes(context -> {
+                                                ChallengeMenuMessages.showBlockRaceComingSoon(
+                                                        context.getSource()
+                                                );
+                                                return 1;
+                                            })
                                     )
                             )
                             .then(Commands.literal("start")
@@ -97,6 +109,67 @@ public final class AllBlocksCommands {
                             )
                             .then(Commands.literal("stop")
                                     .executes(context -> stop(context.getSource())))
+                            .then(Commands.literal("teamrace")
+                                    .then(Commands.literal("begin")
+                                            .then(Commands.literal("easy")
+                                                    .executes(context ->
+                                                            beginTeamRaceSetup(
+                                                                    context.getSource(),
+                                                                    ChallengeDifficulty.EASY
+                                                            )))
+                                            .then(Commands.literal("normal")
+                                                    .executes(context ->
+                                                            beginTeamRaceSetup(
+                                                                    context.getSource(),
+                                                                    ChallengeDifficulty.NORMAL
+                                                            )))
+                                            .then(Commands.literal("hard")
+                                                    .executes(context ->
+                                                            beginTeamRaceSetup(
+                                                                    context.getSource(),
+                                                                    ChallengeDifficulty.HARD
+                                                            )))
+                                    )
+                                    .then(Commands.literal("reroll")
+                                            .executes(context ->
+                                                    teamRaceRerollMenu(
+                                                            context.getSource()
+                                                    ))
+                                    )
+                                    .then(Commands.literal("random")
+                                            .executes(context ->
+                                                    teamRaceRandom(
+                                                            context.getSource()
+                                                    ))
+                                    )
+                                    .then(Commands.literal("manual")
+                                            .executes(context ->
+                                                    teamRaceManual(
+                                                            context.getSource()
+                                                    ))
+                                    )
+                                    .then(Commands.literal("cycle")
+                                            .then(Commands.argument(
+                                                                    "playerUuid",
+                                                                    StringArgumentType.word()
+                                                            )
+                                                            .executes(context ->
+                                                                    teamRaceCycle(
+                                                                            context.getSource(),
+                                                                            StringArgumentType.getString(
+                                                                                    context,
+                                                                                    "playerUuid"
+                                                                            )
+                                                                    ))
+                                            )
+                                    )
+                                    .then(Commands.literal("confirm")
+                                            .executes(context ->
+                                                    teamRaceConfirm(
+                                                            context.getSource()
+                                                    ))
+                                    )
+                            )
                             .then(Commands.literal("status")
                                     .executes(context -> status(context.getSource())))
                             .then(Commands.literal("progress")
@@ -215,8 +288,90 @@ public final class AllBlocksCommands {
         return 1;
     }
 
+    private static int beginTeamRaceSetup(
+            CommandSourceStack source,
+            ChallengeDifficulty difficulty
+    ) {
+        if (ChallengeManager.isRunning()) {
+            source.sendFailure(Component.literal(
+                    "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
+            ));
+            return 0;
+        }
+
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        return TeamRaceSetupManager.begin(
+                source.getServer(),
+                player,
+                difficulty
+        ) ? 1 : 0;
+    }
+
+    private static int teamRaceRerollMenu(
+            CommandSourceStack source
+    ) {
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        TeamRaceSetupManager.showRerollMenu(player);
+        return 1;
+    }
+
+    private static int teamRaceRandom(
+            CommandSourceStack source
+    ) {
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        return TeamRaceSetupManager.randomizeAgain(
+                source.getServer(),
+                player
+        ) ? 1 : 0;
+    }
+
+    private static int teamRaceManual(
+            CommandSourceStack source
+    ) {
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        return TeamRaceSetupManager.beginManual(
+                source.getServer(),
+                player
+        ) ? 1 : 0;
+    }
+
+    private static int teamRaceCycle(
+            CommandSourceStack source,
+            String playerUuid
+    ) {
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        return TeamRaceSetupManager.cycleManualTeam(
+                source.getServer(),
+                player,
+                playerUuid
+        ) ? 1 : 0;
+    }
+
+    private static int teamRaceConfirm(
+            CommandSourceStack source
+    ) {
+        ServerPlayer player =
+                source.getPlayerOrException();
+
+        return TeamRaceSetupManager.confirm(
+                source.getServer(),
+                player
+        ) ? 1 : 0;
+    }
+
     private static int stop(CommandSourceStack source) {
-        if (!ChallengeManager.shouldShowHud()) {
+        if (!ChallengeManager.shouldShowHud()
+                && !ChallengeManager.isTeamRaceSetupActive()) {
             source.sendFailure(Component.literal("[올블록 챌린지] 종료할 챌린지가 없습니다."));
             return 0;
         }

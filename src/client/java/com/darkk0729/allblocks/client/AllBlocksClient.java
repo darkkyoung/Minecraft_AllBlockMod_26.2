@@ -11,6 +11,7 @@ import com.darkk0729.allblocks.client.network.CodexToastClientNetworking;
 import com.darkk0729.allblocks.client.network.AllBlocksClientNetworking;
 import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import com.darkk0729.allblocks.client.hud.TeamRevealHud;
 
 public final class AllBlocksClient implements ClientModInitializer {
     private static KeyMapping openCodexKey;
@@ -21,10 +22,14 @@ public final class AllBlocksClient implements ClientModInitializer {
         AllBlocksClientNetworking.registerReceivers();
 
         ClientPlayConnectionEvents.DISCONNECT.register(
-                (handler, client) -> ClientChallengeStateCache.clear()
+                (handler, client) -> {
+                    ClientChallengeStateCache.clear();
+                    TeamRevealHud.clear();
+                }
         );
 
         ChallengeInfoHud.register();
+        TeamRevealHud.register();
 
         openCodexKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.allblocks.open_codex",

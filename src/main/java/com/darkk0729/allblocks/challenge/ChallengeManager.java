@@ -492,6 +492,7 @@ public final class ChallengeManager {
             MinecraftServer server,
             ChallengeDifficulty difficulty
     ) {
+        TeamRaceSetupManager.reset(server);
         startMode(server, ChallengeMode.SOLO, difficulty);
     }
 
@@ -499,7 +500,12 @@ public final class ChallengeManager {
             MinecraftServer server,
             ChallengeDifficulty difficulty
     ) {
+        TeamRaceSetupManager.reset(server);
         startMode(server, ChallengeMode.CO_OP, difficulty);
+    }
+
+    public static boolean isTeamRaceSetupActive() {
+        return TeamRaceSetupManager.isActive();
     }
 
     private static void startMode(
@@ -538,6 +544,7 @@ public final class ChallengeManager {
     }
 
     public static void stop(MinecraftServer server) {
+        TeamRaceSetupManager.reset(server);
         state.stop();
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
@@ -550,6 +557,8 @@ public final class ChallengeManager {
     }
 
     public static void tick(MinecraftServer server) {
+        TeamRaceSetupManager.tick(server);
+
         if (!state.isRunning()) {
             return;
         }
