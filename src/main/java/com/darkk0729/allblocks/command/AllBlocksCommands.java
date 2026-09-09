@@ -13,6 +13,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.darkk0729.allblocks.challenge.TeamRaceSetupManager;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 public final class AllBlocksCommands {
     private AllBlocksCommands() {
@@ -291,7 +292,7 @@ public final class AllBlocksCommands {
     private static int beginTeamRaceSetup(
             CommandSourceStack source,
             ChallengeDifficulty difficulty
-    ) {
+    ) throws CommandSyntaxException {
         if (ChallengeManager.isRunning()) {
             source.sendFailure(Component.literal(
                     "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
@@ -311,7 +312,7 @@ public final class AllBlocksCommands {
 
     private static int teamRaceRerollMenu(
             CommandSourceStack source
-    ) {
+    ) throws CommandSyntaxException {
         ServerPlayer player =
                 source.getPlayerOrException();
 
@@ -321,7 +322,7 @@ public final class AllBlocksCommands {
 
     private static int teamRaceRandom(
             CommandSourceStack source
-    ) {
+    ) throws CommandSyntaxException {
         ServerPlayer player =
                 source.getPlayerOrException();
 
@@ -333,7 +334,7 @@ public final class AllBlocksCommands {
 
     private static int teamRaceManual(
             CommandSourceStack source
-    ) {
+    ) throws CommandSyntaxException {
         ServerPlayer player =
                 source.getPlayerOrException();
 
@@ -346,7 +347,7 @@ public final class AllBlocksCommands {
     private static int teamRaceCycle(
             CommandSourceStack source,
             String playerUuid
-    ) {
+    ) throws CommandSyntaxException {
         ServerPlayer player =
                 source.getPlayerOrException();
 
@@ -359,7 +360,7 @@ public final class AllBlocksCommands {
 
     private static int teamRaceConfirm(
             CommandSourceStack source
-    ) {
+    ) throws CommandSyntaxException {
         ServerPlayer player =
                 source.getPlayerOrException();
 
