@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.LinkedHashMap;
+import com.google.gson.annotations.SerializedName;
 
 public class ChallengeState {
     public static final long TICKS_PER_SECOND = 20L;
@@ -178,6 +179,23 @@ public class ChallengeState {
             this.finished = false;
         }
 
+        for (CollectedBlockData data : this.collectedBlocks.values()) {
+            if (data == null) continue;
+
+            if (data.ownerId == null) data.ownerId = "";
+            if (data.ownerName == null) data.ownerName = "";
+
+            if (data.state == BlockCollectionState.CLAIMED) {
+                if (data.ownerType == null || data.ownerType == CollectionOwnerType.NONE) {
+                    data.ownerType = CollectionOwnerType.PLAYER;
+                }
+            } else {
+                data.ownerType = CollectionOwnerType.NONE;
+                data.ownerId = "";
+                data.ownerName = "";
+            }
+        }
+
         this.running = running && !this.finished;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
         this.difficulty = difficulty == null ? ChallengeDifficulty.HARD : difficulty;
@@ -245,7 +263,11 @@ public class ChallengeState {
         return false;
     }
 
-    public boolean collectBlock(String blockId, UUID ownerUuid, String ownerName) {
+    public boolean collectBlock(String blockId, CollectionOwner owner) {
+        if (blockId == null || blockId.isBlank() || owner == null || !owner.isValid()) {
+            return false;
+        }
+
         CollectedBlockData existingData = collectedBlocks.get(blockId);
 
         if (existingData != null && existingData.state == BlockCollectionState.CLAIMED) {
@@ -253,8 +275,9 @@ public class ChallengeState {
         }
 
         collectedBlocks.put(blockId, new CollectedBlockData(
-                ownerUuid.toString(),
-                ownerName,
+                owner.type(),
+                owner.id(),
+                owner.displayName(),
                 BlockCollectionState.CLAIMED
         ));
 
@@ -347,54 +370,44 @@ public class ChallengeState {
         return true;
     }
 
-    public int getOwnedBlockCount(String playerUuid) {
-        if (playerUuid == null || playerUuid.isBlank()) {
+    public int getOwnedBlockCount(CollectionOwnerType ownerType, String ownerId) {
+        if (ownerType == null || ownerType == CollectionOwnerType.NONE
+                || ownerId == null || ownerId.isBlank()) {
             return 0;
         }
 
         int count = 0;
 
         for (CollectedBlockData data : collectedBlocks.values()) {
-            if (data == null) {
-                continue;
-            }
-
-            if (data.state != BlockCollectionState.CLAIMED) {
-                continue;
-            }
-
-            if (!playerUuid.equals(data.ownerUuid)) {
-                continue;
-            }
-
+            if (data == null || data.state != BlockCollectionState.CLAIMED) continue;
+            if (data.ownerType != ownerType) continue;
+            if (!ownerId.equals(data.ownerId)) continue;
             count++;
         }
 
         return count;
     }
 
-    public int releaseRandomOwnedBlocks(UUID ownerUuid, int minPercent, int maxPercent) {
-        if (ownerUuid == null) {
+    public int releaseRandomOwnedBlocks(
+            CollectionOwnerType ownerType,
+            String ownerId,
+            int minPercent,
+            int maxPercent
+    ) {
+        if (ownerType == null || ownerType == CollectionOwnerType.NONE
+                || ownerId == null || ownerId.isBlank()) {
             return 0;
         }
 
-        String ownerId = ownerUuid.toString();
         List<String> ownedBlockIds = new ArrayList<>();
 
         for (Map.Entry<String, CollectedBlockData> entry : collectedBlocks.entrySet()) {
             CollectedBlockData data = entry.getValue();
 
-            if (data == null) {
-                continue;
-            }
-
-            if (data.state != BlockCollectionState.CLAIMED) {
-                continue;
-            }
-
-            if (!ownerId.equals(data.ownerUuid)) {
-                continue;
-            }
+            if (data == null) continue;
+            if (data.state != BlockCollectionState.CLAIMED) continue;
+            if (data.ownerType != ownerType) continue;
+            if (!ownerId.equals(data.ownerId)) continue;
 
             ownedBlockIds.add(entry.getKey());
         }
@@ -441,7 +454,8 @@ public class ChallengeState {
                 continue;
             }
 
-            data.ownerUuid = "";
+            data.ownerType = CollectionOwnerType.NONE;
+            data.ownerId = "";
             data.ownerName = "";
             data.state = BlockCollectionState.RELEASED;
         }
@@ -462,16 +476,26 @@ public class ChallengeState {
     }
 
     public static class CollectedBlockData {
-        public String ownerUuid;
-        public String ownerName;
+        public CollectionOwnerType ownerType = CollectionOwnerType.NONE;
+
+        @SerializedName(value = "ownerId", alternate = {"ownerUuid"})
+        public String ownerId = "";
+
+        public String ownerName = "";
         public BlockCollectionState state;
 
         public CollectedBlockData() {
         }
 
-        public CollectedBlockData(String ownerUuid, String ownerName, BlockCollectionState state) {
-            this.ownerUuid = ownerUuid;
-            this.ownerName = ownerName;
+        public CollectedBlockData(
+                CollectionOwnerType ownerType,
+                String ownerId,
+                String ownerName,
+                BlockCollectionState state
+        ) {
+            this.ownerType = ownerType == null ? CollectionOwnerType.NONE : ownerType;
+            this.ownerId = ownerId == null ? "" : ownerId;
+            this.ownerName = ownerName == null ? "" : ownerName;
             this.state = state;
         }
     }

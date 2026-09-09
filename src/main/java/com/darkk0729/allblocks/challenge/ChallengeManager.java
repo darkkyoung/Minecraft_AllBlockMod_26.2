@@ -217,6 +217,7 @@ public final class ChallengeManager {
 
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
+        ticksSinceLastStatusSync = 0L;
         bossBarCreated = false;
 
         AllBlocksMod.LOGGER.info(
@@ -324,6 +325,7 @@ public final class ChallengeManager {
                                     : participant.color,
 
                             state.getOwnedBlockCount(
+                                    CollectionOwnerType.PLAYER,
                                     participant.playerUuid
                             )
                     )
@@ -354,15 +356,15 @@ public final class ChallengeManager {
             blockEntries.add(
                     new AllBlocksSyncPayload.BlockEntry(
                             blockId,
-
-                            data.ownerUuid == null
+                            data.ownerType == null
+                                    ? CollectionOwnerType.NONE.name()
+                                    : data.ownerType.name(),
+                            data.ownerId == null
                                     ? ""
-                                    : data.ownerUuid,
-
+                                    : data.ownerId,
                             data.ownerName == null
                                     ? ""
                                     : data.ownerName,
-
                             data.state == null
                                     ? "UNCLAIMED"
                                     : data.state.name()
@@ -492,11 +494,12 @@ public final class ChallengeManager {
                 player.getName().getString()
         );
 
-        boolean collected = state.collectBlock(
-                blockId,
+        CollectionOwner owner = CollectionOwner.player(
                 player.getUUID(),
                 player.getName().getString()
         );
+
+        boolean collected = state.collectBlock(blockId, owner);
 
         if (collected) {
             sendCodexToast(player, blockId);
@@ -538,14 +541,15 @@ public final class ChallengeManager {
         int safeCount = Math.max(1, count);
         int collectedNow = 0;
 
+        CollectionOwner owner = CollectionOwner.player(
+                player.getUUID(),
+                player.getName().getString()
+        );
+
         for (Block block : TargetBlockRegistry.getTargetBlocks()) {
             String blockId = BuiltInRegistries.BLOCK.getKey(block).toString();
 
-            boolean collected = state.collectBlock(
-                    blockId,
-                    player.getUUID(),
-                    player.getName().getString()
-            );
+            boolean collected = state.collectBlock(blockId, owner);
 
             if (!collected) {
                 continue;
@@ -563,6 +567,7 @@ public final class ChallengeManager {
         } else {
             save(server);
             updateProgressBossBar(server);
+            syncToAllPlayers(server);
         }
 
         player.sendSystemMessage(Component.literal(
@@ -608,7 +613,8 @@ public final class ChallengeManager {
         int maxPercent = pvpDeath ? 20 : 10;
 
         int releasedCount = state.releaseRandomOwnedBlocks(
-                player.getUUID(),
+                CollectionOwnerType.PLAYER,
+                player.getUUID().toString(),
                 minPercent,
                 maxPercent
         );

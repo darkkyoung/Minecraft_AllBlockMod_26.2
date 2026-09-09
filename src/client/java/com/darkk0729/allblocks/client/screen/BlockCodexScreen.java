@@ -1207,18 +1207,24 @@ public final class BlockCodexScreen extends Screen {
         ClientChallengeStateCache.SyncedBlockData data =
                 ClientChallengeStateCache.getBlockData(blockId);
 
-        if (data == null || data.ownerUuid() == null || data.ownerUuid().isBlank()) {
+        if (data == null || data.ownerId() == null || data.ownerId().isBlank()) {
             return DEFAULT_PLAYER_COLOR;
         }
 
-        ClientChallengeStateCache.SyncedParticipantData participant =
-                ClientChallengeStateCache.getParticipant(data.ownerUuid());
+        // 현재 완성된 Solo / 향후 Block Race
+        if ("PLAYER".equals(data.ownerType())) {
+            ClientChallengeStateCache.SyncedParticipantData participant =
+                    ClientChallengeStateCache.getParticipant(data.ownerId());
 
-        if (participant == null) {
-            return DEFAULT_PLAYER_COLOR;
+            if (participant == null) {
+                return DEFAULT_PLAYER_COLOR;
+            }
+
+            return PlayerCodexColor.fromName(participant.color()).getArgb();
         }
 
-        return PlayerCodexColor.fromName(participant.color()).getArgb();
+        // SHARED / TEAM의 실제 색상은 각 모드 구현 단계에서 연결
+        return DEFAULT_PLAYER_COLOR;
     }
 
     private String getDisplayBlockId(String blockId) {

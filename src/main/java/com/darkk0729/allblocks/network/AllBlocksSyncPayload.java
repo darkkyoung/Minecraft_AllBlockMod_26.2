@@ -71,7 +71,8 @@ public record AllBlocksSyncPayload(
             BlockEntry entry = blocks.get(i);
 
             buf.writeUtf(safeString(entry.blockId()));
-            buf.writeUtf(safeString(entry.ownerUuid()));
+            buf.writeUtf(safeString(entry.ownerType()));
+            buf.writeUtf(safeString(entry.ownerId()));
             buf.writeUtf(safeString(entry.ownerName()));
             buf.writeUtf(safeString(entry.state()));
         }
@@ -118,6 +119,7 @@ public record AllBlocksSyncPayload(
                     buf.readUtf(),
                     buf.readUtf(),
                     buf.readUtf(),
+                    buf.readUtf(),
                     buf.readUtf()
             ));
         }
@@ -155,7 +157,8 @@ public record AllBlocksSyncPayload(
 
     public record BlockEntry(
             String blockId,
-            String ownerUuid,
+            String ownerType,
+            String ownerId,
             String ownerName,
             String state
     ) {

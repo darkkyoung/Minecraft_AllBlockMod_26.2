@@ -77,7 +77,8 @@ public final class ClientChallengeStateCache {
                 }
 
                 blocks.put(entry.blockId(), new SyncedBlockData(
-                        entry.ownerUuid(),
+                        entry.ownerType(),
+                        entry.ownerId(),
                         entry.ownerName(),
                         entry.state()
                 ));
@@ -216,7 +217,8 @@ public final class ClientChallengeStateCache {
     }
 
     public record SyncedBlockData(
-            String ownerUuid,
+            String ownerType,
+            String ownerId,
             String ownerName,
             String state
     ) {

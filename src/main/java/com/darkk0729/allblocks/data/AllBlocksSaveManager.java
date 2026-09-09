@@ -71,12 +71,9 @@ public final class AllBlocksSaveManager {
                             : data.participants
             );
 
-            if (state.isRunning()) {
-                state.syncWorldTime(currentWorldTime);
-            }
-
             AllBlocksMod.LOGGER.info("Loaded AllBlocks challenge state from {}", path);
             return state;
+
         } catch (Exception e) {
             AllBlocksMod.LOGGER.error("Failed to load AllBlocks challenge state. A new state will be used.", e);
             return new ChallengeState();
