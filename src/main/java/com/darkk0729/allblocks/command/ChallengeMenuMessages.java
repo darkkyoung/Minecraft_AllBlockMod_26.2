@@ -39,12 +39,6 @@ public final class ChallengeMenuMessages {
         sendRaceDifficultyMenu(line -> source.sendSuccess(() -> line, false));
     }
 
-    public static void showCoopComingSoon(CommandSourceStack source) {
-        source.sendSuccess(() -> prefix()
-                .append(Component.literal("협동 모드는 아직 개발 중입니다. 지금은 싱글 모드만 사용할 수 있습니다.")
-                        .withStyle(ChatFormatting.WHITE)), false);
-    }
-
     public static void showRaceComingSoon(CommandSourceStack source) {
         source.sendSuccess(() -> prefix()
                 .append(Component.literal("경쟁 모드는 아직 개발 중입니다. 지금은 싱글 모드만 사용할 수 있습니다.")

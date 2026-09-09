@@ -61,10 +61,7 @@ public final class BlockCollectionTracker {
                 continue;
             }
 
-            boolean newlyCollected = ChallengeManager.collectBlock(server, player, id);
-
-            if (newlyCollected) {
-            }
+            ChallengeManager.collectBlock(server, player, id);
         }
     }
 }

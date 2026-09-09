@@ -50,12 +50,6 @@ public final class AllBlocksCommands {
                                             })
                                     )
                                     .then(Commands.literal("comingsoon")
-                                            .then(Commands.literal("coop")
-                                                    .executes(context -> {
-                                                        ChallengeMenuMessages.showCoopComingSoon(context.getSource());
-                                                        return 1;
-                                                    })
-                                            )
                                             .then(Commands.literal("race")
                                                     .executes(context -> {
                                                         ChallengeMenuMessages.showRaceComingSoon(context.getSource());

@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import com.darkk0729.allblocks.event.PlayerDeathHandler;
 import com.darkk0729.allblocks.network.CodexToastNetworking;
 
-import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.command.ChallengeMenuMessages;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import com.darkk0729.allblocks.network.AllBlocksNetworking;

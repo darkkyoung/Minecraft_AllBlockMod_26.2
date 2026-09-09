@@ -254,15 +254,6 @@ public class ChallengeState {
         return worldElapsedTicks >= TICKS_PER_DAY * MAX_DAYS;
     }
 
-    public boolean tick() {
-        if (!running) {
-            return false;
-        }
-
-        elapsedTicks++;
-        return false;
-    }
-
     public boolean collectBlock(String blockId, CollectionOwner owner) {
         if (blockId == null || blockId.isBlank() || owner == null || !owner.isValid()) {
             return false;
