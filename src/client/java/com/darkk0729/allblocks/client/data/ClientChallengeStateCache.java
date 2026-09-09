@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.LinkedHashMap;
+import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
+import com.darkk0729.allblocks.network.ChallengeStatusPayload;
 
 public final class ClientChallengeStateCache {
     private static boolean synced = false;
@@ -14,6 +16,7 @@ public final class ClientChallengeStateCache {
     private static boolean finished = false;
     private static String result = "NONE";
     private static String mode = "SOLO";
+    private static ChallengeDifficulty difficulty = ChallengeDifficulty.HARD;
     private static long elapsedTicks = 0L;
     private static int currentDay = 1;
     private static int collectedCount = 0;
@@ -82,12 +85,28 @@ public final class ClientChallengeStateCache {
         }
     }
 
+    public static void applyStatus(ChallengeStatusPayload payload) {
+        if (payload == null) return;
+
+        synced = true;
+        running = payload.running();
+        finished = payload.finished();
+        result = payload.result() == null ? "NONE" : payload.result();
+        mode = payload.mode() == null ? "SOLO" : payload.mode();
+        difficulty = parseDifficulty(payload.difficulty());
+        elapsedTicks = Math.max(0L, payload.elapsedTicks());
+        currentDay = Math.max(1, payload.currentDay());
+        collectedCount = Math.max(0, payload.collectedCount());
+        totalTargetCount = Math.max(0, payload.totalTargetCount());
+    }
+
     public static void clear() {
         synced = false;
         running = false;
         finished = false;
         result = "NONE";
         mode = "SOLO";
+        difficulty = ChallengeDifficulty.HARD;
         elapsedTicks = 0L;
         currentDay = 1;
         collectedCount = 0;
@@ -120,6 +139,8 @@ public final class ClientChallengeStateCache {
         return mode;
     }
 
+    public static ChallengeDifficulty getDifficulty() { return difficulty; }
+
     public static long getElapsedTicks() {
         return elapsedTicks;
     }
@@ -142,6 +163,16 @@ public final class ClientChallengeStateCache {
         }
 
         return collectedCount * 100.0D / totalTargetCount;
+    }
+
+    private static ChallengeDifficulty parseDifficulty(String name) {
+        if (name == null || name.isBlank()) return ChallengeDifficulty.HARD;
+
+        try {
+            return ChallengeDifficulty.valueOf(name);
+        } catch (IllegalArgumentException ignored) {
+            return ChallengeDifficulty.HARD;
+        }
     }
 
     public static String getFormattedElapsedTime() {

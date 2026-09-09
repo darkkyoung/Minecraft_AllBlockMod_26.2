@@ -23,46 +23,41 @@ import java.util.List;
 import java.util.Map;
 
 import java.util.Locale;
+import com.darkk0729.allblocks.network.ChallengeStatusPayload;
 
 public final class ChallengeManager {
     private static final long AUTO_SAVE_INTERVAL_TICKS = 20L * 30L;
     private static final long BOSS_BAR_UPDATE_INTERVAL_TICKS = 20L;
-
+    private static final long STATUS_SYNC_INTERVAL_TICKS = 20L;
     private static final String PROGRESS_BOSSBAR_ID = "allblocks:progress";
 
     private static ChallengeState state = new ChallengeState();
     private static long ticksSinceLastSave = 0L;
     private static long ticksSinceLastBossBarUpdate = 0L;
+    private static long ticksSinceLastStatusSync = 0L;
     private static boolean bossBarCreated = false;
 
     private ChallengeManager() {
     }
 
-    public static void handlePlayerJoin(
-            MinecraftServer server,
-            ServerPlayer player
-    ) {
-        if (server == null || player == null) {
-            return;
-        }
+    public static void handlePlayerJoin(MinecraftServer server, ServerPlayer player) {
+        if (server == null || player == null) return;
 
         if (state.isRunning()) {
-            state.registerParticipant(
-                    player.getUUID(),
-                    player.getName().getString()
-            );
-
+            state.registerParticipant(player.getUUID(), player.getName().getString());
             save(server);
 
-            // 기존 플레이어 화면에도 새 얼굴이 생겨야 하므로 전체 동기화
+            // 참가자 목록 변경은 모든 클라이언트에 전달
             syncToAllPlayers(server);
 
+            // 접속한 플레이어에게 현재 HUD 상태 즉시 전달
+            syncStatusToPlayer(player);
             return;
         }
 
-        if (state.isFinished()) {
-            syncToPlayer(player);
-        }
+        // 대기/종료 상태라도 이전 서버의 캐시가 남지 않도록 현재 상태 전달
+        syncToPlayer(player);
+        syncStatusToPlayer(player);
     }
 
     public static void changeOwnPlayerColor(
@@ -272,6 +267,35 @@ public final class ChallengeManager {
         );
     }
 
+    public static void syncStatusToAllPlayers(MinecraftServer server) {
+        if (server == null) return;
+
+        ChallengeStatusPayload payload = createStatusPayload();
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            ServerPlayNetworking.send(player, payload);
+        }
+    }
+
+    private static void syncStatusToPlayer(ServerPlayer player) {
+        if (player == null) return;
+        ServerPlayNetworking.send(player, createStatusPayload());
+    }
+
+    private static ChallengeStatusPayload createStatusPayload() {
+        return new ChallengeStatusPayload(
+                state.isRunning(),
+                state.isFinished(),
+                state.getResult().name(),
+                state.getMode().name(),
+                state.getDifficulty().name(),
+                state.getElapsedTicks(),
+                getDisplayedDay(),
+                state.getCollectedCount(),
+                getTotalTargetCount()
+        );
+    }
+
     private static AllBlocksSyncPayload createSyncPayload() {
 
         List<AllBlocksSyncPayload.ParticipantEntry>
@@ -386,23 +410,26 @@ public final class ChallengeManager {
         registerOnlinePlayers(server);
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
+        ticksSinceLastStatusSync = 0L;
         FinalDayManager.reset();
 
         save(server);
         recreateProgressBossBar(server);
         updateProgressBossBar(server);
         syncToAllPlayers(server);
+        syncStatusToAllPlayers(server);
     }
 
     public static void stop(MinecraftServer server) {
         state.stop();
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
+        ticksSinceLastStatusSync = 0L;
         FinalDayManager.reset();
 
         save(server);
         removeProgressBossBar(server);
-        // syncToAllPlayers(server);
+        syncStatusToAllPlayers(server);
     }
 
     public static void tick(MinecraftServer server) {
@@ -433,6 +460,13 @@ public final class ChallengeManager {
                     ? ChallengeState.ChallengeResult.CLEAR
                     : ChallengeState.ChallengeResult.FAIL);
             return;
+        }
+
+        ticksSinceLastStatusSync++;
+
+        if (ticksSinceLastStatusSync >= STATUS_SYNC_INTERVAL_TICKS) {
+            ticksSinceLastStatusSync = 0L;
+            syncStatusToAllPlayers(server);
         }
 
         ticksSinceLastBossBarUpdate++;
@@ -550,11 +584,13 @@ public final class ChallengeManager {
         state.finish(result);
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
+        ticksSinceLastStatusSync = 0L;
         FinalDayManager.reset();
 
         save(server);
         updateProgressBossBar(server);
-        // syncToAllPlayers(server);
+        syncToAllPlayers(server);
+        syncStatusToAllPlayers(server);
 
         FinalDayManager.showResult(server, result);
     }
@@ -639,6 +675,7 @@ public final class ChallengeManager {
 
         save(server);
         updateProgressBossBar(server);
+        syncStatusToAllPlayers(server);
 
         broadcast(server, Component.literal(
                 "[AllBlocks] Debug day set to Day " + getDisplayedDay()

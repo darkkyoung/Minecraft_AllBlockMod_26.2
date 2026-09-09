@@ -17,6 +17,11 @@ public final class AllBlocksNetworking {
                 AllBlocksSyncPayload.CODEC
         );
 
+        PayloadTypeRegistry.clientboundPlay().register(
+                ChallengeStatusPayload.TYPE,
+                ChallengeStatusPayload.CODEC
+        );
+
         // 클라이언트 -> 서버
         PayloadTypeRegistry.serverboundPlay().register(
                 PlayerColorChangePayload.TYPE,

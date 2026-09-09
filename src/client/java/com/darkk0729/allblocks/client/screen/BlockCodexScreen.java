@@ -1,7 +1,6 @@
 package com.darkk0729.allblocks.client.screen;
 
-import com.darkk0729.allblocks.challenge.ChallengeManager;
-import com.darkk0729.allblocks.challenge.ChallengeState;
+import com.darkk0729.allblocks.challenge.PlayerCodexColor;
 import com.darkk0729.allblocks.collection.TargetBlockRegistry;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -230,11 +229,9 @@ public final class BlockCodexScreen extends Screen {
                 mouseY
         );
 
-        String playerName =
-                getHeaderPlayerName();
+        String playerName = getHeaderPlayerName();
 
-        int playerColor =
-                getPlayerColor(playerName);
+        int playerColor = getHeaderPlayerColor();
 
         // 플레이어 얼굴
         int playerX =
@@ -1132,19 +1129,18 @@ public final class BlockCodexScreen extends Screen {
     }
 
     private BlockStatus getBlockStatus(String blockId) {
-        ChallengeState.CollectedBlockData data = ChallengeManager.getBlockCollectionData(blockId);
+        ClientChallengeStateCache.SyncedBlockData data =
+                ClientChallengeStateCache.getBlockData(blockId);
 
-        if (data == null || data.state == null) {
+        if (data == null || data.state() == null) {
             return BlockStatus.UNCLAIMED;
         }
 
-        String stateName = data.state.name();
-
-        if ("CLAIMED".equals(stateName)) {
+        if ("CLAIMED".equals(data.state())) {
             return BlockStatus.CLAIMED;
         }
 
-        if ("RELEASED".equals(stateName)) {
+        if ("RELEASED".equals(data.state())) {
             return BlockStatus.RELEASED;
         }
 
@@ -1152,13 +1148,14 @@ public final class BlockCodexScreen extends Screen {
     }
 
     private String getOwnerName(String blockId) {
-        ChallengeState.CollectedBlockData data = ChallengeManager.getBlockCollectionData(blockId);
+        ClientChallengeStateCache.SyncedBlockData data =
+                ClientChallengeStateCache.getBlockData(blockId);
 
-        if (data == null || data.ownerName == null || data.ownerName.isBlank()) {
+        if (data == null || data.ownerName() == null || data.ownerName().isBlank()) {
             return "없음";
         }
 
-        return data.ownerName;
+        return data.ownerName();
     }
 
     private String getHeaderPlayerName() {
@@ -1190,23 +1187,38 @@ public final class BlockCodexScreen extends Screen {
         return participant.collectedCount();
     }
 
-    private int getPlayerColor(String playerName) {
-        // 지금은 임시로 하나의 고정색 사용
-        // 나중에 멀티플레이 색 분기 시 여기만 바꾸면 됨
-        return DEFAULT_PLAYER_COLOR;
-    }
-
-    private int getOwnerColor(String blockId) {
-        ChallengeState.CollectedBlockData data =
-                ChallengeManager.getBlockCollectionData(blockId);
-
-        if (data == null
-                || data.ownerUuid == null
-                || data.ownerUuid.isBlank()) {
+    private int getHeaderPlayerColor() {
+        if (this.minecraft == null || this.minecraft.player == null) {
             return DEFAULT_PLAYER_COLOR;
         }
 
-        return getPlayerColor(data.ownerUuid);
+        String uuid = this.minecraft.player.getUUID().toString();
+        ClientChallengeStateCache.SyncedParticipantData participant =
+                ClientChallengeStateCache.getParticipant(uuid);
+
+        if (participant == null) {
+            return DEFAULT_PLAYER_COLOR;
+        }
+
+        return PlayerCodexColor.fromName(participant.color()).getArgb();
+    }
+
+    private int getOwnerColor(String blockId) {
+        ClientChallengeStateCache.SyncedBlockData data =
+                ClientChallengeStateCache.getBlockData(blockId);
+
+        if (data == null || data.ownerUuid() == null || data.ownerUuid().isBlank()) {
+            return DEFAULT_PLAYER_COLOR;
+        }
+
+        ClientChallengeStateCache.SyncedParticipantData participant =
+                ClientChallengeStateCache.getParticipant(data.ownerUuid());
+
+        if (participant == null) {
+            return DEFAULT_PLAYER_COLOR;
+        }
+
+        return PlayerCodexColor.fromName(participant.color()).getArgb();
     }
 
     private String getDisplayBlockId(String blockId) {

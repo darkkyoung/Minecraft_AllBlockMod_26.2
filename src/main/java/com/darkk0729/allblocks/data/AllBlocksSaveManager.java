@@ -109,6 +109,7 @@ public final class AllBlocksSaveManager {
             data.lastProgressEventTier = state.getLastProgressEventTier();
             data.lastDayRaidEventDay = state.getLastDayRaidEventDay();
             data.collectedBlocks = new HashMap<>(state.getCollectedBlocks());
+            data.participants = new LinkedHashMap<>(state.getParticipants());
 
             try (Writer writer = Files.newBufferedWriter(path)) {
                 GSON.toJson(data, writer);

@@ -1,6 +1,6 @@
 package com.darkk0729.allblocks.client.hud;
 
-import com.darkk0729.allblocks.challenge.ChallengeManager;
+import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
@@ -44,7 +44,7 @@ public final class ChallengeInfoHud {
             return;
         }
 
-        if (!ChallengeManager.shouldShowHud()) {
+        if (!ClientChallengeStateCache.shouldShowHud()) {
             return;
         }
 
@@ -55,11 +55,11 @@ public final class ChallengeInfoHud {
     private static void drawLeftInfo(GuiGraphicsExtractor graphics, Minecraft client) {
         BlockPos pos = client.player.blockPosition();
 
-        String dayText = ChallengeManager.getDisplayedDay() + "일차";
-        String timerText = "타이머 : " + ChallengeManager.getFormattedElapsedTime();
+        String dayText = ClientChallengeStateCache.getCurrentDay() + "일차";
+        String timerText = "타이머 : " + ClientChallengeStateCache.getFormattedElapsedTime();
         String xyzText = "좌표 : " + pos.getX() + ", " + pos.getY() + ", " + pos.getZ();
         String biomeText = "생물 군계 : " + getBiomeName(client, pos);
-        String difficultyText = "난이도 : " + ChallengeManager.getDifficulty().getDisplayName();
+        String difficultyText = "난이도 : " + ClientChallengeStateCache.getDifficulty().getDisplayName();
 
         int x = 8;
         int y = 8;
@@ -131,7 +131,7 @@ public final class ChallengeInfoHud {
 
 
     private static int getDifficultyColor() {
-        ChallengeDifficulty difficulty = ChallengeManager.getDifficulty();
+        ChallengeDifficulty difficulty = ClientChallengeStateCache.getDifficulty();
 
         if (difficulty == null) {
             return COLOR_DIFFICULTY_HARD;
