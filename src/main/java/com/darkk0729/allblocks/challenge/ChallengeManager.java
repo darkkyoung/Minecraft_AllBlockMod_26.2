@@ -24,6 +24,7 @@ import java.util.Map;
 
 import java.util.Locale;
 import com.darkk0729.allblocks.network.ChallengeStatusPayload;
+import java.util.UUID;
 
 public final class ChallengeManager {
     private static final long AUTO_SAVE_INTERVAL_TICKS = 20L * 30L;
@@ -502,6 +503,79 @@ public final class ChallengeManager {
     ) {
         TeamRaceSetupManager.reset(server);
         startMode(server, ChallengeMode.CO_OP, difficulty);
+    }
+
+    public static void startTeamRace(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            Map<UUID, TeamRaceTeam> assignments
+    ) {
+        if (server == null
+                || assignments == null
+                || assignments.isEmpty()) {
+            return;
+        }
+
+        runServerCommand(
+                server,
+                "time of minecraft:overworld rate 1"
+        );
+
+        runServerCommand(
+                server,
+                "time of minecraft:overworld resume"
+        );
+
+        runServerCommand(
+                server,
+                "time of minecraft:overworld set 0"
+        );
+
+        ChallengeDifficulty safeDifficulty =
+                difficulty == null
+                        ? ChallengeDifficulty.HARD
+                        : difficulty;
+
+        state.start(
+                ChallengeMode.TEAM_RACE,
+                safeDifficulty,
+                getCurrentWorldTime(server)
+        );
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+
+            TeamRaceTeam team =
+                    assignments.getOrDefault(
+                            player.getUUID(),
+                            TeamRaceTeam.NONE
+                    );
+
+            if (!team.isAssigned()) {
+                continue;
+            }
+
+            state.registerParticipant(
+                    player.getUUID(),
+                    player.getName().getString()
+            );
+
+            state.setParticipantTeam(
+                    player.getUUID(),
+                    team
+            );
+        }
+
+        ticksSinceLastSave = 0L;
+        ticksSinceLastBossBarUpdate = 0L;
+        ticksSinceLastStatusSync = 0L;
+        FinalDayManager.reset();
+
+        save(server);
+        recreateProgressBossBar(server);
+        updateProgressBossBar(server);
+        syncToAllPlayers(server);
+        syncStatusToAllPlayers(server);
     }
 
     public static boolean isTeamRaceSetupActive() {

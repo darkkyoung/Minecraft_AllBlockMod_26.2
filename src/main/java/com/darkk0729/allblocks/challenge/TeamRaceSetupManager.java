@@ -20,6 +20,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public final class TeamRaceSetupManager {
     private static final int REVEAL_TICKS = 20 * 7;
+    private static final int COUNTDOWN_SECONDS = 5;
+    private static final int COUNTDOWN_TICKS = 20 * COUNTDOWN_SECONDS;
 
     private static SetupPhase phase = SetupPhase.IDLE;
     private static ChallengeDifficulty difficulty =
@@ -27,6 +29,8 @@ public final class TeamRaceSetupManager {
 
     private static UUID controllerUuid;
     private static int revealTicksRemaining = 0;
+    private static int countdownTicksRemaining = 0;
+    private static int lastCountdownSecond = -1;
 
     private static final Map<UUID, String> participantNames =
             new LinkedHashMap<>();
@@ -42,7 +46,7 @@ public final class TeamRaceSetupManager {
     }
 
     public static boolean isLocked() {
-        return phase == SetupPhase.LOCKED;
+        return phase == SetupPhase.COUNTDOWN;
     }
 
     public static ChallengeDifficulty getDifficulty() {
@@ -54,17 +58,24 @@ public final class TeamRaceSetupManager {
     }
 
     public static void tick(MinecraftServer server) {
-        if (server == null || phase != SetupPhase.REVEALING) {
+        if (server == null) return;
+
+        if (phase == SetupPhase.REVEALING) {
+            tickReveal(server);
             return;
         }
 
+        if (phase == SetupPhase.COUNTDOWN) {
+            tickCountdown(server);
+        }
+    }
+
+    private static void tickReveal(MinecraftServer server) {
         if (revealTicksRemaining > 0) {
             revealTicksRemaining--;
         }
 
-        if (revealTicksRemaining > 0) {
-            return;
-        }
+        if (revealTicksRemaining > 0) return;
 
         phase = SetupPhase.READY;
         applyScoreboardTeams(server);
@@ -120,6 +131,11 @@ public final class TeamRaceSetupManager {
             ServerPlayer controller
     ) {
         if (!canControl(controller)) {
+            return false;
+        }
+
+        if (phase != SetupPhase.READY
+                && phase != SetupPhase.MANUAL) {
             return false;
         }
 
@@ -184,6 +200,10 @@ public final class TeamRaceSetupManager {
             ServerPlayer controller
     ) {
         if (!canControl(controller)) {
+            return false;
+        }
+
+        if (phase != SetupPhase.READY) {
             return false;
         }
 
@@ -302,25 +322,185 @@ public final class TeamRaceSetupManager {
             return false;
         }
 
-        phase = SetupPhase.LOCKED;
         applyScoreboardTeams(server);
+        startCountdown(server);
+        return true;
+    }
+
+    private static void startCountdown(MinecraftServer server) {
+        phase = SetupPhase.COUNTDOWN;
+        countdownTicksRemaining = COUNTDOWN_TICKS;
+        lastCountdownSecond = COUNTDOWN_SECONDS;
+
+        clearParticipantInventories(server);
+        setParticipantGameMode(server, "adventure");
 
         broadcast(
                 server,
                 Component.literal(
-                        "[올블록 챌린지] 팀 배정이 확정되었습니다."
+                        "[올블록 챌린지] 팀 배정이 확정되었습니다. 게임을 시작합니다."
                 ).withStyle(ChatFormatting.GREEN)
         );
 
-        showLockedTeams(server);
-        return true;
+        showCountdownTitle(server, COUNTDOWN_SECONDS);
     }
 
-    public static void reset(MinecraftServer server) {
+    private static void tickCountdown(MinecraftServer server) {
+        if (!sameOnlineParticipants(server)) {
+            broadcast(
+                    server,
+                    Component.literal(
+                            "[올블록 챌린지] 카운트다운 중 접속 인원이 변경되어 팀 편성이 취소되었습니다."
+                    ).withStyle(ChatFormatting.RED)
+            );
+
+            reset(server);
+            return;
+        }
+
+        // 카운트다운 도중 아이템을 주워도 시작 전에 다시 제거
+        clearParticipantInventories(server);
+
+        if (countdownTicksRemaining > 0) {
+            countdownTicksRemaining--;
+        }
+
+        if (countdownTicksRemaining <= 0) {
+            finishCountdown(server);
+            return;
+        }
+
+        int second =
+                (countdownTicksRemaining + 19) / 20;
+
+        if (second > 0
+                && second != lastCountdownSecond) {
+
+            lastCountdownSecond = second;
+            showCountdownTitle(server, second);
+        }
+    }
+
+    private static void finishCountdown(MinecraftServer server) {
+        Map<UUID, TeamRaceTeam> finalAssignments =
+                new LinkedHashMap<>(assignments);
+
+        ChallengeDifficulty finalDifficulty =
+                difficulty;
+
+        clearParticipantInventories(server);
+        setParticipantGameMode(server, "survival");
+
+        ChallengeManager.startTeamRace(
+                server,
+                finalDifficulty,
+                finalAssignments
+        );
+
+        showStartTitle(server);
+        completeSetup();
+    }
+
+    private static void clearParticipantInventories(
+            MinecraftServer server
+    ) {
+        for (String playerName : participantNames.values()) {
+            runCommand(server, "clear " + playerName);
+        }
+    }
+
+    private static void setParticipantGameMode(
+            MinecraftServer server,
+            String gameMode
+    ) {
+        for (String playerName : participantNames.values()) {
+            runCommand(
+                    server,
+                    "gamemode "
+                            + gameMode
+                            + " "
+                            + playerName
+            );
+        }
+    }
+
+    private static void showCountdownTitle(
+            MinecraftServer server,
+            int second
+    ) {
+        for (String playerName : participantNames.values()) {
+            runCommand(
+                    server,
+                    "title "
+                            + playerName
+                            + " times 0 20 0"
+            );
+
+            runCommand(
+                    server,
+                    "title "
+                            + playerName
+                            + " title "
+                            + "{\"text\":\""
+                            + second
+                            + "\",\"color\":\"gold\",\"bold\":true}"
+            );
+        }
+    }
+
+    private static void showStartTitle(
+            MinecraftServer server
+    ) {
+        for (String playerName : participantNames.values()) {
+            runCommand(
+                    server,
+                    "title "
+                            + playerName
+                            + " times 0 30 10"
+            );
+
+            runCommand(
+                    server,
+                    "title "
+                            + playerName
+                            + " title "
+                            + "{\"text\":\"시작!\",\"color\":\"green\",\"bold\":true}"
+            );
+        }
+    }
+
+    private static void completeSetup() {
         phase = SetupPhase.IDLE;
         difficulty = ChallengeDifficulty.HARD;
         controllerUuid = null;
+
         revealTicksRemaining = 0;
+        countdownTicksRemaining = 0;
+        lastCountdownSecond = -1;
+
+        participantNames.clear();
+        assignments.clear();
+    }
+
+    public static void reset(MinecraftServer server) {
+        boolean wasCountdown =
+                phase == SetupPhase.COUNTDOWN;
+
+        if (server != null && wasCountdown) {
+            setParticipantGameMode(server, "survival");
+
+            for (String playerName : participantNames.values()) {
+                runCommand(server, "title " + playerName + " clear");
+            }
+        }
+
+        phase = SetupPhase.IDLE;
+        difficulty = ChallengeDifficulty.HARD;
+        controllerUuid = null;
+
+        revealTicksRemaining = 0;
+        countdownTicksRemaining = 0;
+        lastCountdownSecond = -1;
 
         participantNames.clear();
         assignments.clear();
@@ -330,6 +510,8 @@ public final class TeamRaceSetupManager {
             runCommand(server, "team remove allblocks_red");
         }
     }
+
+
 
     private static boolean captureOnlineParticipants(
             MinecraftServer server
@@ -841,6 +1023,6 @@ public final class TeamRaceSetupManager {
         REVEALING,
         READY,
         MANUAL,
-        LOCKED
+        COUNTDOWN
     }
 }
