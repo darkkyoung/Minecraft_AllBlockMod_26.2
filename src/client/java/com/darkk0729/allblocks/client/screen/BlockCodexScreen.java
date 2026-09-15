@@ -8,6 +8,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -16,7 +17,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.input.KeyEvent;
 import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
 import net.minecraft.ChatFormatting;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,6 +62,10 @@ public final class BlockCodexScreen extends Screen {
     private static final int DEFAULT_PLAYER_COLOR = 0xFF4EA3FF; // 임시 플레이어 고유 색(파랑)
     private static final int COOP_SHARED_COLOR = 0xFF55FFFF;
     private static final int COLOR_UNCLAIMED = 0xFF71685B;
+
+    private static final int TEAM_BLUE_COLOR = 0xFF3C6FFF;
+    private static final int TEAM_RED_COLOR = 0xFFFF4A4A;
+
     private static final int COLOR_RELEASED = 0xFF8E4E84;
     private static final int COLOR_SELECTED = 0xFFE2B94B;
     private static final int COLOR_CLAIMED = DEFAULT_PLAYER_COLOR;
@@ -248,6 +252,14 @@ public final class BlockCodexScreen extends Screen {
                 playerColor
         );
 
+        if (ClientChallengeStateCache.isTeamRace()) {
+            drawTeamRaceHeaderScores(
+                    graphics,
+                    centerX,
+                    playerY
+            );
+        }
+
         // 플레이어 개인 수집 개수
         int playerCollected =
                 getHeaderPlayerCollectedCount();
@@ -376,6 +388,66 @@ public final class BlockCodexScreen extends Screen {
                 PLAYER_ICON_SIZE,
                 PLAYER_ICON_SIZE,
                 borderColor
+        );
+    }
+
+    private void drawTeamRaceHeaderScores(
+            GuiGraphicsExtractor graphics,
+            int centerX,
+            int y
+    ) {
+        int blueScore =
+                ClientChallengeStateCache.getTeamScore("BLUE");
+
+        int redScore =
+                ClientChallengeStateCache.getTeamScore("RED");
+
+        ItemStack blueWool =
+                new ItemStack(Items.BLUE_WOOL);
+
+        ItemStack redWool =
+                new ItemStack(Items.RED_WOOL);
+
+        int blueIconX = centerX - 76;
+        int redIconX = centerX + 60;
+
+        graphics.item(
+                blueWool,
+                blueIconX,
+                y - 1
+        );
+
+        String blueText =
+                String.valueOf(blueScore);
+
+        graphics.text(
+                this.font,
+                blueText,
+                blueIconX + 19,
+                y + 3,
+                TEAM_BLUE_COLOR,
+                true
+        );
+
+        String redText =
+                String.valueOf(redScore);
+
+        int redTextWidth =
+                this.font.width(redText);
+
+        graphics.text(
+                this.font,
+                redText,
+                redIconX - redTextWidth - 4,
+                y + 3,
+                TEAM_RED_COLOR,
+                true
+        );
+
+        graphics.item(
+                redWool,
+                redIconX,
+                y - 1
         );
     }
 
@@ -1197,6 +1269,30 @@ public final class BlockCodexScreen extends Screen {
             return COOP_SHARED_COLOR;
         }
 
+        if (ClientChallengeStateCache.isTeamRace()) {
+            if (this.minecraft == null
+                    || this.minecraft.player == null) {
+                return DEFAULT_PLAYER_COLOR;
+            }
+
+            String team =
+                    ClientChallengeStateCache.getPlayerTeam(
+                            this.minecraft.player
+                                    .getUUID()
+                                    .toString()
+                    );
+
+            if ("BLUE".equals(team)) {
+                return TEAM_BLUE_COLOR;
+            }
+
+            if ("RED".equals(team)) {
+                return TEAM_RED_COLOR;
+            }
+
+            return DEFAULT_PLAYER_COLOR;
+        }
+
         if (this.minecraft == null || this.minecraft.player == null) {
             return DEFAULT_PLAYER_COLOR;
         }
@@ -1237,6 +1333,16 @@ public final class BlockCodexScreen extends Screen {
             }
 
             return PlayerCodexColor.fromName(participant.color()).getArgb();
+        }
+
+        if ("TEAM".equals(data.ownerType())) {
+            if ("BLUE".equals(data.ownerId())) {
+                return TEAM_BLUE_COLOR;
+            }
+
+            if ("RED".equals(data.ownerId())) {
+                return TEAM_RED_COLOR;
+            }
         }
 
         // SHARED / TEAM의 실제 색상은 각 모드 구현 단계에서 연결
