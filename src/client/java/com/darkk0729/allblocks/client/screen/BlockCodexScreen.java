@@ -8,8 +8,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
@@ -19,6 +18,8 @@ import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
 import net.minecraft.ChatFormatting;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import java.util.UUID;
 
 public final class BlockCodexScreen extends Screen {
     private static final Identifier CODEX_BACKGROUND_TEXTURE =
@@ -239,25 +240,49 @@ public final class BlockCodexScreen extends Screen {
         int playerColor = getHeaderPlayerColor();
 
         // 플레이어 얼굴
-        int playerX =
-                centerX - PLAYER_ICON_SIZE / 2;
-
         int playerY =
                 panelY + 67;
 
-        drawPlayerIconSlot(
-                graphics,
-                playerX,
-                playerY,
-                playerColor
-        );
-
         if (ClientChallengeStateCache.isTeamRace()) {
+            drawTeamRaceParticipantHeads(
+                    graphics,
+                    centerX,
+                    playerY,
+                    mouseX,
+                    mouseY
+            );
+
             drawTeamRaceHeaderScores(
                     graphics,
                     centerX,
                     playerY
             );
+        } else {
+            int playerX =
+                    centerX - PLAYER_ICON_SIZE / 2;
+
+            drawPlayerIconSlot(
+                    graphics,
+                    playerX,
+                    playerY,
+                    playerColor
+            );
+
+            if (isInside(
+                    mouseX,
+                    mouseY,
+                    playerX - 2,
+                    playerY - 2,
+                    PLAYER_ICON_SIZE + 4,
+                    PLAYER_ICON_SIZE + 4
+            )) {
+                drawTextTooltip(
+                        graphics,
+                        mouseX,
+                        mouseY,
+                        playerName
+                );
+            }
         }
 
         // 플레이어 개인 수집 개수
@@ -283,23 +308,6 @@ public final class BlockCodexScreen extends Screen {
                 COLOR_TEXT,
                 false
         );
-
-        // 얼굴에 마우스를 올리면 닉네임
-        if (isInside(
-                mouseX,
-                mouseY,
-                playerX - 2,
-                playerY - 2,
-                PLAYER_ICON_SIZE + 4,
-                PLAYER_ICON_SIZE + 4
-        )) {
-            drawTextTooltip(
-                    graphics,
-                    mouseX,
-                    mouseY,
-                    playerName
-            );
-        }
     }
 
     private void drawCloseButton(
@@ -391,6 +399,129 @@ public final class BlockCodexScreen extends Screen {
         );
     }
 
+    private void drawTeamRaceParticipantHeads(
+            GuiGraphicsExtractor graphics,
+            int centerX,
+            int y,
+            int mouseX,
+            int mouseY
+    ) {
+        if (this.minecraft == null
+                || this.minecraft.getConnection() == null) {
+            return;
+        }
+
+        List<ClientChallengeStateCache.SyncedParticipantData> participants =
+                new ArrayList<>(
+                        ClientChallengeStateCache
+                                .getParticipants()
+                                .values()
+                );
+
+        if (participants.isEmpty()) {
+            return;
+        }
+
+        int gap = 3;
+
+        int totalWidth =
+                participants.size() * PLAYER_ICON_SIZE
+                        + (participants.size() - 1) * gap;
+
+        int startX =
+                centerX - totalWidth / 2;
+
+        for (int i = 0; i < participants.size(); i++) {
+            ClientChallengeStateCache.SyncedParticipantData participant =
+                    participants.get(i);
+
+            if (participant == null
+                    || participant.playerUuid() == null
+                    || participant.playerUuid().isBlank()) {
+                continue;
+            }
+
+            UUID uuid;
+
+            try {
+                uuid = UUID.fromString(
+                        participant.playerUuid()
+                );
+            } catch (IllegalArgumentException ignored) {
+                continue;
+            }
+
+            PlayerInfo playerInfo =
+                    this.minecraft
+                            .getConnection()
+                            .getPlayerInfo(uuid);
+
+            if (playerInfo == null) {
+                continue;
+            }
+
+            Identifier skinTexture =
+                    playerInfo
+                            .getSkin()
+                            .body()
+                            .texturePath();
+
+            int x =
+                    startX
+                            + i
+                            * (PLAYER_ICON_SIZE + gap);
+
+            int borderColor =
+                    getTeamColor(
+                            participant.teamId()
+                    );
+
+            graphics.fill(
+                    x,
+                    y,
+                    x + PLAYER_ICON_SIZE,
+                    y + PLAYER_ICON_SIZE,
+                    0x88E4CFA7
+            );
+
+            PlayerFaceExtractor.extractRenderState(
+                    graphics,
+                    skinTexture,
+                    x,
+                    y,
+                    PLAYER_ICON_SIZE,
+                    true,
+                    false,
+                    0xFFFFFFFF
+            );
+
+            drawThickOutline(
+                    graphics,
+                    x,
+                    y,
+                    PLAYER_ICON_SIZE,
+                    PLAYER_ICON_SIZE,
+                    borderColor
+            );
+
+            if (isInside(
+                    mouseX,
+                    mouseY,
+                    x - 1,
+                    y - 1,
+                    PLAYER_ICON_SIZE + 2,
+                    PLAYER_ICON_SIZE + 2
+            )) {
+                drawTextTooltip(
+                        graphics,
+                        mouseX,
+                        mouseY,
+                        participant.playerName()
+                );
+            }
+        }
+    }
+
     private void drawTeamRaceHeaderScores(
             GuiGraphicsExtractor graphics,
             int centerX,
@@ -402,52 +533,64 @@ public final class BlockCodexScreen extends Screen {
         int redScore =
                 ClientChallengeStateCache.getTeamScore("RED");
 
-        ItemStack blueWool =
-                new ItemStack(Items.BLUE_WOOL);
+        int markerSize = PLAYER_ICON_SIZE;
 
-        ItemStack redWool =
-                new ItemStack(Items.RED_WOOL);
+        int blueX = centerX - 92;
+        int redX = centerX + 78;
 
-        int blueIconX = centerX - 76;
-        int redIconX = centerX + 60;
-
-        graphics.item(
-                blueWool,
-                blueIconX,
-                y - 1
+        // 블루팀 네모
+        graphics.fill(
+                blueX,
+                y,
+                blueX + markerSize,
+                y + markerSize,
+                TEAM_BLUE_COLOR
         );
 
-        String blueText =
-                String.valueOf(blueScore);
+        graphics.outline(
+                blueX,
+                y,
+                markerSize,
+                markerSize,
+                0xFFFFFFFF
+        );
 
         graphics.text(
                 this.font,
-                blueText,
-                blueIconX + 19,
+                String.valueOf(blueScore),
+                blueX + markerSize + 5,
                 y + 3,
                 TEAM_BLUE_COLOR,
                 true
         );
 
+        // 레드팀 네모
+        graphics.fill(
+                redX,
+                y,
+                redX + markerSize,
+                y + markerSize,
+                TEAM_RED_COLOR
+        );
+
+        graphics.outline(
+                redX,
+                y,
+                markerSize,
+                markerSize,
+                0xFFFFFFFF
+        );
+
         String redText =
                 String.valueOf(redScore);
-
-        int redTextWidth =
-                this.font.width(redText);
 
         graphics.text(
                 this.font,
                 redText,
-                redIconX - redTextWidth - 4,
+                redX - this.font.width(redText) - 5,
                 y + 3,
                 TEAM_RED_COLOR,
                 true
-        );
-
-        graphics.item(
-                redWool,
-                redIconX,
-                y - 1
         );
     }
 
@@ -1309,6 +1452,18 @@ public final class BlockCodexScreen extends Screen {
         return PlayerCodexColor.fromName(
                 participant.color()
         ).getArgb();
+    }
+
+    private int getTeamColor(String teamId) {
+        if ("BLUE".equals(teamId)) {
+            return TEAM_BLUE_COLOR;
+        }
+
+        if ("RED".equals(teamId)) {
+            return TEAM_RED_COLOR;
+        }
+
+        return DEFAULT_PLAYER_COLOR;
     }
 
     private int getOwnerColor(String blockId) {
