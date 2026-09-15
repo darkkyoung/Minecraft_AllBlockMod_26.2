@@ -209,6 +209,34 @@ public final class ClientChallengeStateCache {
         return Collections.unmodifiableMap(participants);
     }
 
+    public static boolean isTeamRace() {
+        return "TEAM_RACE".equals(mode);
+    }
+
+    public static int getTeamScore(String teamId) {
+        if (teamId == null || teamId.isBlank()) return 0;
+
+        for (SyncedParticipantData participant : participants.values()) {
+            if (participant == null) continue;
+            if (!teamId.equals(participant.teamId())) continue;
+            return Math.max(0, participant.collectedCount());
+        }
+
+        return 0;
+    }
+
+    public static String getPlayerTeam(String playerUuid) {
+        SyncedParticipantData participant = getParticipant(playerUuid);
+
+        if (participant == null
+                || participant.teamId() == null
+                || participant.teamId().isBlank()) {
+            return "NONE";
+        }
+
+        return participant.teamId();
+    }
+
     public record SyncedParticipantData(
             String playerUuid,
             String playerName,

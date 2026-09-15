@@ -614,8 +614,7 @@ public final class ChallengeManager {
         FinalDayManager.reset();
 
         save(server);
-        recreateProgressBossBar(server);
-        updateProgressBossBar(server);
+        removeProgressBossBar(server);
         syncToAllPlayers(server);
         syncStatusToAllPlayers(server);
     }
@@ -1125,6 +1124,11 @@ public final class ChallengeManager {
     }
 
     private static void updateProgressBossBar(MinecraftServer server) {
+        if (state.getMode() == ChallengeMode.TEAM_RACE) {
+            removeProgressBossBar(server);
+            return;
+        }
+
         if (!shouldShowHud()) {
             removeProgressBossBar(server);
             return;

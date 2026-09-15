@@ -12,6 +12,7 @@ import com.darkk0729.allblocks.client.network.AllBlocksClientNetworking;
 import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import com.darkk0729.allblocks.client.hud.TeamRevealHud;
+import com.darkk0729.allblocks.client.hud.TeamRaceHud;
 
 public final class AllBlocksClient implements ClientModInitializer {
     private static KeyMapping openCodexKey;
@@ -30,6 +31,7 @@ public final class AllBlocksClient implements ClientModInitializer {
 
         ChallengeInfoHud.register();
         TeamRevealHud.register();
+        TeamRaceHud.register();
 
         openCodexKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.allblocks.open_codex",
