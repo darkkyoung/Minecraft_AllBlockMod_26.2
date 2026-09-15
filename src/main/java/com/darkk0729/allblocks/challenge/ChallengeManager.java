@@ -45,18 +45,48 @@ public final class ChallengeManager {
         if (server == null || player == null) return;
 
         if (state.isRunning()) {
-            state.registerParticipant(player.getUUID(), player.getName().getString());
+            if (state.getMode() == ChallengeMode.TEAM_RACE) {
+                TeamRaceTeam team =
+                        state.getParticipantTeam(player.getUUID().toString());
+
+                if (!team.isAssigned()) {
+                    player.sendSystemMessage(Component.literal(
+                            "[올블록 챌린지] 이미 시작된 팀 레이스에는 중도 참가할 수 없습니다."
+                    ));
+
+                    syncToPlayer(player);
+                    syncStatusToPlayer(player);
+                    return;
+                }
+
+                state.registerParticipant(
+                        player.getUUID(),
+                        player.getName().getString()
+                );
+
+                applyTeamScoreboardMembership(
+                        server,
+                        player,
+                        team
+                );
+
+                save(server);
+                syncToAllPlayers(server);
+                syncStatusToPlayer(player);
+                return;
+            }
+
+            state.registerParticipant(
+                    player.getUUID(),
+                    player.getName().getString()
+            );
+
             save(server);
-
-            // 참가자 목록 변경은 모든 클라이언트에 전달
             syncToAllPlayers(server);
-
-            // 접속한 플레이어에게 현재 HUD 상태 즉시 전달
             syncStatusToPlayer(player);
             return;
         }
 
-        // 대기/종료 상태라도 이전 서버의 캐시가 남지 않도록 현재 상태 전달
         syncToPlayer(player);
         syncStatusToPlayer(player);
     }
@@ -67,6 +97,12 @@ public final class ChallengeManager {
             String requestedColor
     ) {
         if (server == null || player == null) {
+            return;
+        }
+
+        if (state.isRunning()
+                && state.getMode() == ChallengeMode.TEAM_RACE
+                && !state.getParticipantTeam(player.getUUID().toString()).isAssigned()) {
             return;
         }
 
@@ -564,6 +600,12 @@ public final class ChallengeManager {
                     player.getUUID(),
                     team
             );
+
+            applyTeamScoreboardMembership(
+                    server,
+                    player,
+                    team
+            );
         }
 
         ticksSinceLastSave = 0L;
@@ -656,9 +698,17 @@ public final class ChallengeManager {
         }
 
         if (shouldEnd && rules.finalDayLimitEnabled()) {
-            finishChallenge(server, getCollectedCount() >= getTotalTargetCount()
-                    ? ChallengeState.ChallengeResult.CLEAR
-                    : ChallengeState.ChallengeResult.FAIL);
+            if (state.getMode() == ChallengeMode.TEAM_RACE) {
+                finishTeamRaceByScore(server);
+            } else {
+                finishChallenge(
+                        server,
+                        getCollectedCount() >= getTotalTargetCount()
+                                ? ChallengeState.ChallengeResult.CLEAR
+                                : ChallengeState.ChallengeResult.FAIL
+                );
+            }
+
             return;
         }
 
@@ -686,7 +736,26 @@ public final class ChallengeManager {
         }
     }
 
-    public static boolean collectBlock(MinecraftServer server, ServerPlayer player, String blockId) {
+    public static boolean collectBlock(
+            MinecraftServer server,
+            ServerPlayer player,
+            String blockId
+    ) {
+        if (server == null
+                || player == null
+                || blockId == null
+                || blockId.isBlank()
+                || !state.isRunning()) {
+            return false;
+        }
+
+        if (state.getMode() == ChallengeMode.TEAM_RACE
+                && !state.getParticipantTeam(
+                player.getUUID().toString()
+        ).isAssigned()) {
+            return false;
+        }
+
         state.registerParticipant(
                 player.getUUID(),
                 player.getName().getString()
@@ -700,7 +769,14 @@ public final class ChallengeManager {
             sendCodexToast(player, blockId);
 
             if (getCollectedCount() >= getTotalTargetCount()) {
-                finishChallenge(server, ChallengeState.ChallengeResult.CLEAR);
+                if (state.getMode() == ChallengeMode.TEAM_RACE) {
+                    finishTeamRaceByScore(server);
+                } else {
+                    finishChallenge(
+                            server,
+                            ChallengeState.ChallengeResult.CLEAR
+                    );
+                }
             } else {
                 save(server);
                 updateProgressBossBar(server);
@@ -755,7 +831,14 @@ public final class ChallengeManager {
         }
 
         if (getCollectedCount() >= getTotalTargetCount()) {
-            finishChallenge(server, ChallengeState.ChallengeResult.CLEAR);
+            if (state.getMode() == ChallengeMode.TEAM_RACE) {
+                finishTeamRaceByScore(server);
+            } else {
+                finishChallenge(
+                        server,
+                        ChallengeState.ChallengeResult.CLEAR
+                );
+            }
         } else {
             save(server);
             updateProgressBossBar(server);
@@ -769,19 +852,45 @@ public final class ChallengeManager {
         ));
     }
 
-    private static void finishChallenge(MinecraftServer server, ChallengeState.ChallengeResult result) {
-        if (server == null) {
+    private static void finishTeamRaceByScore(
+            MinecraftServer server
+    ) {
+        int blueScore =
+                getTeamBlockCount(TeamRaceTeam.BLUE);
+
+        int redScore =
+                getTeamBlockCount(TeamRaceTeam.RED);
+
+        ChallengeState.ChallengeResult result;
+
+        if (blueScore > redScore) {
+            result = ChallengeState.ChallengeResult.BLUE_WIN;
+        } else if (redScore > blueScore) {
+            result = ChallengeState.ChallengeResult.RED_WIN;
+        } else {
+            result = ChallengeState.ChallengeResult.DRAW;
+        }
+
+        finishChallenge(server, result);
+    }
+
+    private static void finishChallenge(
+            MinecraftServer server,
+            ChallengeState.ChallengeResult result
+    ) {
+        if (server == null || !state.isRunning()) {
             return;
         }
 
-        if (!state.isRunning()) {
-            return;
-        }
+        ChallengeMode finishedMode =
+                state.getMode();
 
         state.finish(result);
+
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
         ticksSinceLastStatusSync = 0L;
+
         FinalDayManager.reset();
 
         save(server);
@@ -789,8 +898,84 @@ public final class ChallengeManager {
         syncToAllPlayers(server);
         syncStatusToAllPlayers(server);
 
-        FinalDayManager.showResult(server, result);
+        if (finishedMode == ChallengeMode.TEAM_RACE) {
+            showTeamRaceResult(server, result);
+        } else {
+            FinalDayManager.showResult(server, result);
+        }
     }
+
+
+    private static void showTeamRaceResult(
+            MinecraftServer server,
+            ChallengeState.ChallengeResult result
+    ) {
+        int blueScore =
+                getTeamBlockCount(TeamRaceTeam.BLUE);
+
+        int redScore =
+                getTeamBlockCount(TeamRaceTeam.RED);
+
+        String title;
+        String color;
+        String resultText;
+
+        if (result == ChallengeState.ChallengeResult.BLUE_WIN) {
+            title = "블루팀 승리!";
+            color = "blue";
+            resultText = "블루팀 승리";
+        } else if (result == ChallengeState.ChallengeResult.RED_WIN) {
+            title = "레드팀 승리!";
+            color = "red";
+            resultText = "레드팀 승리";
+        } else {
+            title = "무승부";
+            color = "gold";
+            resultText = "무승부";
+        }
+
+        runServerCommand(
+                server,
+                "title @a times 10 80 20"
+        );
+
+        runServerCommand(
+                server,
+                "title @a title "
+                        + jsonText(title, color)
+        );
+
+        runServerCommand(
+                server,
+                "title @a subtitle "
+                        + jsonText(
+                        "블루팀 "
+                                + blueScore
+                                + " | 레드팀 "
+                                + redScore,
+                        "white"
+                )
+        );
+
+        runServerCommand(
+                server,
+                "playsound minecraft:entity.player.levelup master @a ~ ~ ~ 1 1"
+        );
+
+        broadcast(
+                server,
+                Component.literal(
+                        "[올블록 챌린지] 팀 레이스 종료 | "
+                                + resultText
+                                + " | 블루팀 "
+                                + blueScore
+                                + " : "
+                                + redScore
+                                + " 레드팀"
+                )
+        );
+    }
+
 
     public static void handlePlayerDeath(
             MinecraftServer server,
@@ -1003,11 +1188,74 @@ public final class ChallengeManager {
                 + "}";
     }
 
+
+    private static String jsonText(
+            String text,
+            String color
+    ) {
+        return "{\"text\":\""
+                + escapeJson(text)
+                + "\",\"color\":\""
+                + color
+                + "\",\"bold\":true}";
+    }
+
+
+
     private static String escapeJson(String text) {
         return text
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"");
     }
+
+
+    private static void applyTeamScoreboardMembership(
+            MinecraftServer server,
+            ServerPlayer player,
+            TeamRaceTeam team
+    ) {
+        if (server == null
+                || player == null
+                || team == null
+                || !team.isAssigned()) {
+            return;
+        }
+
+        runServerCommand(
+                server,
+                "team add allblocks_blue"
+        );
+
+        runServerCommand(
+                server,
+                "team add allblocks_red"
+        );
+
+        runServerCommand(
+                server,
+                "team modify allblocks_blue color blue"
+        );
+
+        runServerCommand(
+                server,
+                "team modify allblocks_red color red"
+        );
+
+        String scoreboardTeam =
+                team == TeamRaceTeam.BLUE
+                        ? "allblocks_blue"
+                        : "allblocks_red";
+
+        runServerCommand(
+                server,
+                "team join "
+                        + scoreboardTeam
+                        + " "
+                        + player.getName().getString()
+        );
+    }
+
+
 
     private static void runServerCommand(MinecraftServer server, String command) {
         try {

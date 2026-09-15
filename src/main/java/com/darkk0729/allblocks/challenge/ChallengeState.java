@@ -513,7 +513,10 @@ public class ChallengeState {
     public enum ChallengeResult {
         NONE,
         CLEAR,
-        FAIL
+        FAIL,
+        BLUE_WIN,
+        RED_WIN,
+        DRAW
     }
 
     public enum BlockCollectionState {
