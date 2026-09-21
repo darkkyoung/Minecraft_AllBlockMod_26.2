@@ -15,14 +15,39 @@ repositories {
 }
 
 loom {
-	splitEnvironmentSourceSets()
+    splitEnvironmentSourceSets()
 
-	mods {
-		"allblocks" {
-			sourceSet sourceSets.main
-			sourceSet sourceSets.client
-		}
-	}
+    mods {
+        "allblocks" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+
+    runs {
+        clientBlue {
+            inherit client
+            displayName = "AllBlocks Client Blue"
+            runDirectory = file("run/clientBlue")
+
+            programArguments.add("--username")
+            programArguments.add("PlayerBlue")
+        }
+
+        clientRed {
+            inherit client
+            displayName = "AllBlocks Client Red"
+            runDirectory = file("run/clientRed")
+
+            programArguments.add("--username")
+            programArguments.add("PlayerRed")
+        }
+
+        server {
+            displayName = "AllBlocks Test Server"
+            runDirectory = file("run/server")
+        }
+    }
 }
 
 dependencies {
