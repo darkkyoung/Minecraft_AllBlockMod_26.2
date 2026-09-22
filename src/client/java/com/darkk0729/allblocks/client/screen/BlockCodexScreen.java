@@ -206,13 +206,13 @@ public final class BlockCodexScreen extends Screen {
         );
     }
 
-    private void drawParticipantHeads(
+    private void drawHeader(
             GuiGraphicsExtractor graphics,
-            int centerX,
-            int y,
+            int panelX,
+            int panelY,
+            int filteredCount,
             int mouseX,
-            int mouseY,
-            boolean useTeamColors
+            int mouseY
     ) {
         int centerX =
                 panelX + PANEL_WIDTH / 2;
@@ -414,7 +414,8 @@ public final class BlockCodexScreen extends Screen {
             int centerX,
             int y,
             int mouseX,
-            int mouseY
+            int mouseY,
+            boolean useTeamColors
     ) {
         if (this.minecraft == null
                 || this.minecraft.getConnection() == null) {
