@@ -244,18 +244,28 @@ public final class BlockCodexScreen extends Screen {
                 panelY + 67;
 
         if (ClientChallengeStateCache.isTeamRace()) {
-            drawTeamRaceParticipantHeads(
+            drawParticipantHeads(
                     graphics,
                     centerX,
                     playerY,
                     mouseX,
-                    mouseY
+                    mouseY,
+                    true
             );
 
             drawTeamRaceHeaderScores(
                     graphics,
                     centerX,
                     playerY
+            );
+        } else if ("CO_OP".equals(ClientChallengeStateCache.getMode())) {
+            drawParticipantHeads(
+                    graphics,
+                    centerX,
+                    playerY,
+                    mouseX,
+                    mouseY,
+                    false
             );
         } else {
             int playerX =
@@ -399,7 +409,7 @@ public final class BlockCodexScreen extends Screen {
         );
     }
 
-    private void drawTeamRaceParticipantHeads(
+    private void drawParticipantHeads(
             GuiGraphicsExtractor graphics,
             int centerX,
             int y,

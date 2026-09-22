@@ -614,7 +614,8 @@ public final class ChallengeManager {
         FinalDayManager.reset();
 
         save(server);
-        removeProgressBossBar(server);
+        recreateProgressBossBar(server);
+        updateProgressBossBar(server);
         syncToAllPlayers(server);
         syncStatusToAllPlayers(server);
     }
@@ -1113,10 +1114,46 @@ public final class ChallengeManager {
     private static void recreateProgressBossBar(MinecraftServer server) {
         runServerCommand(server, "bossbar remove " + PROGRESS_BOSSBAR_ID);
 
-        String titleJson = buildBossBarTitleJson();
+        boolean teamRace =
+                state.getMode() == ChallengeMode.TEAM_RACE;
 
-        runServerCommand(server, "bossbar add " + PROGRESS_BOSSBAR_ID + " " + titleJson);
-        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " color green");
+        String titleJson =
+                teamRace
+                        ? buildTeamRaceBossBarTitleJson()
+                        : buildBossBarTitleJson();
+
+        runServerCommand(
+                server,
+                "bossbar add "
+                        + PROGRESS_BOSSBAR_ID
+                        + " "
+                        + titleJson
+        );
+
+        runServerCommand(
+                server,
+                "bossbar set "
+                        + PROGRESS_BOSSBAR_ID
+                        + " color "
+                        + (teamRace ? "white" : "green")
+        );
+
+        runServerCommand(
+                server,
+                "bossbar set "
+                        + PROGRESS_BOSSBAR_ID
+                        + " style progress"
+        );
+
+        runServerCommand(
+                server,
+                "bossbar set "
+                        + PROGRESS_BOSSBAR_ID
+                        + " visible true"
+        );
+
+        bossBarCreated = true;
+    }
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " style progress");
         runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " visible true");
 
@@ -1124,11 +1161,6 @@ public final class ChallengeManager {
     }
 
     private static void updateProgressBossBar(MinecraftServer server) {
-        if (state.getMode() == ChallengeMode.TEAM_RACE) {
-            removeProgressBossBar(server);
-            return;
-        }
-
         if (!shouldShowHud()) {
             removeProgressBossBar(server);
             return;
@@ -1140,6 +1172,74 @@ public final class ChallengeManager {
 
         if (!bossBarCreated) {
             recreateProgressBossBar(server);
+        }
+
+        if (state.getMode() == ChallengeMode.TEAM_RACE) {
+            int total =
+                    Math.max(1, getTotalTargetCount());
+
+            int blue =
+                    getTeamBlockCount(TeamRaceTeam.BLUE);
+
+            int red =
+                    getTeamBlockCount(TeamRaceTeam.RED);
+
+            int claimed =
+                    Math.min(total, blue + red);
+
+            runServerCommand(
+                    server,
+                    "bossbar set "
+                            + PROGRESS_BOSSBAR_ID
+                            + " color white"
+            );
+
+            runServerCommand(
+                    server,
+                    "bossbar set "
+                            + PROGRESS_BOSSBAR_ID
+                            + " style progress"
+            );
+
+            runServerCommand(
+                    server,
+                    "bossbar set "
+                            + PROGRESS_BOSSBAR_ID
+                            + " visible true"
+            );
+
+            runServerCommand(
+                    server,
+                    "bossbar set "
+                            + PROGRESS_BOSSBAR_ID
+                            + " name "
+                            + buildTeamRaceBossBarTitleJson()
+            );
+
+            runServerCommand(
+                    server,
+                    "bossbar set "
+                            + PROGRESS_BOSSBAR_ID
+                            + " max "
+                            + total
+            );
+
+            runServerCommand(
+                    server,
+                    "bossbar set "
+                            + PROGRESS_BOSSBAR_ID
+                            + " value "
+                            + claimed
+            );
+
+            runServerCommand(
+                    server,
+                    "bossbar set "
+                            + PROGRESS_BOSSBAR_ID
+                            + " players @a"
+            );
+
+            return;
         }
 
         int total = Math.max(1, getTotalTargetCount());
@@ -1189,6 +1289,46 @@ public final class ChallengeManager {
                 + "\"text\":\"" + escapeJson(percentText) + "\","
                 + "\"color\":\"gold\""
                 + "}]"
+                + "}";
+    }
+
+    private static String buildTeamRaceBossBarTitleJson() {
+        int blue =
+                getTeamBlockCount(TeamRaceTeam.BLUE);
+
+        int red =
+                getTeamBlockCount(TeamRaceTeam.RED);
+
+        int unclaimed =
+                Math.max(
+                        0,
+                        getTotalTargetCount()
+                                - blue
+                                - red
+                );
+
+        return "{"
+                + "\"text\":\"\","
+                + "\"extra\":["
+                + "{"
+                + "\"text\":\"레드팀 "
+                + red
+                + "\","
+                + "\"color\":\"red\""
+                + "},"
+                + "{"
+                + "\"text\":\"    미획득 "
+                + unclaimed
+                + "    \","
+                + "\"color\":\"gray\""
+                + "},"
+                + "{"
+                + "\"text\":\""
+                + blue
+                + " 블루팀\","
+                + "\"color\":\"blue\""
+                + "}"
+                + "]"
                 + "}";
     }
 
