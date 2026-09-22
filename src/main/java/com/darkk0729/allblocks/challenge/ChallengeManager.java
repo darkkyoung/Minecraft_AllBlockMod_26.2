@@ -1154,11 +1154,7 @@ public final class ChallengeManager {
 
         bossBarCreated = true;
     }
-        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " style progress");
-        runServerCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " visible true");
 
-        bossBarCreated = true;
-    }
 
     private static void updateProgressBossBar(MinecraftServer server) {
         if (!shouldShowHud()) {

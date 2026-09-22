@@ -206,13 +206,13 @@ public final class BlockCodexScreen extends Screen {
         );
     }
 
-    private void drawHeader(
+    private void drawParticipantHeads(
             GuiGraphicsExtractor graphics,
-            int panelX,
-            int panelY,
-            int filteredCount,
+            int centerX,
+            int y,
             int mouseX,
-            int mouseY
+            int mouseY,
+            boolean useTeamColors
     ) {
         int centerX =
                 panelX + PANEL_WIDTH / 2;
@@ -482,9 +482,9 @@ public final class BlockCodexScreen extends Screen {
                             * (PLAYER_ICON_SIZE + gap);
 
             int borderColor =
-                    getTeamColor(
-                            participant.teamId()
-                    );
+                    useTeamColors
+                            ? getTeamColor(participant.teamId())
+                            : COOP_SHARED_COLOR;
 
             graphics.fill(
                     x,
