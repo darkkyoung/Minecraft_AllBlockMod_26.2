@@ -337,6 +337,85 @@ public class ChallengeState {
         return participants.get(playerUuid);
     }
 
+    public ParticipantData findParticipantByName(String playerName) {
+        if (playerName == null || playerName.isBlank()) {
+            return null;
+        }
+
+        for (ParticipantData participant : participants.values()) {
+            if (participant == null || participant.playerName == null) {
+                continue;
+            }
+
+            if (participant.playerName.equalsIgnoreCase(playerName)) {
+                return participant;
+            }
+        }
+
+        return null;
+    }
+
+    public ParticipantData rebindParticipantIdentity(
+            String oldPlayerUuid,
+            UUID newPlayerUuid,
+            String newPlayerName
+    ) {
+        if (oldPlayerUuid == null || oldPlayerUuid.isBlank() || newPlayerUuid == null) {
+            return null;
+        }
+
+        ParticipantData participant = participants.get(oldPlayerUuid);
+
+        if (participant == null) {
+            return null;
+        }
+
+        String newUuid = newPlayerUuid.toString();
+
+        if (oldPlayerUuid.equals(newUuid)) {
+            if (newPlayerName != null && !newPlayerName.isBlank()) {
+                participant.playerName = newPlayerName;
+            }
+            return participant;
+        }
+
+        LinkedHashMap<String, ParticipantData> rebound = new LinkedHashMap<>();
+
+        for (Map.Entry<String, ParticipantData> entry : participants.entrySet()) {
+            if (oldPlayerUuid.equals(entry.getKey())) {
+                participant.playerUuid = newUuid;
+
+                if (newPlayerName != null && !newPlayerName.isBlank()) {
+                    participant.playerName = newPlayerName;
+                }
+
+                rebound.put(newUuid, participant);
+            } else {
+                rebound.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        participants.clear();
+        participants.putAll(rebound);
+
+        for (CollectedBlockData data : collectedBlocks.values()) {
+            if (data == null
+                    || data.state != BlockCollectionState.CLAIMED
+                    || data.ownerType != CollectionOwnerType.PLAYER
+                    || !oldPlayerUuid.equals(data.ownerId)) {
+                continue;
+            }
+
+            data.ownerId = newUuid;
+
+            if (newPlayerName != null && !newPlayerName.isBlank()) {
+                data.ownerName = newPlayerName;
+            }
+        }
+
+        return participant;
+    }
+
     public ParticipantData registerParticipant(UUID playerUuid, String playerName) {
         if (playerUuid == null) {
             return null;
