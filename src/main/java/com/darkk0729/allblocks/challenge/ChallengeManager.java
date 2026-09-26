@@ -91,6 +91,7 @@ public final class ChallengeManager {
                 );
 
                 save(server);
+                syncToPlayer(player);
                 syncToAllPlayers(server);
                 syncStatusToPlayer(player);
                 return;
@@ -122,6 +123,7 @@ public final class ChallengeManager {
                 );
 
                 save(server);
+                syncToPlayer(player);
                 syncToAllPlayers(server);
                 syncStatusToPlayer(player);
                 return;
@@ -133,6 +135,7 @@ public final class ChallengeManager {
             );
 
             save(server);
+            syncToPlayer(player);
             syncToAllPlayers(server);
             syncStatusToPlayer(player);
             return;
