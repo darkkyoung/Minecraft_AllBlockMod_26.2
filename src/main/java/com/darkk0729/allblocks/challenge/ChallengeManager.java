@@ -754,6 +754,8 @@ public final class ChallengeManager {
         if (shouldEnd && rules.finalDayLimitEnabled()) {
             if (state.getMode() == ChallengeMode.TEAM_RACE) {
                 finishTeamRaceByScore(server);
+            } else if (state.getMode() == ChallengeMode.BLOCK_RACE) {
+                finishBlockRaceByScore(server);
             } else {
                 finishChallenge(
                         server,
@@ -832,6 +834,8 @@ public final class ChallengeManager {
             if (getCollectedCount() >= getTotalTargetCount()) {
                 if (state.getMode() == ChallengeMode.TEAM_RACE) {
                     finishTeamRaceByScore(server);
+                } else if (state.getMode() == ChallengeMode.BLOCK_RACE) {
+                    finishBlockRaceByScore(server);
                 } else {
                     finishChallenge(
                             server,
@@ -904,6 +908,8 @@ public final class ChallengeManager {
         if (getCollectedCount() >= getTotalTargetCount()) {
             if (state.getMode() == ChallengeMode.TEAM_RACE) {
                 finishTeamRaceByScore(server);
+            } else if (state.getMode() == ChallengeMode.BLOCK_RACE) {
+                finishBlockRaceByScore(server);
             } else {
                 finishChallenge(
                         server,
@@ -945,6 +951,102 @@ public final class ChallengeManager {
         finishChallenge(server, result);
     }
 
+    private static void finishBlockRaceByScore(
+            MinecraftServer server
+    ) {
+        List<ChallengeState.ParticipantData> ranking =
+                getBlockRaceRanking();
+
+        if (ranking.isEmpty()) {
+            finishChallenge(
+                    server,
+                    ChallengeState.ChallengeResult.DRAW
+            );
+            return;
+        }
+
+        int topScore =
+                getPlayerBlockCount(
+                        ranking.get(0).playerUuid
+                );
+
+        int winnerCount = 0;
+
+        for (ChallengeState.ParticipantData participant : ranking) {
+            if (getPlayerBlockCount(participant.playerUuid)
+                    != topScore) {
+                break;
+            }
+
+            winnerCount++;
+        }
+
+        finishChallenge(
+                server,
+                winnerCount == 1
+                        ? ChallengeState.ChallengeResult.BLOCK_RACE_WIN
+                        : ChallengeState.ChallengeResult.DRAW
+        );
+    }
+
+    private static int getPlayerBlockCount(
+            String playerUuid
+    ) {
+        return state.getOwnedBlockCount(
+                CollectionOwnerType.PLAYER,
+                playerUuid
+        );
+    }
+
+    private static List<ChallengeState.ParticipantData>
+    getBlockRaceRanking() {
+        List<ChallengeState.ParticipantData> ranking =
+                new ArrayList<>(
+                        state.getParticipants().values()
+                );
+
+        ranking.removeIf(
+                participant ->
+                        participant == null
+                                || participant.playerUuid == null
+                                || participant.playerUuid.isBlank()
+        );
+
+        ranking.sort(
+                (left, right) -> {
+                    int scoreCompare =
+                            Integer.compare(
+                                    getPlayerBlockCount(
+                                            right.playerUuid
+                                    ),
+                                    getPlayerBlockCount(
+                                            left.playerUuid
+                                    )
+                            );
+
+                    if (scoreCompare != 0) {
+                        return scoreCompare;
+                    }
+
+                    String leftName =
+                            left.playerName == null
+                                    ? ""
+                                    : left.playerName;
+
+                    String rightName =
+                            right.playerName == null
+                                    ? ""
+                                    : right.playerName;
+
+                    return leftName.compareToIgnoreCase(
+                            rightName
+                    );
+                }
+        );
+
+        return ranking;
+    }
+
     private static void finishChallenge(
             MinecraftServer server,
             ChallengeState.ChallengeResult result
@@ -971,6 +1073,8 @@ public final class ChallengeManager {
 
         if (finishedMode == ChallengeMode.TEAM_RACE) {
             showTeamRaceResult(server, result);
+        } else if (finishedMode == ChallengeMode.BLOCK_RACE) {
+            showBlockRaceResult(server, result);
         } else {
             FinalDayManager.showResult(server, result);
         }
@@ -1045,6 +1149,132 @@ public final class ChallengeManager {
                                 + " 레드팀"
                 )
         );
+    }
+
+
+    private static void showBlockRaceResult(
+            MinecraftServer server,
+            ChallengeState.ChallengeResult result
+    ) {
+        List<ChallengeState.ParticipantData> ranking =
+                getBlockRaceRanking();
+
+        if (ranking.isEmpty()) {
+            return;
+        }
+
+        int topScore =
+                getPlayerBlockCount(
+                        ranking.get(0).playerUuid
+                );
+
+        List<String> winners =
+                new ArrayList<>();
+
+        for (ChallengeState.ParticipantData participant : ranking) {
+            if (getPlayerBlockCount(participant.playerUuid)
+                    != topScore) {
+                break;
+            }
+
+            winners.add(
+                    participant.playerName == null
+                            || participant.playerName.isBlank()
+                            ? "플레이어"
+                            : participant.playerName
+            );
+        }
+
+        boolean draw =
+                result == ChallengeState.ChallengeResult.DRAW
+                        || winners.size() > 1;
+
+        String title =
+                draw
+                        ? "무승부"
+                        : winners.get(0) + " 승리!";
+
+        String subtitle =
+                draw
+                        ? "공동 1위 "
+                        + String.join(", ", winners)
+                        + " | "
+                        + topScore
+                        : "1위 "
+                        + winners.get(0)
+                        + " | "
+                        + topScore;
+
+        runServerCommand(
+                server,
+                "title @a times 10 80 20"
+        );
+
+        runServerCommand(
+                server,
+                "title @a title "
+                        + jsonText(
+                                title,
+                                draw ? "gold" : "green"
+                        )
+        );
+
+        runServerCommand(
+                server,
+                "title @a subtitle "
+                        + jsonText(
+                                subtitle,
+                                "white"
+                        )
+        );
+
+        runServerCommand(
+                server,
+                "playsound minecraft:entity.player.levelup master @a ~ ~ ~ 1 1"
+        );
+
+        broadcast(
+                server,
+                Component.literal(
+                        "[올블록 챌린지] 블록 레이스 종료"
+                )
+        );
+
+        int rank = 1;
+        int previousScore = -1;
+
+        for (int i = 0; i < ranking.size(); i++) {
+            ChallengeState.ParticipantData participant =
+                    ranking.get(i);
+
+            int score =
+                    getPlayerBlockCount(
+                            participant.playerUuid
+                    );
+
+            if (i == 0 || score != previousScore) {
+                rank = i + 1;
+            }
+
+            previousScore = score;
+
+            String name =
+                    participant.playerName == null
+                            || participant.playerName.isBlank()
+                            ? "플레이어"
+                            : participant.playerName;
+
+            broadcast(
+                    server,
+                    Component.literal(
+                            rank
+                                    + "위 "
+                                    + name
+                                    + " "
+                                    + score
+                    )
+            );
+        }
     }
 
 

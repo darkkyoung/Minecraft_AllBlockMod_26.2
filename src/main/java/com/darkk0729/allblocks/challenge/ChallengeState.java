@@ -516,6 +516,7 @@ public class ChallengeState {
         FAIL,
         BLUE_WIN,
         RED_WIN,
+        BLOCK_RACE_WIN,
         DRAW
     }
 

@@ -2,6 +2,10 @@ package com.darkk0729.allblocks.client.hud;
 
 import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
+import com.darkk0729.allblocks.challenge.PlayerCodexColor;
+
+import java.util.ArrayList;
+import java.util.List;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
@@ -44,10 +48,11 @@ public final class TeamRaceHud {
                         drawRanking(graphics, client);
                     } else {
                         drawBlockRaceProgressBar(graphics, client);
+                        drawBlockRaceRanking(graphics, client);
                     }
 
                     int vanillaOffset =
-                            teamRace && isFinalDay()
+                            isFinalDay()
                                     ? FINAL_DAY_BOSS_BAR_OFFSET
                                     : BOSS_BAR_ROW_HEIGHT;
 
@@ -105,12 +110,25 @@ public final class TeamRaceHud {
                         Math.min(BAR_WIDTH, filledWidth)
                 );
 
+        boolean finalDay =
+                isFinalDay();
+
+        int accentColor =
+                finalDay
+                        ? getFinalDayAccentColor()
+                        : COLOR_BORDER;
+
+        int emptyColor =
+                finalDay
+                        ? getFinalDayEmptyColor()
+                        : COLOR_EMPTY;
+
         graphics.fill(
                 x,
                 BAR_Y,
                 x + BAR_WIDTH,
                 BAR_Y + BAR_HEIGHT,
-                COLOR_EMPTY
+                emptyColor
         );
 
         if (filledWidth > 0) {
@@ -128,7 +146,7 @@ public final class TeamRaceHud {
                 BAR_Y - 1,
                 BAR_WIDTH + 2,
                 BAR_HEIGHT + 2,
-                COLOR_BORDER
+                accentColor
         );
 
         double percent =
@@ -154,6 +172,177 @@ public final class TeamRaceHud {
                 COLOR_TEXT,
                 true
         );
+
+        if (finalDay) {
+            String timerText =
+                    "최종일 | 남은 시간 "
+                            + formatFinalDayRemainingTime();
+
+            int timerWidth =
+                    client.font.width(timerText);
+
+            graphics.text(
+                    client.font,
+                    timerText,
+                    x + (BAR_WIDTH - timerWidth) / 2,
+                    BAR_Y + BAR_HEIGHT + 4,
+                    accentColor,
+                    true
+            );
+        }
+    }
+
+    private static void drawBlockRaceRanking(
+            GuiGraphicsExtractor graphics,
+            Minecraft client
+    ) {
+        List<ClientChallengeStateCache.SyncedParticipantData> ranking =
+                new ArrayList<>(
+                        ClientChallengeStateCache
+                                .getParticipants()
+                                .values()
+                );
+
+        ranking.removeIf(
+                participant ->
+                        participant == null
+                                || participant.playerUuid() == null
+                                || participant.playerUuid().isBlank()
+        );
+
+        ranking.sort(
+                (left, right) -> {
+                    int scoreCompare =
+                            Integer.compare(
+                                    right.collectedCount(),
+                                    left.collectedCount()
+                            );
+
+                    if (scoreCompare != 0) {
+                        return scoreCompare;
+                    }
+
+                    String leftName =
+                            left.playerName() == null
+                                    ? ""
+                                    : left.playerName();
+
+                    String rightName =
+                            right.playerName() == null
+                                    ? ""
+                                    : right.playerName();
+
+                    return leftName.compareToIgnoreCase(
+                            rightName
+                    );
+                }
+        );
+
+        if (ranking.isEmpty()) {
+            return;
+        }
+
+        String title =
+                "올블록 순위";
+
+        int paddingX = 6;
+        int lineHeight = 13;
+
+        int contentWidth =
+                client.font.width(title);
+
+        List<String> lines =
+                new ArrayList<>();
+
+        int rank = 1;
+        int previousScore = -1;
+
+        for (int i = 0; i < ranking.size(); i++) {
+            ClientChallengeStateCache.SyncedParticipantData participant =
+                    ranking.get(i);
+
+            int score =
+                    Math.max(
+                            0,
+                            participant.collectedCount()
+                    );
+
+            if (i == 0 || score != previousScore) {
+                rank = i + 1;
+            }
+
+            previousScore = score;
+
+            String name =
+                    participant.playerName() == null
+                            || participant.playerName().isBlank()
+                            ? "플레이어"
+                            : participant.playerName();
+
+            String line =
+                    rank
+                            + ". "
+                            + name
+                            + " "
+                            + score;
+
+            lines.add(line);
+            contentWidth =
+                    Math.max(
+                            contentWidth,
+                            client.font.width(line)
+                    );
+        }
+
+        int boxWidth =
+                contentWidth + paddingX * 2;
+
+        int boxHeight =
+                23 + lines.size() * lineHeight;
+
+        int x = 8;
+
+        int screenHeight =
+                client.getWindow().getGuiScaledHeight();
+
+        int y =
+                screenHeight / 2 - boxHeight / 2;
+
+        graphics.fill(
+                x,
+                y,
+                x + boxWidth,
+                y + boxHeight,
+                COLOR_BACKGROUND
+        );
+
+        graphics.text(
+                client.font,
+                title,
+                x + paddingX,
+                y + 6,
+                COLOR_TEXT,
+                true
+        );
+
+        for (int i = 0; i < ranking.size(); i++) {
+            ClientChallengeStateCache.SyncedParticipantData participant =
+                    ranking.get(i);
+
+            int color =
+                    PlayerCodexColor.fromName(
+                            participant.color()
+                    ).getArgb();
+
+            graphics.text(
+                    client.font,
+                    lines.get(i),
+                    x + paddingX,
+                    y + 21 + i * lineHeight,
+                    color,
+                    true
+            );
+        }
     }
 
     private static void drawCompetitionBar(

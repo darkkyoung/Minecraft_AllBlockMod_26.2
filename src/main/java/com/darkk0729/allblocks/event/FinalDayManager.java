@@ -162,7 +162,8 @@ public final class FinalDayManager {
     }
 
     private static void updateFinalDayBossBar(MinecraftServer server, long remainingTicks) {
-        if (ChallengeManager.getMode() == ChallengeMode.TEAM_RACE) {
+        if (ChallengeManager.getMode() == ChallengeMode.TEAM_RACE
+                || ChallengeManager.getMode() == ChallengeMode.BLOCK_RACE) {
             runCommand(
                     server,
                     "bossbar set " + PROGRESS_BOSSBAR_ID + " visible false"
