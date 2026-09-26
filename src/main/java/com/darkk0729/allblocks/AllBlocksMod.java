@@ -44,7 +44,8 @@ public class AllBlocksMod implements ModInitializer {
                         );
 
                         if (!ChallengeManager.shouldShowHud()
-                                && !ChallengeManager.isTeamRaceSetupActive()) {
+                                && !ChallengeManager.isTeamRaceSetupActive()
+                                && !ChallengeManager.isBlockRaceSetupActive()) {
 
                             ChallengeMenuMessages.showWelcome(
                                     handler.player

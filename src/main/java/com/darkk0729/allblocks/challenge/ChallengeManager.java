@@ -560,6 +560,7 @@ public final class ChallengeManager {
             ChallengeDifficulty difficulty
     ) {
         TeamRaceSetupManager.reset(server);
+        BlockRaceSetupManager.reset(server);
         startMode(server, ChallengeMode.SOLO, difficulty);
     }
 
@@ -568,6 +569,7 @@ public final class ChallengeManager {
             ChallengeDifficulty difficulty
     ) {
         TeamRaceSetupManager.reset(server);
+        BlockRaceSetupManager.reset(server);
         startMode(server, ChallengeMode.CO_OP, difficulty);
     }
 
@@ -595,6 +597,8 @@ public final class ChallengeManager {
                 || assignments.isEmpty()) {
             return;
         }
+
+        BlockRaceSetupManager.reset(server);
 
         runServerCommand(
                 server,
@@ -668,6 +672,10 @@ public final class ChallengeManager {
         return TeamRaceSetupManager.isActive();
     }
 
+    public static boolean isBlockRaceSetupActive() {
+        return BlockRaceSetupManager.isActive();
+    }
+
     private static void startMode(
             MinecraftServer server,
             ChallengeMode mode,
@@ -705,6 +713,7 @@ public final class ChallengeManager {
 
     public static void stop(MinecraftServer server) {
         TeamRaceSetupManager.reset(server);
+        BlockRaceSetupManager.reset(server);
         state.stop();
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
@@ -718,6 +727,7 @@ public final class ChallengeManager {
 
     public static void tick(MinecraftServer server) {
         TeamRaceSetupManager.tick(server);
+        BlockRaceSetupManager.tick(server);
 
         if (!state.isRunning()) {
             return;

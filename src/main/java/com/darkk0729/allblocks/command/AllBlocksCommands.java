@@ -12,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.darkk0729.allblocks.challenge.TeamRaceSetupManager;
+import com.darkk0729.allblocks.challenge.BlockRaceSetupManager;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
@@ -317,28 +318,18 @@ public final class AllBlocksCommands {
             return 0;
         }
 
-        MinecraftServer server = source.getServer();
-
-        if (!ChallengeManager.startBlockRace(
-                server,
-                difficulty
-        )) {
+        if (ChallengeManager.isTeamRaceSetupActive()
+                || ChallengeManager.isBlockRaceSetupActive()) {
             source.sendFailure(Component.literal(
-                    "[올블록 챌린지] 블록 레이스는 최소 2명이 필요합니다."
+                    "[올블록 챌린지] 이미 다른 경쟁 모드 시작 절차가 진행 중입니다."
             ));
             return 0;
         }
 
-        source.sendSuccess(
-                () -> Component.literal(
-                        "[올블록 챌린지] 블록 레이스 "
-                                + difficulty.getDisplayName()
-                                + " 난이도로 시작했습니다."
-                ),
-                false
-        );
-
-        return 1;
+        return BlockRaceSetupManager.begin(
+                source.getServer(),
+                difficulty
+        ) ? 1 : 0;
     }
 
     private static int beginTeamRaceSetup(
