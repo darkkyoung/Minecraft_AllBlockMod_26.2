@@ -45,6 +45,31 @@ public final class ChallengeManager {
         if (server == null || player == null) return;
 
         if (state.isRunning()) {
+            if (state.getMode() == ChallengeMode.BLOCK_RACE) {
+                ChallengeState.ParticipantData participant =
+                        state.getParticipant(player.getUUID().toString());
+
+                if (participant == null) {
+                    player.sendSystemMessage(Component.literal(
+                            "[올블록 챌린지] 이미 시작된 블록 레이스에는 중도 참가할 수 없습니다."
+                    ));
+
+                    syncToPlayer(player);
+                    syncStatusToPlayer(player);
+                    return;
+                }
+
+                state.registerParticipant(
+                        player.getUUID(),
+                        player.getName().getString()
+                );
+
+                save(server);
+                syncToAllPlayers(server);
+                syncStatusToPlayer(player);
+                return;
+            }
+
             if (state.getMode() == ChallengeMode.TEAM_RACE) {
                 TeamRaceTeam team =
                         state.getParticipantTeam(player.getUUID().toString());
@@ -546,6 +571,20 @@ public final class ChallengeManager {
         startMode(server, ChallengeMode.CO_OP, difficulty);
     }
 
+    public static boolean startBlockRace(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty
+    ) {
+        if (server == null
+                || server.getPlayerList().getPlayers().size() < 2) {
+            return false;
+        }
+
+        TeamRaceSetupManager.reset(server);
+        startMode(server, ChallengeMode.BLOCK_RACE, difficulty);
+        return true;
+    }
+
     public static void startTeamRace(
             MinecraftServer server,
             ChallengeDifficulty difficulty,
@@ -754,6 +793,13 @@ public final class ChallengeManager {
             return false;
         }
 
+        if (state.getMode() == ChallengeMode.BLOCK_RACE
+                && state.getParticipant(
+                player.getUUID().toString()
+        ) == null) {
+            return false;
+        }
+
         if (state.getMode() == ChallengeMode.TEAM_RACE
                 && !state.getParticipantTeam(
                 player.getUUID().toString()
@@ -811,6 +857,16 @@ public final class ChallengeManager {
 
         if (!state.isRunning()) {
             player.sendSystemMessage(Component.literal("[Block Race Debug] 챌린지가 시작되지 않았습니다."));
+            return;
+        }
+
+        if (state.getMode() == ChallengeMode.BLOCK_RACE
+                && state.getParticipant(
+                player.getUUID().toString()
+        ) == null) {
+            player.sendSystemMessage(Component.literal(
+                    "[Block Race Debug] 블록 레이스 참가자가 아닙니다."
+            ));
             return;
         }
 

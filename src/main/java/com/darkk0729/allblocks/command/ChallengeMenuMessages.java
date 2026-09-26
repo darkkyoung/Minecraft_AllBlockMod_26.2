@@ -43,11 +43,8 @@ public final class ChallengeMenuMessages {
         sendTeamRaceDifficultyMenu(line -> source.sendSuccess(() -> line, false));
     }
 
-    public static void showBlockRaceComingSoon(CommandSourceStack source) {
-        source.sendSuccess(() -> prefix()
-                .append(Component.literal(
-                        "블록 레이스는 아직 개발 중입니다."
-                ).withStyle(ChatFormatting.WHITE)), false);
+    public static void showBlockRaceDifficultyMenu(CommandSourceStack source) {
+        sendBlockRaceDifficultyMenu(line -> source.sendSuccess(() -> line, false));
     }
 
     private static void sendWelcome(MessageSender sender) {
@@ -196,6 +193,50 @@ public final class ChallengeMenuMessages {
                 ).append(Component.literal(
                         " 각 플레이어가 개인 수집량을 겨룹니다."
                 ).withStyle(ChatFormatting.WHITE))
+        );
+
+        sender.send(separator());
+    }
+
+    private static void sendBlockRaceDifficultyMenu(
+            MessageSender sender
+    ) {
+        sender.send(separator());
+
+        sender.send(Component.literal("[ 블록 레이스 난이도 선택 ]")
+                .withStyle(
+                        ChatFormatting.RED,
+                        ChatFormatting.BOLD
+                ));
+
+        sender.send(Component.literal(
+                "현재 접속 중인 플레이어끼리 개인 블록 소유권을 두고 경쟁합니다."
+        ).withStyle(ChatFormatting.GRAY));
+
+        sender.send(Component.literal(""));
+
+        sender.send(
+                clickable(
+                        "[쉬움]",
+                        ChatFormatting.GREEN,
+                        "/allblocks start blockrace easy"
+                )
+        );
+
+        sender.send(
+                clickable(
+                        "[보통]",
+                        ChatFormatting.YELLOW,
+                        "/allblocks start blockrace normal"
+                )
+        );
+
+        sender.send(
+                clickable(
+                        "[어려움]",
+                        ChatFormatting.RED,
+                        "/allblocks start blockrace hard"
+                )
         );
 
         sender.send(separator());

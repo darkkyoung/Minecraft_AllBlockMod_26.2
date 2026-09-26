@@ -64,7 +64,7 @@ public final class AllBlocksCommands {
                                     )
                                     .then(Commands.literal("blockrace")
                                             .executes(context -> {
-                                                ChallengeMenuMessages.showBlockRaceComingSoon(
+                                                ChallengeMenuMessages.showBlockRaceDifficultyMenu(
                                                         context.getSource()
                                                 );
                                                 return 1;
@@ -103,6 +103,23 @@ public final class AllBlocksCommands {
                                                     )))
                                             .then(Commands.literal("hard")
                                                     .executes(context -> startCoop(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.HARD
+                                                    )))
+                                    )
+                                    .then(Commands.literal("blockrace")
+                                            .then(Commands.literal("easy")
+                                                    .executes(context -> startBlockRace(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.EASY
+                                                    )))
+                                            .then(Commands.literal("normal")
+                                                    .executes(context -> startBlockRace(
+                                                            context.getSource(),
+                                                            ChallengeDifficulty.NORMAL
+                                                    )))
+                                            .then(Commands.literal("hard")
+                                                    .executes(context -> startBlockRace(
                                                             context.getSource(),
                                                             ChallengeDifficulty.HARD
                                                     )))
@@ -282,6 +299,41 @@ public final class AllBlocksCommands {
                         "[올블록 챌린지] 협동 "
                                 + difficulty.getDisplayName()
                                 + " 난이도로 챌린지를 시작했습니다."
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+    private static int startBlockRace(
+            CommandSourceStack source,
+            ChallengeDifficulty difficulty
+    ) {
+        if (ChallengeManager.isRunning()) {
+            source.sendFailure(Component.literal(
+                    "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
+            ));
+            return 0;
+        }
+
+        MinecraftServer server = source.getServer();
+
+        if (!ChallengeManager.startBlockRace(
+                server,
+                difficulty
+        )) {
+            source.sendFailure(Component.literal(
+                    "[올블록 챌린지] 블록 레이스는 최소 2명이 필요합니다."
+            ));
+            return 0;
+        }
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "[올블록 챌린지] 블록 레이스 "
+                                + difficulty.getDisplayName()
+                                + " 난이도로 시작했습니다."
                 ),
                 false
         );
