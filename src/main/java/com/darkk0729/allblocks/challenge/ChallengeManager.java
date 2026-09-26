@@ -262,6 +262,33 @@ public final class ChallengeManager {
         return true;
     }
 
+    public static int getPlayerBlockCount(
+            String playerUuid
+    ) {
+        return state.getOwnedBlockCount(
+                CollectionOwnerType.PLAYER,
+                playerUuid
+        );
+    }
+
+    public static int getParticipantLastProgressEventTier(
+            String playerUuid
+    ) {
+        return state.getParticipantLastProgressEventTier(
+                playerUuid
+        );
+    }
+
+    public static boolean setParticipantLastProgressEventTier(
+            String playerUuid,
+            int tier
+    ) {
+        return state.setParticipantLastProgressEventTier(
+                playerUuid,
+                tier
+        );
+    }
+
     public static int getTeamBlockCount(TeamRaceTeam team) {
         if (team == null || !team.isAssigned()) {
             return 0;
@@ -986,15 +1013,6 @@ public final class ChallengeManager {
                 winnerCount == 1
                         ? ChallengeState.ChallengeResult.BLOCK_RACE_WIN
                         : ChallengeState.ChallengeResult.DRAW
-        );
-    }
-
-    private static int getPlayerBlockCount(
-            String playerUuid
-    ) {
-        return state.getOwnedBlockCount(
-                CollectionOwnerType.PLAYER,
-                playerUuid
         );
     }
 

@@ -237,6 +237,15 @@ public class ChallengeState {
             if (participant.teamId == null || participant.teamId.isBlank()) {
                 participant.teamId = TeamRaceTeam.NONE.name();
             }
+
+            participant.lastProgressEventTier =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    10,
+                                    participant.lastProgressEventTier
+                            )
+                    );
         }
     }
 
@@ -377,6 +386,45 @@ public class ChallengeState {
         }
 
         participant.color = color.name();
+
+        return true;
+    }
+
+    public int getParticipantLastProgressEventTier(
+            String playerUuid
+    ) {
+        ParticipantData participant =
+                getParticipant(playerUuid);
+
+        if (participant == null) {
+            return 0;
+        }
+
+        return Math.max(
+                0,
+                Math.min(
+                        10,
+                        participant.lastProgressEventTier
+                )
+        );
+    }
+
+    public boolean setParticipantLastProgressEventTier(
+            String playerUuid,
+            int tier
+    ) {
+        ParticipantData participant =
+                getParticipant(playerUuid);
+
+        if (participant == null) {
+            return false;
+        }
+
+        participant.lastProgressEventTier =
+                Math.max(
+                        0,
+                        Math.min(10, tier)
+                );
 
         return true;
     }
@@ -556,6 +604,7 @@ public class ChallengeState {
         public String playerName;
         public String color;
         public String teamId = TeamRaceTeam.NONE.name();
+        public int lastProgressEventTier = 0;
 
         public ParticipantData() {
         }

@@ -55,7 +55,188 @@ public final class ChallengeEventManager {
             return;
         }
 
+        if (ChallengeManager.getMode()
+                == ChallengeMode.BLOCK_RACE) {
+            checkBlockRaceProgressEvents(server);
+            return;
+        }
+
         checkProgressEvents(server);
+    }
+
+    private static void checkBlockRaceProgressEvents(
+            MinecraftServer server
+    ) {
+        boolean tierChanged = false;
+        int total =
+                Math.max(
+                        1,
+                        ChallengeManager.getTotalTargetCount()
+                );
+
+        for (ServerPlayer player : getPlayers(server)) {
+            String playerUuid =
+                    player.getUUID().toString();
+
+            if (!ChallengeManager
+                    .getParticipants()
+                    .containsKey(playerUuid)) {
+                continue;
+            }
+
+            int collected =
+                    ChallengeManager.getPlayerBlockCount(
+                            playerUuid
+                    );
+
+            int currentTier =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    MAX_PROGRESS_TIER,
+                                    (int) Math.floor(
+                                            collected
+                                                    * 10.0D
+                                                    / total
+                                    )
+                            )
+                    );
+
+            int lastTier =
+                    ChallengeManager
+                            .getParticipantLastProgressEventTier(
+                                    playerUuid
+                            );
+
+            if (currentTier < lastTier) {
+                ChallengeManager
+                        .setParticipantLastProgressEventTier(
+                                playerUuid,
+                                currentTier
+                        );
+
+                tierChanged = true;
+                continue;
+            }
+
+            if (currentTier <= lastTier) {
+                continue;
+            }
+
+            for (int tier = lastTier + 1;
+                 tier <= currentTier;
+                 tier++) {
+                triggerBlockRaceProgressEvent(
+                        server,
+                        player,
+                        tier * 10
+                );
+            }
+
+            ChallengeManager
+                    .setParticipantLastProgressEventTier(
+                            playerUuid,
+                            currentTier
+                    );
+
+            tierChanged = true;
+        }
+
+        if (tierChanged) {
+            ChallengeManager.save(server);
+        }
+    }
+
+    private static void triggerBlockRaceProgressEvent(
+            MinecraftServer server,
+            ServerPlayer player,
+            int progressPercent
+    ) {
+        if (player == null) {
+            return;
+        }
+
+        int eventType =
+                ThreadLocalRandom.current().nextInt(3);
+
+        switch (eventType) {
+            case 0 -> {
+                applyRandomDebuffsToPlayer(
+                        player,
+                        progressPercent
+                );
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "[AllBlocks] Progress Event "
+                                        + progressPercent
+                                        + "%: Random debuff"
+                        )
+                );
+            }
+
+            case 1 -> {
+                teleportPlayerRandomly(
+                        player,
+                        getTeleportEventRadius(
+                                progressPercent
+                        )
+                );
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "[AllBlocks] Progress Event "
+                                        + progressPercent
+                                        + "%: Random teleport"
+                        )
+                );
+            }
+
+            case 2 -> {
+                Block fillBlock =
+                        TargetBlockRegistry
+                                .getRandomFillEventBlock();
+
+                if (fillBlock == null) {
+                    fillBlock = Blocks.OBSIDIAN;
+                }
+
+                int sideLength =
+                        getProgressEventSideLength(
+                                progressPercent
+                        );
+
+                int radius =
+                        Math.max(
+                                1,
+                                sideLength / 2
+                        );
+
+                fillBlocksAroundPlayer(
+                        player,
+                        radius,
+                        fillBlock,
+                        getPlayers(server)
+                );
+
+                String fillBlockName =
+                        BuiltInRegistries.BLOCK
+                                .getKey(fillBlock)
+                                .toString();
+
+                player.sendSystemMessage(
+                        Component.literal(
+                                "[AllBlocks] Progress Event "
+                                        + progressPercent
+                                        + "%: Area filled with "
+                                        + fillBlockName
+                        )
+                );
+            }
+
+            default -> {
+            }
+        }
     }
 
     private static void checkProgressEvents(MinecraftServer server) {
