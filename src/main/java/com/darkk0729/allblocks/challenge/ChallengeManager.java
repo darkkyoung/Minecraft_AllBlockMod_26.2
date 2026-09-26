@@ -399,6 +399,11 @@ public final class ChallengeManager {
                 state.getDifficulty().name(),
                 state.getElapsedTicks(),
                 getDisplayedDay(),
+                Math.max(
+                        0L,
+                        ChallengeState.TICKS_PER_DAY * ChallengeState.MAX_DAYS
+                                - state.getWorldElapsedTicks()
+                ),
                 state.getCollectedCount(),
                 getTotalTargetCount()
         );

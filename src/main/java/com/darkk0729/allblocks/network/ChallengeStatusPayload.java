@@ -13,6 +13,7 @@ public record ChallengeStatusPayload(
         String difficulty,
         long elapsedTicks,
         int currentDay,
+        long finalDayRemainingTicks,
         int collectedCount,
         int totalTargetCount
 ) implements CustomPacketPayload {
@@ -29,6 +30,7 @@ public record ChallengeStatusPayload(
         buf.writeUtf(safe(difficulty));
         buf.writeLong(elapsedTicks);
         buf.writeVarInt(currentDay);
+        buf.writeLong(finalDayRemainingTicks);
         buf.writeVarInt(collectedCount);
         buf.writeVarInt(totalTargetCount);
     }
@@ -42,6 +44,7 @@ public record ChallengeStatusPayload(
                 buf.readUtf(),
                 buf.readLong(),
                 buf.readVarInt(),
+                buf.readLong(),
                 buf.readVarInt(),
                 buf.readVarInt()
         );

@@ -1,6 +1,7 @@
 package com.darkk0729.allblocks.event;
 
 import com.darkk0729.allblocks.challenge.ChallengeManager;
+import com.darkk0729.allblocks.challenge.ChallengeMode;
 import com.darkk0729.allblocks.collection.TargetBlockRegistry;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
@@ -161,6 +162,14 @@ public final class FinalDayManager {
     }
 
     private static void updateFinalDayBossBar(MinecraftServer server, long remainingTicks) {
+        if (ChallengeManager.getMode() == ChallengeMode.TEAM_RACE) {
+            runCommand(
+                    server,
+                    "bossbar set " + PROGRESS_BOSSBAR_ID + " visible false"
+            );
+            return;
+        }
+
         int collected = ChallengeManager.getCollectedCount();
         int total = TargetBlockRegistry.getTargetBlocks().size();
 

@@ -1,6 +1,7 @@
 package com.darkk0729.allblocks.client.hud;
 
 import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
+import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.Minecraft;
@@ -11,6 +12,7 @@ public final class TeamRaceHud {
     private static final int BAR_HEIGHT = 5;
     private static final int BAR_Y = 12;
     private static final int BOSS_BAR_ROW_HEIGHT = 19;
+    private static final int FINAL_DAY_BOSS_BAR_OFFSET = 31;
 
     private static final int COLOR_BLUE = 0xFF3C6FFF;
     private static final int COLOR_RED = 0xFFFF4A4A;
@@ -37,9 +39,14 @@ public final class TeamRaceHud {
                     drawCompetitionBar(graphics, client);
                     drawRanking(graphics, client);
 
+                    int vanillaOffset =
+                            isFinalDay()
+                                    ? FINAL_DAY_BOSS_BAR_OFFSET
+                                    : BOSS_BAR_ROW_HEIGHT;
+
                     var matrices = graphics.pose();
                     matrices.pushMatrix();
-                    matrices.translate(0, BOSS_BAR_ROW_HEIGHT);
+                    matrices.translate(0, vanillaOffset);
                     original.extractRenderState(graphics, deltaTracker);
                     matrices.popMatrix();
                 }
@@ -134,12 +141,28 @@ public final class TeamRaceHud {
                         )
                 );
 
+        boolean finalDay =
+                isFinalDay();
+
+        int finalDayAccent =
+                getFinalDayAccentColor();
+
+        int emptyColor =
+                finalDay
+                        ? getFinalDayEmptyColor()
+                        : COLOR_EMPTY;
+
+        int borderColor =
+                finalDay
+                        ? finalDayAccent
+                        : COLOR_BORDER;
+
         graphics.fill(
                 x,
                 BAR_Y,
                 x + BAR_WIDTH,
                 BAR_Y + BAR_HEIGHT,
-                COLOR_EMPTY
+                emptyColor
         );
 
         if (ownWidth > 0) {
@@ -167,7 +190,7 @@ public final class TeamRaceHud {
                 BAR_Y - 1,
                 BAR_WIDTH + 2,
                 BAR_HEIGHT + 2,
-                COLOR_BORDER
+                borderColor
         );
 
         String leftText =
@@ -212,6 +235,88 @@ public final class TeamRaceHud {
                 textY,
                 enemyColor,
                 true
+        );
+
+        if (finalDay) {
+            String timerText =
+                    "최종일 | 남은 시간 "
+                            + formatFinalDayRemainingTime();
+
+            int timerWidth =
+                    client.font.width(timerText);
+
+            graphics.text(
+                    client.font,
+                    timerText,
+                    x + (BAR_WIDTH - timerWidth) / 2,
+                    BAR_Y + BAR_HEIGHT + 4,
+                    finalDayAccent,
+                    true
+            );
+        }
+    }
+
+    private static boolean isFinalDay() {
+        return ClientChallengeStateCache.isRunning()
+                && ClientChallengeStateCache.getCurrentDay() == 100
+                && ClientChallengeStateCache.getDifficulty()
+                        != ChallengeDifficulty.EASY;
+    }
+
+    private static int getFinalDayAccentColor() {
+        long remainingSeconds =
+                getFinalDayRemainingSeconds();
+
+        if (remainingSeconds <= 60L) {
+            return 0xFFFF5555;
+        }
+
+        if (remainingSeconds <= 300L) {
+            return 0xFFFFFF55;
+        }
+
+        return 0xFF55FF55;
+    }
+
+    private static int getFinalDayEmptyColor() {
+        long remainingSeconds =
+                getFinalDayRemainingSeconds();
+
+        if (remainingSeconds <= 60L) {
+            return 0xFF3A1818;
+        }
+
+        if (remainingSeconds <= 300L) {
+            return 0xFF3A3518;
+        }
+
+        return 0xFF183A18;
+    }
+
+    private static long getFinalDayRemainingSeconds() {
+        long ticks =
+                Math.max(
+                        0L,
+                        ClientChallengeStateCache.getFinalDayRemainingTicks()
+                );
+
+        return (ticks + 19L) / 20L;
+    }
+
+    private static String formatFinalDayRemainingTime() {
+        long totalSeconds =
+                getFinalDayRemainingSeconds();
+
+        long minutes =
+                totalSeconds / 60L;
+
+        long seconds =
+                totalSeconds % 60L;
+
+        return String.format(
+                "%02d:%02d",
+                minutes,
+                seconds
         );
     }
 

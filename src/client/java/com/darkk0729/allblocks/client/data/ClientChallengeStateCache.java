@@ -19,6 +19,7 @@ public final class ClientChallengeStateCache {
     private static ChallengeDifficulty difficulty = ChallengeDifficulty.HARD;
     private static long elapsedTicks = 0L;
     private static int currentDay = 1;
+    private static long finalDayRemainingTicks = 0L;
     private static int collectedCount = 0;
     private static int totalTargetCount = 0;
 
@@ -42,6 +43,7 @@ public final class ClientChallengeStateCache {
         mode = payload.mode();
         elapsedTicks = Math.max(0L, payload.elapsedTicks());
         currentDay = Math.max(1, payload.currentDay());
+        finalDayRemainingTicks = Math.max(0L, payload.finalDayRemainingTicks());
         collectedCount = Math.max(0, payload.collectedCount());
         totalTargetCount = Math.max(0, payload.totalTargetCount());
         participants.clear();
@@ -111,6 +113,7 @@ public final class ClientChallengeStateCache {
         difficulty = ChallengeDifficulty.HARD;
         elapsedTicks = 0L;
         currentDay = 1;
+        finalDayRemainingTicks = 0L;
         collectedCount = 0;
         totalTargetCount = 0;
         blocks.clear();
@@ -149,6 +152,10 @@ public final class ClientChallengeStateCache {
 
     public static int getCurrentDay() {
         return currentDay;
+    }
+
+    public static long getFinalDayRemainingTicks() {
+        return finalDayRemainingTicks;
     }
 
     public static int getCollectedCount() {
