@@ -46,8 +46,28 @@ public final class ChallengeManager {
 
         if (state.isRunning()) {
             if (state.getMode() == ChallengeMode.BLOCK_RACE) {
+                String playerUuid = player.getUUID().toString();
+
                 ChallengeState.ParticipantData participant =
-                        state.getParticipant(player.getUUID().toString());
+                        state.getParticipant(playerUuid);
+
+                if (participant == null) {
+                    ChallengeState.ParticipantData byName =
+                            state.findParticipantByName(
+                                    player.getName().getString()
+                            );
+
+                    if (byName != null
+                            && byName.playerUuid != null
+                            && !byName.playerUuid.isBlank()) {
+                        participant =
+                                state.rebindParticipantIdentity(
+                                        byName.playerUuid,
+                                        player.getUUID(),
+                                        player.getName().getString()
+                                );
+                    }
+                }
 
                 if (participant == null) {
                     player.sendSystemMessage(Component.literal(
@@ -62,6 +82,12 @@ public final class ChallengeManager {
                 state.registerParticipant(
                         player.getUUID(),
                         player.getName().getString()
+                );
+
+                applyBlockRaceScoreboardMembership(
+                        server,
+                        player,
+                        PlayerCodexColor.fromName(participant.color)
                 );
 
                 save(server);
@@ -147,6 +173,15 @@ public final class ChallengeManager {
 
         if (!changed) {
             return;
+        }
+
+        if (state.isRunning()
+                && state.getMode() == ChallengeMode.BLOCK_RACE) {
+            applyBlockRaceScoreboardMembership(
+                    server,
+                    player,
+                    color
+            );
         }
 
         save(server);
@@ -626,6 +661,7 @@ public final class ChallengeManager {
         }
 
         BlockRaceSetupManager.reset(server);
+        clearBlockRaceScoreboardTeams(server);
 
         runServerCommand(
                 server,
@@ -726,6 +762,30 @@ public final class ChallengeManager {
 
         registerOnlinePlayers(server);
 
+        clearBlockRaceScoreboardTeams(server);
+
+        if (state.getMode() == ChallengeMode.BLOCK_RACE) {
+            for (ServerPlayer player :
+                    server.getPlayerList().getPlayers()) {
+                ChallengeState.ParticipantData participant =
+                        state.getParticipant(
+                                player.getUUID().toString()
+                        );
+
+                if (participant == null) {
+                    continue;
+                }
+
+                applyBlockRaceScoreboardMembership(
+                        server,
+                        player,
+                        PlayerCodexColor.fromName(
+                                participant.color
+                        )
+                );
+            }
+        }
+
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
         ticksSinceLastStatusSync = 0L;
@@ -741,6 +801,7 @@ public final class ChallengeManager {
     public static void stop(MinecraftServer server) {
         TeamRaceSetupManager.reset(server);
         BlockRaceSetupManager.reset(server);
+        clearBlockRaceScoreboardTeams(server);
         state.stop();
         ticksSinceLastSave = 0L;
         ticksSinceLastBossBarUpdate = 0L;
@@ -1616,6 +1677,76 @@ public final class ChallengeManager {
         return text
                 .replace("\\", "\\\\")
                 .replace("\"", "\\\"");
+    }
+
+
+    private static void applyBlockRaceScoreboardMembership(
+            MinecraftServer server,
+            ServerPlayer player,
+            PlayerCodexColor color
+    ) {
+        if (server == null || player == null || color == null) {
+            return;
+        }
+
+        String teamName =
+                getBlockRaceScoreboardTeamName(color);
+
+        runServerCommand(server, "team add " + teamName);
+        runServerCommand(
+                server,
+                "team modify "
+                        + teamName
+                        + " color "
+                        + getMinecraftTeamColor(color)
+        );
+        runServerCommand(
+                server,
+                "team join "
+                        + teamName
+                        + " "
+                        + player.getName().getString()
+        );
+    }
+
+    private static void clearBlockRaceScoreboardTeams(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (PlayerCodexColor color : PlayerCodexColor.values()) {
+            runServerCommand(
+                    server,
+                    "team remove "
+                            + getBlockRaceScoreboardTeamName(color)
+            );
+        }
+    }
+
+    private static String getBlockRaceScoreboardTeamName(
+            PlayerCodexColor color
+    ) {
+        return "abp_"
+                + color.name().toLowerCase(Locale.ROOT);
+    }
+
+    private static String getMinecraftTeamColor(
+            PlayerCodexColor color
+    ) {
+        return switch (color) {
+            case RED -> "red";
+            case ORANGE -> "gold";
+            case YELLOW -> "yellow";
+            case LIME -> "green";
+            case GREEN -> "dark_green";
+            case CYAN -> "aqua";
+            case BLUE -> "blue";
+            case PURPLE -> "dark_purple";
+            case PINK -> "light_purple";
+            case WHITE -> "white";
+        };
     }
 
 
