@@ -435,6 +435,49 @@ public final class BlockCodexScreen extends Screen {
 
         int gap = 3;
 
+        if (useTeamColors) {
+            List<ClientChallengeStateCache.SyncedParticipantData> blueParticipants =
+                    new ArrayList<>();
+            List<ClientChallengeStateCache.SyncedParticipantData> redParticipants =
+                    new ArrayList<>();
+
+            for (ClientChallengeStateCache.SyncedParticipantData participant : participants) {
+                if (participant == null) {
+                    continue;
+                }
+
+                if ("BLUE".equals(participant.teamId())) {
+                    blueParticipants.add(participant);
+                } else if ("RED".equals(participant.teamId())) {
+                    redParticipants.add(participant);
+                }
+            }
+
+            drawTeamParticipantGroup(
+                    graphics,
+                    blueParticipants,
+                    centerX,
+                    y,
+                    mouseX,
+                    mouseY,
+                    gap,
+                    true
+            );
+
+            drawTeamParticipantGroup(
+                    graphics,
+                    redParticipants,
+                    centerX,
+                    y,
+                    mouseX,
+                    mouseY,
+                    gap,
+                    false
+            );
+
+            return;
+        }
+
         int totalWidth =
                 participants.size() * PLAYER_ICON_SIZE
                         + (participants.size() - 1) * gap;
@@ -443,93 +486,145 @@ public final class BlockCodexScreen extends Screen {
                 centerX - totalWidth / 2;
 
         for (int i = 0; i < participants.size(); i++) {
-            ClientChallengeStateCache.SyncedParticipantData participant =
-                    participants.get(i);
-
-            if (participant == null
-                    || participant.playerUuid() == null
-                    || participant.playerUuid().isBlank()) {
-                continue;
-            }
-
-            UUID uuid;
-
-            try {
-                uuid = UUID.fromString(
-                        participant.playerUuid()
-                );
-            } catch (IllegalArgumentException ignored) {
-                continue;
-            }
-
-            PlayerInfo playerInfo =
-                    this.minecraft
-                            .getConnection()
-                            .getPlayerInfo(uuid);
-
-            if (playerInfo == null) {
-                continue;
-            }
-
-            Identifier skinTexture =
-                    playerInfo
-                            .getSkin()
-                            .body()
-                            .texturePath();
-
-            int x =
-                    startX
-                            + i
-                            * (PLAYER_ICON_SIZE + gap);
-
-            int borderColor =
-                    useTeamColors
-                            ? getTeamColor(participant.teamId())
-                            : COOP_SHARED_COLOR;
-
-            graphics.fill(
-                    x,
-                    y,
-                    x + PLAYER_ICON_SIZE,
-                    y + PLAYER_ICON_SIZE,
-                    0x88E4CFA7
-            );
-
-            PlayerFaceExtractor.extractRenderState(
+            drawParticipantHead(
                     graphics,
-                    skinTexture,
-                    x,
+                    participants.get(i),
+                    startX + i * (PLAYER_ICON_SIZE + gap),
                     y,
-                    PLAYER_ICON_SIZE,
-                    true,
-                    false,
-                    0xFFFFFFFF
-            );
-
-            drawThickOutline(
-                    graphics,
-                    x,
-                    y,
-                    PLAYER_ICON_SIZE,
-                    PLAYER_ICON_SIZE,
-                    borderColor
-            );
-
-            if (isInside(
                     mouseX,
                     mouseY,
-                    x - 1,
-                    y - 1,
-                    PLAYER_ICON_SIZE + 2,
-                    PLAYER_ICON_SIZE + 2
-            )) {
-                drawTextTooltip(
-                        graphics,
-                        mouseX,
-                        mouseY,
-                        participant.playerName()
-                );
-            }
+                    COOP_SHARED_COLOR
+            );
+        }
+    }
+
+    private void drawTeamParticipantGroup(
+            GuiGraphicsExtractor graphics,
+            List<ClientChallengeStateCache.SyncedParticipantData> participants,
+            int centerX,
+            int y,
+            int mouseX,
+            int mouseY,
+            int gap,
+            boolean blueSide
+    ) {
+        if (participants.isEmpty()) {
+            return;
+        }
+
+        int centerGap = 6;
+
+        int totalWidth =
+                participants.size() * PLAYER_ICON_SIZE
+                        + (participants.size() - 1) * gap;
+
+        int startX =
+                blueSide
+                        ? centerX - centerGap - totalWidth
+                        : centerX + centerGap;
+
+        int borderColor =
+                blueSide
+                        ? TEAM_BLUE_COLOR
+                        : TEAM_RED_COLOR;
+
+        for (int i = 0; i < participants.size(); i++) {
+            drawParticipantHead(
+                    graphics,
+                    participants.get(i),
+                    startX + i * (PLAYER_ICON_SIZE + gap),
+                    y,
+                    mouseX,
+                    mouseY,
+                    borderColor
+            );
+        }
+    }
+
+    private void drawParticipantHead(
+            GuiGraphicsExtractor graphics,
+            ClientChallengeStateCache.SyncedParticipantData participant,
+            int x,
+            int y,
+            int mouseX,
+            int mouseY,
+            int borderColor
+    ) {
+        if (participant == null
+                || participant.playerUuid() == null
+                || participant.playerUuid().isBlank()
+                || this.minecraft == null
+                || this.minecraft.getConnection() == null) {
+            return;
+        }
+
+        UUID uuid;
+
+        try {
+            uuid = UUID.fromString(
+                    participant.playerUuid()
+            );
+        } catch (IllegalArgumentException ignored) {
+            return;
+        }
+
+        PlayerInfo playerInfo =
+                this.minecraft
+                        .getConnection()
+                        .getPlayerInfo(uuid);
+
+        if (playerInfo == null) {
+            return;
+        }
+
+        Identifier skinTexture =
+                playerInfo
+                        .getSkin()
+                        .body()
+                        .texturePath();
+
+        graphics.fill(
+                x,
+                y,
+                x + PLAYER_ICON_SIZE,
+                y + PLAYER_ICON_SIZE,
+                0x88E4CFA7
+        );
+
+        PlayerFaceExtractor.extractRenderState(
+                graphics,
+                skinTexture,
+                x,
+                y,
+                PLAYER_ICON_SIZE,
+                true,
+                false,
+                0xFFFFFFFF
+        );
+
+        drawThickOutline(
+                graphics,
+                x,
+                y,
+                PLAYER_ICON_SIZE,
+                PLAYER_ICON_SIZE,
+                borderColor
+        );
+
+        if (isInside(
+                mouseX,
+                mouseY,
+                x - 1,
+                y - 1,
+                PLAYER_ICON_SIZE + 2,
+                PLAYER_ICON_SIZE + 2
+        )) {
+            drawTextTooltip(
+                    graphics,
+                    mouseX,
+                    mouseY,
+                    participant.playerName()
+            );
         }
     }
 
@@ -546,8 +641,8 @@ public final class BlockCodexScreen extends Screen {
 
         int markerSize = PLAYER_ICON_SIZE;
 
-        int blueX = centerX - 92;
-        int redX = centerX + 78;
+        int blueX = centerX - 125;
+        int redX = centerX + 111;
 
         // 블루팀 네모
         graphics.fill(
