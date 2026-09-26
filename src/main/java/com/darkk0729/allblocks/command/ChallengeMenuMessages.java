@@ -50,13 +50,6 @@ public final class ChallengeMenuMessages {
                 ).withStyle(ChatFormatting.WHITE)), false);
     }
 
-    public static void showRaceComingSoon(CommandSourceStack source) {
-        source.sendSuccess(() -> prefix()
-                .append(Component.literal("경쟁 모드는 아직 개발 중입니다. 지금은 싱글 모드만 사용할 수 있습니다.")
-                        .withStyle(ChatFormatting.WHITE
-                        )), false);
-    }
-
     private static void sendWelcome(MessageSender sender) {
         sender.send(separator());
         sender.send(Component.literal("[ 올블록 챌린지 ]")
@@ -74,7 +67,7 @@ public final class ChallengeMenuMessages {
                 .withStyle(ChatFormatting.WHITE));
         sender.send(Component.literal("협동: 모든 플레이어가 하나의 도감을 함께 완성합니다.")
                 .withStyle(ChatFormatting.WHITE));
-        sender.send(Component.literal("경쟁: 가장 많은 블록을 모은 플레이어가 승리합니다.")
+        sender.send(Component.literal("경쟁: 팀 또는 개인 단위로 블록 소유권과 수집량을 겨룹니다.")
                 .withStyle(ChatFormatting.WHITE));
 
         sender.send(Component.literal(""));
@@ -103,7 +96,7 @@ public final class ChallengeMenuMessages {
                         .withStyle(ChatFormatting.WHITE)));
 
         sender.send(clickable("[경쟁]", ChatFormatting.RED, "/allblocks menu race")
-                .append(Component.literal(" 블록을 가장 많이 모은 1등 플레이어를 선발합니다.")
+                .append(Component.literal(" 팀 레이스 또는 개인 블록 레이스로 경쟁합니다.")
                         .withStyle(ChatFormatting.WHITE)));
 
         sender.send(separator());
@@ -120,7 +113,7 @@ public final class ChallengeMenuMessages {
                         .withStyle(ChatFormatting.WHITE)));
 
         sender.send(clickable("[보통]", ChatFormatting.YELLOW, "/allblocks start single normal")
-                .append(Component.literal(" 이벤트는 없지만 100일 제한이 있습니다.")
+                .append(Component.literal(" 보통 난이도의 진행률/Day 이벤트와 100일 제한이 적용됩니다.")
                         .withStyle(ChatFormatting.WHITE)));
 
         sender.send(clickable("[어려움]", ChatFormatting.RED, "/allblocks start single hard")
