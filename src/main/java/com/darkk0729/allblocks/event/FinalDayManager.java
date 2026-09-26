@@ -171,6 +171,7 @@ public final class FinalDayManager {
         String bossBarText = "최종일 | 남은 시간 " + timeText + " | 수집 " + collected + " / " + total;
 
         runCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " visible true");
+        runCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " players @a");
         runCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " color " + bossBarColor);
         runCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " style progress");
         runCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " max " + Math.max(total, 1));

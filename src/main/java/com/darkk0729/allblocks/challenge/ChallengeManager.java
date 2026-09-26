@@ -1149,7 +1149,8 @@ public final class ChallengeManager {
                 server,
                 "bossbar set "
                         + PROGRESS_BOSSBAR_ID
-                        + " visible true"
+                        + " visible "
+                        + (teamRace ? "false" : "true")
         );
 
         bossBarCreated = true;
@@ -1162,7 +1163,8 @@ public final class ChallengeManager {
             return;
         }
 
-        if (FinalDayManager.isFinalDayActive()) {
+        if (DayRaidManager.isRaidWarningActive()
+                || FinalDayManager.isFinalDayActive()) {
             return;
         }
 
@@ -1171,70 +1173,14 @@ public final class ChallengeManager {
         }
 
         if (state.getMode() == ChallengeMode.TEAM_RACE) {
-            int total =
-                    Math.max(1, getTotalTargetCount());
-
-            int blue =
-                    getTeamBlockCount(TeamRaceTeam.BLUE);
-
-            int red =
-                    getTeamBlockCount(TeamRaceTeam.RED);
-
-            int claimed =
-                    Math.min(total, blue + red);
-
+            // Team Race의 일반 진행도는 클라이언트 커스텀 양방향 바로 표시한다.
+            // 이 native bossbar는 Day Raid / Final Day 이벤트용으로만 유지한다.
             runServerCommand(
                     server,
                     "bossbar set "
                             + PROGRESS_BOSSBAR_ID
-                            + " color white"
+                            + " visible false"
             );
-
-            runServerCommand(
-                    server,
-                    "bossbar set "
-                            + PROGRESS_BOSSBAR_ID
-                            + " style progress"
-            );
-
-            runServerCommand(
-                    server,
-                    "bossbar set "
-                            + PROGRESS_BOSSBAR_ID
-                            + " visible true"
-            );
-
-            runServerCommand(
-                    server,
-                    "bossbar set "
-                            + PROGRESS_BOSSBAR_ID
-                            + " name "
-                            + buildTeamRaceBossBarTitleJson()
-            );
-
-            runServerCommand(
-                    server,
-                    "bossbar set "
-                            + PROGRESS_BOSSBAR_ID
-                            + " max "
-                            + total
-            );
-
-            runServerCommand(
-                    server,
-                    "bossbar set "
-                            + PROGRESS_BOSSBAR_ID
-                            + " value "
-                            + claimed
-            );
-
-            runServerCommand(
-                    server,
-                    "bossbar set "
-                            + PROGRESS_BOSSBAR_ID
-                            + " players @a"
-            );
-
             return;
         }
 
