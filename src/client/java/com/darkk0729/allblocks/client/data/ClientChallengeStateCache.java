@@ -220,6 +220,10 @@ public final class ClientChallengeStateCache {
         return "TEAM_RACE".equals(mode);
     }
 
+    public static boolean isBlockRace() {
+        return "BLOCK_RACE".equals(mode);
+    }
+
     public static int getTeamScore(String teamId) {
         if (teamId == null || teamId.isBlank()) return 0;
 

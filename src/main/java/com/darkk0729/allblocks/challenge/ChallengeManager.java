@@ -1178,6 +1178,10 @@ public final class ChallengeManager {
         boolean teamRace =
                 state.getMode() == ChallengeMode.TEAM_RACE;
 
+        boolean customRaceProgress =
+                teamRace
+                        || state.getMode() == ChallengeMode.BLOCK_RACE;
+
         String titleJson =
                 teamRace
                         ? buildTeamRaceBossBarTitleJson()
@@ -1196,7 +1200,7 @@ public final class ChallengeManager {
                 "bossbar set "
                         + PROGRESS_BOSSBAR_ID
                         + " color "
-                        + (teamRace ? "white" : "green")
+                        + (customRaceProgress ? "white" : "green")
         );
 
         runServerCommand(
@@ -1211,7 +1215,7 @@ public final class ChallengeManager {
                 "bossbar set "
                         + PROGRESS_BOSSBAR_ID
                         + " visible "
-                        + (teamRace ? "false" : "true")
+                        + (customRaceProgress ? "false" : "true")
         );
 
         bossBarCreated = true;
@@ -1233,8 +1237,9 @@ public final class ChallengeManager {
             recreateProgressBossBar(server);
         }
 
-        if (state.getMode() == ChallengeMode.TEAM_RACE) {
-            // Team Race의 일반 진행도는 클라이언트 커스텀 양방향 바로 표시한다.
+        if (state.getMode() == ChallengeMode.TEAM_RACE
+                || state.getMode() == ChallengeMode.BLOCK_RACE) {
+            // 경쟁 모드의 일반 진행도는 클라이언트 커스텀 HUD로 표시한다.
             // 이 native bossbar는 Day Raid / Final Day 이벤트용으로만 유지한다.
             runServerCommand(
                     server,

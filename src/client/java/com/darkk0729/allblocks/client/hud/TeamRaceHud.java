@@ -31,16 +31,23 @@ public final class TeamRaceHud {
                 original -> (graphics, deltaTracker) -> {
                     Minecraft client = Minecraft.getInstance();
 
-                    if (!shouldRenderTeamRace(client)) {
+                    if (!shouldRenderRaceProgress(client)) {
                         original.extractRenderState(graphics, deltaTracker);
                         return;
                     }
 
-                    drawCompetitionBar(graphics, client);
-                    drawRanking(graphics, client);
+                    boolean teamRace =
+                            ClientChallengeStateCache.isTeamRace();
+
+                    if (teamRace) {
+                        drawCompetitionBar(graphics, client);
+                        drawRanking(graphics, client);
+                    } else {
+                        drawBlockRaceProgressBar(graphics, client);
+                    }
 
                     int vanillaOffset =
-                            isFinalDay()
+                            teamRace && isFinalDay()
                                     ? FINAL_DAY_BOSS_BAR_OFFSET
                                     : BOSS_BAR_ROW_HEIGHT;
 
@@ -53,11 +60,100 @@ public final class TeamRaceHud {
         );
     }
 
-    private static boolean shouldRenderTeamRace(Minecraft client) {
+    private static boolean shouldRenderRaceProgress(Minecraft client) {
         return client.player != null
                 && client.level != null
                 && ClientChallengeStateCache.shouldShowHud()
-                && ClientChallengeStateCache.isTeamRace();
+                && (ClientChallengeStateCache.isTeamRace()
+                || ClientChallengeStateCache.isBlockRace());
+    }
+
+    private static void drawBlockRaceProgressBar(
+            GuiGraphicsExtractor graphics,
+            Minecraft client
+    ) {
+        ClientChallengeStateCache.SyncedParticipantData participant =
+                ClientChallengeStateCache.getParticipant(
+                        client.player.getUUID().toString()
+                );
+
+        int collected =
+                participant == null
+                        ? 0
+                        : Math.max(0, participant.collectedCount());
+
+        int total =
+                Math.max(
+                        1,
+                        ClientChallengeStateCache.getTotalTargetCount()
+                );
+
+        int screenWidth =
+                client.getWindow().getGuiScaledWidth();
+
+        int x =
+                (screenWidth - BAR_WIDTH) / 2;
+
+        int filledWidth =
+                (int) Math.floor(
+                        BAR_WIDTH * (collected / (double) total)
+                );
+
+        filledWidth =
+                Math.max(
+                        0,
+                        Math.min(BAR_WIDTH, filledWidth)
+                );
+
+        graphics.fill(
+                x,
+                BAR_Y,
+                x + BAR_WIDTH,
+                BAR_Y + BAR_HEIGHT,
+                COLOR_EMPTY
+        );
+
+        if (filledWidth > 0) {
+            graphics.fill(
+                    x,
+                    BAR_Y,
+                    x + filledWidth,
+                    BAR_Y + BAR_HEIGHT,
+                    0xFF55FF55
+            );
+        }
+
+        graphics.outline(
+                x - 1,
+                BAR_Y - 1,
+                BAR_WIDTH + 2,
+                BAR_HEIGHT + 2,
+                COLOR_BORDER
+        );
+
+        double percent =
+                collected * 100.0D / total;
+
+        String text =
+                String.format(
+                        java.util.Locale.ROOT,
+                        "도감 진행률 | %d / %d (%.2f%%)",
+                        collected,
+                        total,
+                        percent
+                );
+
+        int textWidth =
+                client.font.width(text);
+
+        graphics.text(
+                client.font,
+                text,
+                x + (BAR_WIDTH - textWidth) / 2,
+                2,
+                COLOR_TEXT,
+                true
+        );
     }
 
     private static void drawCompetitionBar(

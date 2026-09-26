@@ -258,7 +258,8 @@ public final class BlockCodexScreen extends Screen {
                     centerX,
                     playerY
             );
-        } else if ("CO_OP".equals(ClientChallengeStateCache.getMode())) {
+        } else if ("CO_OP".equals(ClientChallengeStateCache.getMode())
+                || ClientChallengeStateCache.isBlockRace()) {
             drawParticipantHeads(
                     graphics,
                     centerX,
@@ -486,14 +487,24 @@ public final class BlockCodexScreen extends Screen {
                 centerX - totalWidth / 2;
 
         for (int i = 0; i < participants.size(); i++) {
+            ClientChallengeStateCache.SyncedParticipantData participant =
+                    participants.get(i);
+
+            int borderColor =
+                    ClientChallengeStateCache.isBlockRace()
+                            ? PlayerCodexColor.fromName(
+                                    participant.color()
+                            ).getArgb()
+                            : COOP_SHARED_COLOR;
+
             drawParticipantHead(
                     graphics,
-                    participants.get(i),
+                    participant,
                     startX + i * (PLAYER_ICON_SIZE + gap),
                     y,
                     mouseX,
                     mouseY,
-                    COOP_SHARED_COLOR
+                    borderColor
             );
         }
     }
