@@ -30,7 +30,7 @@ public final class TeamRaceHud {
                     Minecraft client = Minecraft.getInstance();
 
                     if (!shouldRenderTeamRace(client)) {
-                        original.render(graphics, deltaTracker);
+                        original.extractRenderState(graphics, deltaTracker);
                         return;
                     }
 
@@ -40,7 +40,7 @@ public final class TeamRaceHud {
                     var matrices = graphics.pose();
                     matrices.pushMatrix();
                     matrices.translate(0, BOSS_BAR_ROW_HEIGHT);
-                    original.render(graphics, deltaTracker);
+                    original.extractRenderState(graphics, deltaTracker);
                     matrices.popMatrix();
                 }
         );
