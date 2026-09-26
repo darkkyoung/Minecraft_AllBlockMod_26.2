@@ -1072,7 +1072,11 @@ public final class DayRaidManager {
             }
         }
 
-        return null;
+        return findFallbackSpawnPosition(
+                level,
+                playerPos,
+                false
+        );
     }
 
     private static BlockPos findBossSpawnPosition(
@@ -1120,7 +1124,62 @@ public final class DayRaidManager {
             }
         }
 
-        return null;
+        return findFallbackSpawnPosition(
+                level,
+                playerPos,
+                true
+        );
+    }
+
+    private static BlockPos findFallbackSpawnPosition(
+            ServerLevel level,
+            BlockPos playerPos,
+            boolean boss
+    ) {
+        java.util.List<BlockPos> candidates =
+                new java.util.ArrayList<>();
+
+        int minRadius = boss ? 3 : 2;
+        int maxRadius = 10;
+        int topOffset = boss ? 6 : 5;
+
+        for (int radius = minRadius; radius <= maxRadius; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) {
+                        continue;
+                    }
+
+                    for (int dy = topOffset; dy >= -512; dy--) {
+                        BlockPos pos =
+                                playerPos.offset(dx, dy, dz);
+
+                        boolean valid =
+                                boss
+                                        ? isValidBossSpawnSpace(level, pos)
+                                        : isValidSpawnSpace(level, pos);
+
+                        if (!valid) {
+                            continue;
+                        }
+
+                        candidates.add(pos);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        return candidates.get(
+                randomInt(
+                        0,
+                        candidates.size() - 1
+                )
+        );
     }
 
     private static boolean isValidBossSpawnSpace(ServerLevel level, BlockPos pos) {
