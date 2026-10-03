@@ -918,7 +918,9 @@ public final class BlockCodexScreen extends Screen {
             graphics.text(
                     this.font,
                     currentFilter.label,
-                    x + 5,
+                    x + (width - this.font.width(
+                            currentFilter.label
+                    )) / 2,
                     y + 4,
                     textColor,
                     false
