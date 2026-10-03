@@ -556,11 +556,9 @@ public final class ChallengeManager {
                 state.getDifficulty().name(),
                 state.getElapsedTicks(),
                 getDisplayedDay(),
-                Math.max(
-                        0L,
-                        ChallengeState.TICKS_PER_DAY * ChallengeState.MAX_DAYS
-                                - state.getWorldElapsedTicks()
-                ),
+                state.isInGameFinalDay()
+                        ? state.getRemainingTimeLimitTicks()
+                        : 0L,
                 state.getCollectedCount(),
                 getTotalTargetCount()
         );
@@ -1012,6 +1010,7 @@ public final class ChallengeManager {
     }
 
     public static void stop(MinecraftServer server) {
+        ChallengeSetupManager.reset();
         TeamRaceSetupManager.reset(server);
         BlockRaceSetupManager.reset(server);
         clearBlockRaceScoreboardTeams(server);
@@ -1021,8 +1020,14 @@ public final class ChallengeManager {
         ticksSinceLastStatusSync = 0L;
         FinalDayManager.reset();
 
+        setAllPlayersGameMode(
+                server,
+                "creative"
+        );
+
         save(server);
         removeProgressBossBar(server);
+        syncToAllPlayers(server);
         syncStatusToAllPlayers(server);
     }
 
@@ -1048,11 +1053,14 @@ public final class ChallengeManager {
             DayRaidManager.tick(server);
         }
 
-        if (rules.finalDayLimitEnabled()) {
+        if (state.getTimeLimitType()
+                == ChallengeTimeLimitType.IN_GAME_TIME) {
             FinalDayManager.tick(server);
+        } else if (FinalDayManager.isFinalDayActive()) {
+            FinalDayManager.reset();
         }
 
-        if (shouldEnd && rules.finalDayLimitEnabled()) {
+        if (shouldEnd) {
             if (state.getMode() == ChallengeMode.TEAM_RACE) {
                 finishTeamRaceByScore(server);
             } else if (state.getMode() == ChallengeMode.BLOCK_RACE) {
@@ -1363,6 +1371,11 @@ public final class ChallengeManager {
         syncToAllPlayers(server);
         syncStatusToAllPlayers(server);
 
+        setAllPlayersGameMode(
+                server,
+                "creative"
+        );
+
         if (finishedMode == ChallengeMode.TEAM_RACE) {
             showTeamRaceResult(server, result);
         } else if (finishedMode == ChallengeMode.BLOCK_RACE) {
@@ -1575,78 +1588,92 @@ public final class ChallengeManager {
             ServerPlayer player,
             boolean pvpDeath
     ) {
-        if (server == null || player == null || !state.isRunning()) {
+        if (server == null
+                || player == null
+                || !state.isRunning()) {
             return;
         }
 
-        int minPercent = pvpDeath ? 5 : 0;
-        int maxPercent = pvpDeath ? 20 : 10;
+        int minPercent =
+                pvpDeath ? 5 : 0;
+        int maxPercent =
+                pvpDeath ? 20 : 10;
 
-        CollectionOwner penaltyOwner = resolveCollectionOwner(player);
+        CollectionOwner penaltyOwner =
+                resolveCollectionOwner(player);
 
-        if (penaltyOwner == null || !penaltyOwner.isValid()) {
+        if (penaltyOwner == null
+                || !penaltyOwner.isValid()) {
             return;
         }
 
-        int releasedCount = state.releaseRandomOwnedBlocks(
-                penaltyOwner.type(),
-                penaltyOwner.id(),
-                minPercent,
-                maxPercent
-        );
+        int releasedCount =
+                state.releaseRandomOwnedBlocks(
+                        penaltyOwner.type(),
+                        penaltyOwner.id(),
+                        minPercent,
+                        maxPercent
+                );
 
         save(server);
         updateProgressBossBar(server);
         syncToAllPlayers(server);
         syncStatusToAllPlayers(server);
 
-        if (state.getMode() == ChallengeMode.CO_OP) {
-            String message = releasedCount > 0
-                    ? "[AllBlocks] " + player.getName().getString()
-                    + " 사망: 공용 도감에서 블록 "
-                    + releasedCount + "개를 잃었습니다."
-                    : "[AllBlocks] " + player.getName().getString()
-                    + " 사망: 공용 도감에서 잃은 블록은 없습니다.";
+        MutableComponent message =
+                buildPlayerNameComponent(player)
+                        .append(
+                                Component.literal(
+                                        " 사망: "
+                                ).withStyle(
+                                        ChatFormatting.WHITE
+                                )
+                        );
 
-            broadcast(server, Component.literal(message));
-            return;
-        }
-
-        if (state.getMode() == ChallengeMode.TEAM_RACE) {
+        if (state.getMode()
+                == ChallengeMode.TEAM_RACE) {
             TeamRaceTeam team =
                     state.getParticipantTeam(
                             player.getUUID().toString()
                     );
 
-            String message = releasedCount > 0
-                    ? "[AllBlocks] "
-                    + player.getName().getString()
-                    + " 사망: "
-                    + team.getDisplayName()
-                    + " 도감에서 블록 "
-                    + releasedCount
-                    + "개를 잃었습니다."
-                    : "[AllBlocks] "
-                    + player.getName().getString()
-                    + " 사망: "
-                    + team.getDisplayName()
-                    + " 도감에서 잃은 블록은 없습니다.";
+            ChatFormatting teamColor =
+                    team == TeamRaceTeam.RED
+                            ? ChatFormatting.RED
+                            : ChatFormatting.BLUE;
 
-            broadcast(server, Component.literal(message));
-            return;
-        }
-
-        if (releasedCount > 0) {
-            player.sendSystemMessage(Component.literal(
-                    "[AllBlocks] Death penalty: You lost "
-                            + releasedCount
-                            + " collected block(s)."
-            ));
+            message.append(
+                    Component.literal(
+                            team.getDisplayName()
+                    ).withStyle(
+                            teamColor,
+                            ChatFormatting.BOLD
+                    )
+            ).append(
+                    Component.literal(
+                            " 블록 "
+                                    + releasedCount
+                                    + "개 소실"
+                    ).withStyle(
+                            ChatFormatting.WHITE
+                    )
+            );
         } else {
-            player.sendSystemMessage(Component.literal(
-                    "[AllBlocks] Death penalty: No collected blocks were lost."
-            ));
+            message.append(
+                    Component.literal(
+                            "블록 "
+                                    + releasedCount
+                                    + "개 소실"
+                    ).withStyle(
+                            ChatFormatting.WHITE
+                    )
+            );
         }
+
+        broadcast(
+                server,
+                message
+        );
     }
 
     public static void debugSetDay(MinecraftServer server, int day) {
@@ -1668,7 +1695,7 @@ public final class ChallengeManager {
          * 30일차  -> 720,000틱
          * 100일차 -> 2,400,000틱
          */
-        int safeDay = Math.max(1, Math.min(100, day));
+        int safeDay = Math.max(1, Math.min(10000, day));
         long targetWorldElapsedTicks = (safeDay - 1L) * ChallengeState.TICKS_PER_DAY;
 
         /*
@@ -1690,7 +1717,7 @@ public final class ChallengeManager {
         state.setWorldElapsedTicks(targetWorldElapsedTicks);
         state.resetWorldClockTracker(targetWorldTime);
 
-        if (!state.getRules().finalDayLimitEnabled() || getDisplayedDay() != 100) {
+        if (!state.isInGameFinalDay()) {
             FinalDayManager.reset();
         }
 
@@ -1699,8 +1726,10 @@ public final class ChallengeManager {
         syncStatusToAllPlayers(server);
 
         broadcast(server, Component.literal(
-                "[AllBlocks] Debug day set to Day " + getDisplayedDay()
-                        + " | Timer " + state.getFormattedElapsedTime()
+                "[올블록 디버그] "
+                        + getDisplayedDay()
+                        + "일차로 이동 | 타이머 "
+                        + state.getFormattedElapsedTime()
         ));
     }
 
