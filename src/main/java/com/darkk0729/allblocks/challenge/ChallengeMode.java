@@ -1,10 +1,10 @@
 package com.darkk0729.allblocks.challenge;
 
 public enum ChallengeMode {
-    SOLO("Solo"),
-    CO_OP("Co-op"),
-    TEAM_RACE("Team Race"),
-    BLOCK_RACE("Block Race");
+    SOLO("싱글"),
+    CO_OP("협동"),
+    TEAM_RACE("팀 레이스"),
+    BLOCK_RACE("블록 레이스");
 
     private final String displayName;
 
