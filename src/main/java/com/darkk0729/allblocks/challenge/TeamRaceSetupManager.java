@@ -13,19 +13,28 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class TeamRaceSetupManager {
     private static final int REVEAL_TICKS = 20 * 7;
     private static final int COUNTDOWN_SECONDS = 5;
-    private static final int COUNTDOWN_TICKS = 20 * COUNTDOWN_SECONDS;
+    private static final int COUNTDOWN_TICKS =
+            20 * COUNTDOWN_SECONDS;
 
     private static SetupPhase phase = SetupPhase.IDLE;
     private static ChallengeDifficulty difficulty =
             ChallengeDifficulty.HARD;
+    private static ChallengeTimeLimitType timeLimitType =
+            ChallengeTimeLimitType.IN_GAME_TIME;
+    private static long timeLimitTicks =
+            ChallengeState.TICKS_PER_DAY
+                    * ChallengeState.MAX_DAYS;
+    private static boolean resetWorldTime = true;
 
     private static UUID controllerUuid;
     private static int revealTicksRemaining = 0;
@@ -37,6 +46,9 @@ public final class TeamRaceSetupManager {
 
     private static final Map<UUID, TeamRaceTeam> assignments =
             new LinkedHashMap<>();
+
+    private static final Set<UUID> spectators =
+            new LinkedHashSet<>();
 
     private TeamRaceSetupManager() {
     }
@@ -57,8 +69,14 @@ public final class TeamRaceSetupManager {
         return Collections.unmodifiableMap(assignments);
     }
 
+    public static Set<UUID> getSpectators() {
+        return Collections.unmodifiableSet(spectators);
+    }
+
     public static void tick(MinecraftServer server) {
-        if (server == null) return;
+        if (server == null) {
+            return;
+        }
 
         if (phase == SetupPhase.REVEALING) {
             tickReveal(server);
@@ -70,12 +88,16 @@ public final class TeamRaceSetupManager {
         }
     }
 
-    private static void tickReveal(MinecraftServer server) {
+    private static void tickReveal(
+            MinecraftServer server
+    ) {
         if (revealTicksRemaining > 0) {
             revealTicksRemaining--;
         }
 
-        if (revealTicksRemaining > 0) return;
+        if (revealTicksRemaining > 0) {
+            return;
+        }
 
         phase = SetupPhase.READY;
         applyScoreboardTeams(server);
@@ -87,36 +109,79 @@ public final class TeamRaceSetupManager {
             ServerPlayer controller,
             ChallengeDifficulty selectedDifficulty
     ) {
+        return begin(
+                server,
+                controller,
+                selectedDifficulty,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS,
+                true
+        );
+    }
+
+    public static boolean begin(
+            MinecraftServer server,
+            ServerPlayer controller,
+            ChallengeDifficulty selectedDifficulty,
+            ChallengeTimeLimitType selectedTimeLimitType,
+            long selectedTimeLimitTicks,
+            boolean shouldResetWorldTime
+    ) {
         if (server == null || controller == null) {
             return false;
         }
 
         if (ChallengeManager.isRunning()) {
-            controller.sendSystemMessage(Component.literal(
-                    "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
-            ));
+            controller.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
+                    )
+            );
             return false;
         }
 
         if (isActive()
                 && controllerUuid != null
-                && !controllerUuid.equals(controller.getUUID())) {
-
-            controller.sendSystemMessage(Component.literal(
-                    "[올블록 챌린지] 다른 플레이어가 팀 편성을 진행 중입니다."
-            ));
+                && !controllerUuid.equals(
+                        controller.getUUID()
+                )) {
+            controller.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 다른 플레이어가 팀 편성을 진행 중입니다."
+                    )
+            );
             return false;
         }
 
         controllerUuid = controller.getUUID();
-        difficulty = selectedDifficulty == null
-                ? ChallengeDifficulty.HARD
-                : selectedDifficulty;
+
+        difficulty =
+                selectedDifficulty == null
+                        ? ChallengeDifficulty.HARD
+                        : selectedDifficulty;
+
+        timeLimitType =
+                selectedTimeLimitType == null
+                        ? ChallengeTimeLimitType.IN_GAME_TIME
+                        : selectedTimeLimitType;
+
+        timeLimitTicks =
+                timeLimitType == ChallengeTimeLimitType.NONE
+                        ? 0L
+                        : Math.max(
+                                1L,
+                                selectedTimeLimitTicks
+                        );
+
+        resetWorldTime = shouldResetWorldTime;
 
         if (!captureOnlineParticipants(server)) {
-            controller.sendSystemMessage(Component.literal(
-                    "[올블록 챌린지] 팀 레이스는 최소 2명이 필요합니다."
-            ));
+            controller.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 팀 레이스는 최소 2명이 필요합니다."
+                    )
+            );
             reset(server);
             return false;
         }
@@ -140,9 +205,11 @@ public final class TeamRaceSetupManager {
         }
 
         if (!captureOnlineParticipants(server)) {
-            controller.sendSystemMessage(Component.literal(
-                    "[올블록 챌린지] 팀 레이스는 최소 2명이 필요합니다."
-            ));
+            controller.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 팀 레이스는 최소 2명이 필요합니다."
+                    )
+            );
             return false;
         }
 
@@ -151,28 +218,31 @@ public final class TeamRaceSetupManager {
         return true;
     }
 
-    public static void showRerollMenu(ServerPlayer controller) {
+    public static void showRerollMenu(
+            ServerPlayer controller
+    ) {
         if (!canControl(controller)) {
             return;
         }
 
         controller.sendSystemMessage(separator());
-
         controller.sendSystemMessage(
-                Component.literal("[ 팀 다시 뽑기 ]")
-                        .withStyle(
-                                ChatFormatting.GOLD,
-                                ChatFormatting.BOLD
-                        )
+                Component.literal(
+                        "[ 팀 다시 뽑기 ]"
+                ).withStyle(
+                        ChatFormatting.GOLD,
+                        ChatFormatting.BOLD
+                )
         );
-
-        controller.sendSystemMessage(Component.literal(""));
+        controller.sendSystemMessage(
+                Component.literal("")
+        );
 
         controller.sendSystemMessage(
                 clickable(
                         "[랜덤 팀 배정]",
                         ChatFormatting.GREEN,
-                        "/allblocks teamrace random"
+                        "/올블록 @팀 랜덤"
                 ).append(
                         Component.literal(
                                 " 인원을 균등하게 다시 랜덤 배정합니다."
@@ -184,10 +254,10 @@ public final class TeamRaceSetupManager {
                 clickable(
                         "[수동 팀 배정]",
                         ChatFormatting.YELLOW,
-                        "/allblocks teamrace manual"
+                        "/올블록 @팀 수동"
                 ).append(
                         Component.literal(
-                                " 플레이어를 직접 레드/블루팀에 배정합니다."
+                                " 플레이어를 레드/블루팀 또는 관전자로 직접 배정합니다."
                         ).withStyle(ChatFormatting.WHITE)
                 )
         );
@@ -199,11 +269,8 @@ public final class TeamRaceSetupManager {
             MinecraftServer server,
             ServerPlayer controller
     ) {
-        if (!canControl(controller)) {
-            return false;
-        }
-
-        if (phase != SetupPhase.READY) {
+        if (!canControl(controller)
+                || phase != SetupPhase.READY) {
             return false;
         }
 
@@ -212,24 +279,32 @@ public final class TeamRaceSetupManager {
         }
 
         assignments.clear();
+        spectators.clear();
 
-        for (UUID uuid : participantNames.keySet()) {
-            assignments.put(uuid, TeamRaceTeam.NONE);
+        for (UUID uuid :
+                participantNames.keySet()) {
+            assignments.put(
+                    uuid,
+                    TeamRaceTeam.NONE
+            );
         }
 
         phase = SetupPhase.MANUAL;
         clearScoreboardMembers(server);
-
         showManualEditor(controller);
 
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (player.getUUID().equals(controllerUuid)) {
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            if (player.getUUID()
+                    .equals(controllerUuid)) {
                 continue;
             }
 
-            player.sendSystemMessage(Component.literal(
-                    "[올블록 챌린지] 팀 편성자가 수동 팀 배정을 진행 중입니다."
-            ));
+            player.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 팀 편성자가 수동 팀 배정을 진행 중입니다."
+                    )
+            );
         }
 
         return true;
@@ -257,23 +332,41 @@ public final class TeamRaceSetupManager {
             return false;
         }
 
-        TeamRaceTeam current =
-                assignments.getOrDefault(
+        if (spectators.remove(uuid)) {
+            assignments.put(
+                    uuid,
+                    TeamRaceTeam.NONE
+            );
+        } else {
+            TeamRaceTeam current =
+                    assignments.getOrDefault(
+                            uuid,
+                            TeamRaceTeam.NONE
+                    );
+
+            switch (current) {
+                case NONE -> assignments.put(
                         uuid,
-                        TeamRaceTeam.NONE
+                        TeamRaceTeam.RED
                 );
 
-        TeamRaceTeam next = switch (current) {
-            case NONE -> TeamRaceTeam.RED;
-            case RED -> TeamRaceTeam.BLUE;
-            case BLUE -> TeamRaceTeam.NONE;
-        };
+                case RED -> assignments.put(
+                        uuid,
+                        TeamRaceTeam.BLUE
+                );
 
-        assignments.put(uuid, next);
+                case BLUE -> {
+                    assignments.put(
+                            uuid,
+                            TeamRaceTeam.NONE
+                    );
+                    spectators.add(uuid);
+                }
+            }
+        }
 
         applyScoreboardTeams(server);
         showManualEditor(controller);
-
         return true;
     }
 
@@ -291,20 +384,35 @@ public final class TeamRaceSetupManager {
         }
 
         if (!sameOnlineParticipants(server)) {
-            controller.sendSystemMessage(Component.literal(
-                    "[올블록 챌린지] 팀 편성 중 접속 인원이 변경되었습니다. 다시 팀을 배정해주세요."
-            ));
+            controller.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 팀 편성 중 접속 인원이 변경되었습니다. 다시 팀을 배정해주세요."
+                    )
+            );
             return false;
         }
 
         int redCount = 0;
         int blueCount = 0;
 
-        for (TeamRaceTeam team : assignments.values()) {
-            if (team == null || !team.isAssigned()) {
-                controller.sendSystemMessage(Component.literal(
-                        "[올블록 챌린지] 아직 팀이 배정되지 않은 플레이어가 있습니다."
-                ));
+        for (UUID uuid :
+                participantNames.keySet()) {
+            if (spectators.contains(uuid)) {
+                continue;
+            }
+
+            TeamRaceTeam team =
+                    assignments.getOrDefault(
+                            uuid,
+                            TeamRaceTeam.NONE
+                    );
+
+            if (!team.isAssigned()) {
+                controller.sendSystemMessage(
+                        Component.literal(
+                                "[올블록 챌린지] 아직 팀 또는 관전 여부가 정해지지 않은 플레이어가 있습니다."
+                        )
+                );
                 return false;
             }
 
@@ -315,10 +423,21 @@ public final class TeamRaceSetupManager {
             }
         }
 
+        if (redCount < 1 || blueCount < 1) {
+            controller.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 레드팀과 블루팀에 최소 1명씩 필요합니다."
+                    )
+            );
+            return false;
+        }
+
         if (Math.abs(redCount - blueCount) > 1) {
-            controller.sendSystemMessage(Component.literal(
-                    "[올블록 챌린지] 두 팀의 인원 차이는 최대 1명이어야 합니다."
-            ));
+            controller.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 두 팀의 인원 차이는 최대 1명이어야 합니다."
+                    )
+            );
             return false;
         }
 
@@ -327,13 +446,18 @@ public final class TeamRaceSetupManager {
         return true;
     }
 
-    private static void startCountdown(MinecraftServer server) {
+    private static void startCountdown(
+            MinecraftServer server
+    ) {
         phase = SetupPhase.COUNTDOWN;
         countdownTicksRemaining = COUNTDOWN_TICKS;
         lastCountdownSecond = COUNTDOWN_SECONDS;
 
         clearParticipantInventories(server);
-        setParticipantGameMode(server, "adventure");
+        setParticipantGameMode(
+                server,
+                "adventure"
+        );
 
         broadcast(
                 server,
@@ -342,10 +466,15 @@ public final class TeamRaceSetupManager {
                 ).withStyle(ChatFormatting.GREEN)
         );
 
-        showCountdownTitle(server, COUNTDOWN_SECONDS);
+        showCountdownTitle(
+                server,
+                COUNTDOWN_SECONDS
+        );
     }
 
-    private static void tickCountdown(MinecraftServer server) {
+    private static void tickCountdown(
+            MinecraftServer server
+    ) {
         if (!sameOnlineParticipants(server)) {
             broadcast(
                     server,
@@ -358,7 +487,6 @@ public final class TeamRaceSetupManager {
             return;
         }
 
-        // 카운트다운 도중 아이템을 주워도 시작 전에 다시 제거
         clearParticipantInventories(server);
 
         if (countdownTicksRemaining > 0) {
@@ -375,26 +503,45 @@ public final class TeamRaceSetupManager {
 
         if (second > 0
                 && second != lastCountdownSecond) {
-
             lastCountdownSecond = second;
-            showCountdownTitle(server, second);
+            showCountdownTitle(
+                    server,
+                    second
+            );
         }
     }
 
-    private static void finishCountdown(MinecraftServer server) {
+    private static void finishCountdown(
+            MinecraftServer server
+    ) {
         Map<UUID, TeamRaceTeam> finalAssignments =
                 new LinkedHashMap<>(assignments);
+
+        Set<UUID> finalSpectators =
+                new LinkedHashSet<>(spectators);
 
         ChallengeDifficulty finalDifficulty =
                 difficulty;
 
+        ChallengeTimeLimitType finalTimeLimitType =
+                timeLimitType;
+
+        long finalTimeLimitTicks =
+                timeLimitTicks;
+
+        boolean finalResetWorldTime =
+                resetWorldTime;
+
         clearParticipantInventories(server);
-        setParticipantGameMode(server, "survival");
 
         ChallengeManager.startTeamRace(
                 server,
                 finalDifficulty,
-                finalAssignments
+                finalAssignments,
+                finalTimeLimitType,
+                finalTimeLimitTicks,
+                finalResetWorldTime,
+                finalSpectators
         );
 
         showStartTitle(server);
@@ -404,8 +551,12 @@ public final class TeamRaceSetupManager {
     private static void clearParticipantInventories(
             MinecraftServer server
     ) {
-        for (String playerName : participantNames.values()) {
-            runCommand(server, "clear " + playerName);
+        for (String playerName :
+                participantNames.values()) {
+            runCommand(
+                    server,
+                    "clear " + playerName
+            );
         }
     }
 
@@ -413,7 +564,8 @@ public final class TeamRaceSetupManager {
             MinecraftServer server,
             String gameMode
     ) {
-        for (String playerName : participantNames.values()) {
+        for (String playerName :
+                participantNames.values()) {
             runCommand(
                     server,
                     "gamemode "
@@ -428,7 +580,8 @@ public final class TeamRaceSetupManager {
             MinecraftServer server,
             int second
     ) {
-        for (String playerName : participantNames.values()) {
+        for (String playerName :
+                participantNames.values()) {
             runCommand(
                     server,
                     "title "
@@ -451,7 +604,8 @@ public final class TeamRaceSetupManager {
     private static void showStartTitle(
             MinecraftServer server
     ) {
-        for (String playerName : participantNames.values()) {
+        for (String playerName :
+                participantNames.values()) {
             runCommand(
                     server,
                     "title "
@@ -472,46 +626,57 @@ public final class TeamRaceSetupManager {
     private static void completeSetup() {
         phase = SetupPhase.IDLE;
         difficulty = ChallengeDifficulty.HARD;
+        timeLimitType =
+                ChallengeTimeLimitType.IN_GAME_TIME;
+        timeLimitTicks =
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS;
+        resetWorldTime = true;
         controllerUuid = null;
-
         revealTicksRemaining = 0;
         countdownTicksRemaining = 0;
         lastCountdownSecond = -1;
-
         participantNames.clear();
         assignments.clear();
+        spectators.clear();
     }
 
-    public static void reset(MinecraftServer server) {
+    public static void reset(
+            MinecraftServer server
+    ) {
         boolean wasCountdown =
                 phase == SetupPhase.COUNTDOWN;
 
         if (server != null && wasCountdown) {
-            setParticipantGameMode(server, "survival");
+            setParticipantGameMode(
+                    server,
+                    "survival"
+            );
 
-            for (String playerName : participantNames.values()) {
-                runCommand(server, "title " + playerName + " clear");
+            for (String playerName :
+                    participantNames.values()) {
+                runCommand(
+                        server,
+                        "title "
+                                + playerName
+                                + " clear"
+                );
             }
         }
 
-        phase = SetupPhase.IDLE;
-        difficulty = ChallengeDifficulty.HARD;
-        controllerUuid = null;
-
-        revealTicksRemaining = 0;
-        countdownTicksRemaining = 0;
-        lastCountdownSecond = -1;
-
-        participantNames.clear();
-        assignments.clear();
+        completeSetup();
 
         if (server != null) {
-            runCommand(server, "team remove allblocks_blue");
-            runCommand(server, "team remove allblocks_red");
+            runCommand(
+                    server,
+                    "team remove allblocks_blue"
+            );
+            runCommand(
+                    server,
+                    "team remove allblocks_red"
+            );
         }
     }
-
-
 
     private static boolean captureOnlineParticipants(
             MinecraftServer server
@@ -537,7 +702,9 @@ public final class TeamRaceSetupManager {
 
     private static void randomizeAssignments() {
         List<UUID> players =
-                new ArrayList<>(participantNames.keySet());
+                new ArrayList<>(
+                        participantNames.keySet()
+                );
 
         Collections.shuffle(
                 players,
@@ -545,29 +712,38 @@ public final class TeamRaceSetupManager {
         );
 
         assignments.clear();
+        spectators.clear();
 
         int blueCount = players.size() / 2;
         int redCount = players.size() / 2;
 
         if (players.size() % 2 != 0) {
-            if (ThreadLocalRandom.current().nextBoolean()) {
+            if (ThreadLocalRandom.current()
+                    .nextBoolean()) {
                 blueCount++;
             } else {
                 redCount++;
             }
         }
 
-        for (int i = 0; i < players.size(); i++) {
+        for (int i = 0;
+             i < players.size();
+             i++) {
             TeamRaceTeam team =
                     i < blueCount
                             ? TeamRaceTeam.BLUE
                             : TeamRaceTeam.RED;
 
-            assignments.put(players.get(i), team);
+            assignments.put(
+                    players.get(i),
+                    team
+            );
         }
     }
 
-    private static void startReveal(MinecraftServer server) {
+    private static void startReveal(
+            MinecraftServer server
+    ) {
         phase = SetupPhase.REVEALING;
         revealTicksRemaining = REVEAL_TICKS;
 
@@ -575,7 +751,6 @@ public final class TeamRaceSetupManager {
 
         for (ServerPlayer player :
                 server.getPlayerList().getPlayers()) {
-
             TeamRaceTeam team =
                     assignments.getOrDefault(
                             player.getUUID(),
@@ -588,7 +763,9 @@ public final class TeamRaceSetupManager {
 
             ServerPlayNetworking.send(
                     player,
-                    new TeamRevealPayload(team.name())
+                    new TeamRevealPayload(
+                            team.name()
+                    )
             );
         }
     }
@@ -598,59 +775,67 @@ public final class TeamRaceSetupManager {
     ) {
         for (ServerPlayer player :
                 server.getPlayerList().getPlayers()) {
-
             player.sendSystemMessage(separator());
-
             player.sendSystemMessage(
-                    Component.literal("[ 팀 배정 결과 ]")
-                            .withStyle(
-                                    ChatFormatting.GOLD,
-                                    ChatFormatting.BOLD
-                            )
+                    Component.literal(
+                            "[ 팀 배정 결과 ]"
+                    ).withStyle(
+                            ChatFormatting.GOLD,
+                            ChatFormatting.BOLD
+                    )
+            );
+            player.sendSystemMessage(
+                    Component.literal("")
+            );
+            player.sendSystemMessage(
+                    Component.literal(
+                            "레드팀"
+                    ).withStyle(
+                            ChatFormatting.RED,
+                            ChatFormatting.BOLD
+                    )
+            );
+            player.sendSystemMessage(
+                    buildTeamPlayerLine(
+                            TeamRaceTeam.RED
+                    )
+            );
+            player.sendSystemMessage(
+                    Component.literal("")
+            );
+            player.sendSystemMessage(
+                    Component.literal(
+                            "블루팀"
+                    ).withStyle(
+                            ChatFormatting.BLUE,
+                            ChatFormatting.BOLD
+                    )
+            );
+            player.sendSystemMessage(
+                    buildTeamPlayerLine(
+                            TeamRaceTeam.BLUE
+                    )
+            );
+            player.sendSystemMessage(
+                    Component.literal("")
             );
 
-            player.sendSystemMessage(Component.literal(""));
-
-            player.sendSystemMessage(
-                    Component.literal("레드팀")
-                            .withStyle(
-                                    ChatFormatting.RED,
-                                    ChatFormatting.BOLD
-                            )
-            );
-
-            player.sendSystemMessage(
-                    buildTeamPlayerLine(TeamRaceTeam.RED)
-            );
-
-            player.sendSystemMessage(Component.literal(""));
-
-            player.sendSystemMessage(
-                    Component.literal("블루팀")
-                            .withStyle(
-                                    ChatFormatting.BLUE,
-                                    ChatFormatting.BOLD
-                            )
-            );
-
-            player.sendSystemMessage(
-                    buildTeamPlayerLine(TeamRaceTeam.BLUE)
-            );
-
-            player.sendSystemMessage(Component.literal(""));
-
-            if (player.getUUID().equals(controllerUuid)) {
+            if (player.getUUID()
+                    .equals(controllerUuid)) {
                 player.sendSystemMessage(
                         clickable(
                                 "[확정]",
                                 ChatFormatting.GREEN,
-                                "/allblocks teamrace confirm"
-                        ).append(Component.literal("   "))
-                                .append(clickable(
+                                "/올블록 @팀 확정"
+                        ).append(
+                                Component.literal("   ")
+                        ).append(
+                                clickable(
                                         "[다시 팀 뽑기]",
                                         ChatFormatting.YELLOW,
-                                        "/allblocks teamrace reroll"
-                                ))
+                                        "/올블록 @팀 재추첨메뉴"
+                                )
+                        )
                 );
             } else {
                 player.sendSystemMessage(
@@ -668,26 +853,27 @@ public final class TeamRaceSetupManager {
             ServerPlayer controller
     ) {
         controller.sendSystemMessage(separator());
-
         controller.sendSystemMessage(
-                Component.literal("[ 수동 팀 배정 ]")
-                        .withStyle(
-                                ChatFormatting.GOLD,
-                                ChatFormatting.BOLD
-                        )
+                Component.literal(
+                        "[ 수동 팀 배정 ]"
+                ).withStyle(
+                        ChatFormatting.GOLD,
+                        ChatFormatting.BOLD
+                )
+        );
+        controller.sendSystemMessage(
+                Component.literal(
+                        "이름 클릭: 흰색 → 레드 → 블루 → 관전자 → 흰색"
+                ).withStyle(ChatFormatting.GRAY)
+        );
+        controller.sendSystemMessage(
+                Component.literal("")
         );
 
         controller.sendSystemMessage(
                 Component.literal(
-                        "이름 클릭: 흰색 → 레드 → 블루 → 흰색"
-                ).withStyle(ChatFormatting.GRAY)
-        );
-
-        controller.sendSystemMessage(Component.literal(""));
-
-        controller.sendSystemMessage(
-                Component.literal("레드팀 : ")
-                        .withStyle(ChatFormatting.RED)
+                        "레드팀 : "
+                ).withStyle(ChatFormatting.RED)
                         .append(
                                 buildClickableManualLine(
                                         TeamRaceTeam.RED
@@ -696,8 +882,9 @@ public final class TeamRaceSetupManager {
         );
 
         controller.sendSystemMessage(
-                Component.literal("블루팀 : ")
-                        .withStyle(ChatFormatting.BLUE)
+                Component.literal(
+                        "블루팀 : "
+                ).withStyle(ChatFormatting.BLUE)
                         .append(
                                 buildClickableManualLine(
                                         TeamRaceTeam.BLUE
@@ -706,8 +893,18 @@ public final class TeamRaceSetupManager {
         );
 
         controller.sendSystemMessage(
-                Component.literal("미배정 : ")
-                        .withStyle(ChatFormatting.WHITE)
+                Component.literal(
+                        "관전자 : "
+                ).withStyle(ChatFormatting.GRAY)
+                        .append(
+                                buildClickableSpectatorLine()
+                        )
+        );
+
+        controller.sendSystemMessage(
+                Component.literal(
+                        "미배정 : "
+                ).withStyle(ChatFormatting.WHITE)
                         .append(
                                 buildClickableManualLine(
                                         TeamRaceTeam.NONE
@@ -715,19 +912,24 @@ public final class TeamRaceSetupManager {
                         )
         );
 
-        controller.sendSystemMessage(Component.literal(""));
+        controller.sendSystemMessage(
+                Component.literal("")
+        );
 
         controller.sendSystemMessage(
                 clickable(
                         "[확정]",
                         ChatFormatting.GREEN,
-                        "/allblocks teamrace confirm"
-                ).append(Component.literal("   "))
-                        .append(clickable(
+                        "/올블록 @팀 확정"
+                ).append(
+                        Component.literal("   ")
+                ).append(
+                        clickable(
                                 "[랜덤 팀 배정]",
                                 ChatFormatting.YELLOW,
-                                "/allblocks teamrace random"
-                        ))
+                                "/올블록 @팀 랜덤"
+                        )
+                )
         );
 
         controller.sendSystemMessage(separator());
@@ -736,11 +938,16 @@ public final class TeamRaceSetupManager {
     private static MutableComponent buildClickableManualLine(
             TeamRaceTeam requestedTeam
     ) {
-        MutableComponent line = Component.literal("");
+        MutableComponent line =
+                Component.literal("");
+
         boolean first = true;
 
         for (Map.Entry<UUID, String> entry :
                 participantNames.entrySet()) {
+            if (spectators.contains(entry.getKey())) {
+                continue;
+            }
 
             TeamRaceTeam team =
                     assignments.getOrDefault(
@@ -753,20 +960,23 @@ public final class TeamRaceSetupManager {
             }
 
             if (!first) {
-                line.append(Component.literal("  "));
+                line.append(
+                        Component.literal("  ")
+                );
             }
 
-            ChatFormatting color = switch (team) {
-                case RED -> ChatFormatting.RED;
-                case BLUE -> ChatFormatting.BLUE;
-                case NONE -> ChatFormatting.WHITE;
-            };
+            ChatFormatting color =
+                    switch (team) {
+                        case RED -> ChatFormatting.RED;
+                        case BLUE -> ChatFormatting.BLUE;
+                        case NONE -> ChatFormatting.WHITE;
+                    };
 
             line.append(
                     clickable(
                             entry.getValue(),
                             color,
-                            "/allblocks teamrace cycle "
+                            "/올블록 @팀 순환 "
                                     + entry.getKey()
                     )
             );
@@ -777,7 +987,53 @@ public final class TeamRaceSetupManager {
         if (first) {
             line.append(
                     Component.literal("-")
-                            .withStyle(ChatFormatting.DARK_GRAY)
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
+            );
+        }
+
+        return line;
+    }
+
+    private static MutableComponent
+    buildClickableSpectatorLine() {
+        MutableComponent line =
+                Component.literal("");
+
+        boolean first = true;
+
+        for (Map.Entry<UUID, String> entry :
+                participantNames.entrySet()) {
+            if (!spectators.contains(
+                    entry.getKey())) {
+                continue;
+            }
+
+            if (!first) {
+                line.append(
+                        Component.literal("  ")
+                );
+            }
+
+            line.append(
+                    clickable(
+                            entry.getValue(),
+                            ChatFormatting.GRAY,
+                            "/올블록 @팀 순환 "
+                                    + entry.getKey()
+                    )
+            );
+
+            first = false;
+        }
+
+        if (first) {
+            line.append(
+                    Component.literal("-")
+                            .withStyle(
+                                    ChatFormatting.DARK_GRAY
+                            )
             );
         }
 
@@ -787,71 +1043,40 @@ public final class TeamRaceSetupManager {
     private static MutableComponent buildTeamPlayerLine(
             TeamRaceTeam requestedTeam
     ) {
-        MutableComponent line = Component.literal("");
+        MutableComponent line =
+                Component.literal("");
+
         boolean first = true;
 
         for (Map.Entry<UUID, String> entry :
                 participantNames.entrySet()) {
-
-            if (assignments.get(entry.getKey())
+            if (assignments.get(
+                    entry.getKey())
                     != requestedTeam) {
                 continue;
             }
 
             if (!first) {
-                line.append(Component.literal(", "));
+                line.append(
+                        Component.literal(", ")
+                );
             }
 
             line.append(
-                    Component.literal(entry.getValue())
-                            .withStyle(
-                                    requestedTeam == TeamRaceTeam.RED
-                                            ? ChatFormatting.RED
-                                            : ChatFormatting.BLUE
-                            )
+                    Component.literal(
+                            entry.getValue()
+                    ).withStyle(
+                            requestedTeam
+                                    == TeamRaceTeam.RED
+                                    ? ChatFormatting.RED
+                                    : ChatFormatting.BLUE
+                    )
             );
 
             first = false;
         }
 
         return line;
-    }
-
-    private static void showLockedTeams(
-            MinecraftServer server
-    ) {
-        broadcast(
-                server,
-                Component.literal(
-                        "레드팀 : "
-                                + getTeamNames(TeamRaceTeam.RED)
-                ).withStyle(ChatFormatting.RED)
-        );
-
-        broadcast(
-                server,
-                Component.literal(
-                        "블루팀 : "
-                                + getTeamNames(TeamRaceTeam.BLUE)
-                ).withStyle(ChatFormatting.BLUE)
-        );
-    }
-
-    private static String getTeamNames(
-            TeamRaceTeam requestedTeam
-    ) {
-        List<String> names = new ArrayList<>();
-
-        for (Map.Entry<UUID, String> entry :
-                participantNames.entrySet()) {
-
-            if (assignments.get(entry.getKey())
-                    == requestedTeam) {
-                names.add(entry.getValue());
-            }
-        }
-
-        return String.join(", ", names);
     }
 
     private static void applyScoreboardTeams(
@@ -862,17 +1087,26 @@ public final class TeamRaceSetupManager {
 
         for (Map.Entry<UUID, TeamRaceTeam> entry :
                 assignments.entrySet()) {
+            if (spectators.contains(
+                    entry.getKey())) {
+                continue;
+            }
 
-            TeamRaceTeam team = entry.getValue();
+            TeamRaceTeam team =
+                    entry.getValue();
 
-            if (team == null || !team.isAssigned()) {
+            if (team == null
+                    || !team.isAssigned()) {
                 continue;
             }
 
             String playerName =
-                    participantNames.get(entry.getKey());
+                    participantNames.get(
+                            entry.getKey()
+                    );
 
-            if (playerName == null || playerName.isBlank()) {
+            if (playerName == null
+                    || playerName.isBlank()) {
                 continue;
             }
 
@@ -894,14 +1128,18 @@ public final class TeamRaceSetupManager {
     private static void setupScoreboardTeams(
             MinecraftServer server
     ) {
-        runCommand(server, "team add allblocks_blue");
-        runCommand(server, "team add allblocks_red");
-
+        runCommand(
+                server,
+                "team add allblocks_blue"
+        );
+        runCommand(
+                server,
+                "team add allblocks_red"
+        );
         runCommand(
                 server,
                 "team modify allblocks_blue color blue"
         );
-
         runCommand(
                 server,
                 "team modify allblocks_red color red"
@@ -917,7 +1155,6 @@ public final class TeamRaceSetupManager {
                 server,
                 "team empty allblocks_blue"
         );
-
         runCommand(
                 server,
                 "team empty allblocks_red"
@@ -930,7 +1167,8 @@ public final class TeamRaceSetupManager {
         List<ServerPlayer> online =
                 server.getPlayerList().getPlayers();
 
-        if (online.size() != participantNames.size()) {
+        if (online.size()
+                != participantNames.size()) {
             return false;
         }
 
@@ -949,12 +1187,15 @@ public final class TeamRaceSetupManager {
     ) {
         if (player == null
                 || controllerUuid == null
-                || !controllerUuid.equals(player.getUUID())) {
-
+                || !controllerUuid.equals(
+                        player.getUUID()
+                )) {
             if (player != null) {
-                player.sendSystemMessage(Component.literal(
-                        "[올블록 챌린지] 팀 편성자만 이 메뉴를 조작할 수 있습니다."
-                ));
+                player.sendSystemMessage(
+                        Component.literal(
+                                "[올블록 챌린지] 팀 편성자만 이 메뉴를 조작할 수 있습니다."
+                        )
+                );
             }
 
             return false;
@@ -973,7 +1214,9 @@ public final class TeamRaceSetupManager {
                         .withColor(color)
                         .withBold(true)
                         .withClickEvent(
-                                new ClickEvent.RunCommand(command)
+                                new ClickEvent.RunCommand(
+                                        command
+                                )
                         )
                 );
     }
@@ -981,7 +1224,9 @@ public final class TeamRaceSetupManager {
     private static MutableComponent separator() {
         return Component.literal(
                 "━━━━━━━━━━━━━━━━━━━━"
-        ).withStyle(ChatFormatting.DARK_GRAY);
+        ).withStyle(
+                ChatFormatting.DARK_GRAY
+        );
     }
 
     private static void broadcast(
