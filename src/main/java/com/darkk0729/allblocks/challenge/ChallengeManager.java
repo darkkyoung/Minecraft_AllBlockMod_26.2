@@ -4,8 +4,10 @@ import com.darkk0729.allblocks.AllBlocksMod;
 import com.darkk0729.allblocks.collection.BlockCollectionTracker;
 import com.darkk0729.allblocks.collection.TargetBlockRegistry;
 import com.darkk0729.allblocks.data.AllBlocksSaveManager;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.darkk0729.allblocks.event.ChallengeEventManager;
@@ -21,6 +23,7 @@ import com.darkk0729.allblocks.network.AllBlocksSyncPayload;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import java.util.Locale;
 import com.darkk0729.allblocks.network.ChallengeStatusPayload;
@@ -98,10 +101,13 @@ public final class ChallengeManager {
             }
 
             if (state.getMode() == ChallengeMode.TEAM_RACE) {
-                TeamRaceTeam team =
-                        state.getParticipantTeam(player.getUUID().toString());
+                String playerUuid =
+                        player.getUUID().toString();
 
-                if (!team.isAssigned()) {
+                ChallengeState.ParticipantData participant =
+                        state.getParticipant(playerUuid);
+
+                if (participant == null) {
                     player.sendSystemMessage(Component.literal(
                             "[올블록 챌린지] 이미 시작된 팀 레이스에는 중도 참가할 수 없습니다."
                     ));
@@ -116,11 +122,32 @@ public final class ChallengeManager {
                         player.getName().getString()
                 );
 
-                applyTeamScoreboardMembership(
-                        server,
-                        player,
-                        team
-                );
+                if (state.isParticipantSpectator(playerUuid)) {
+                    setPlayerGameMode(
+                            server,
+                            player,
+                            "spectator"
+                    );
+                } else {
+                    TeamRaceTeam team =
+                            state.getParticipantTeam(playerUuid);
+
+                    if (!team.isAssigned()) {
+                        player.sendSystemMessage(Component.literal(
+                                "[올블록 챌린지] 이미 시작된 팀 레이스에는 중도 참가할 수 없습니다."
+                        ));
+
+                        syncToPlayer(player);
+                        syncStatusToPlayer(player);
+                        return;
+                    }
+
+                    applyTeamScoreboardMembership(
+                            server,
+                            player,
+                            team
+                    );
+                }
 
                 save(server);
                 syncToPlayer(player);
@@ -215,6 +242,46 @@ public final class ChallengeManager {
 
     public static ChallengeDifficulty getDifficulty() {
         return state.getDifficulty();
+    }
+
+    public static ChallengeTimeLimitType getTimeLimitType() {
+        return state.getTimeLimitType();
+    }
+
+    public static long getTimeLimitTicks() {
+        return state.getTimeLimitTicks();
+    }
+
+    public static long getRemainingTimeLimitTicks() {
+        return state.getRemainingTimeLimitTicks();
+    }
+
+    public static boolean isInGameFinalDay() {
+        return state.isInGameFinalDay();
+    }
+
+    public static String getTimeLimitDisplayText() {
+        return switch (state.getTimeLimitType()) {
+            case NONE -> "없음";
+            case PLAY_TIME -> {
+                long minutes =
+                        Math.max(
+                                1L,
+                                state.getTimeLimitTicks()
+                                        / (ChallengeState.TICKS_PER_SECOND * 60L)
+                        );
+                yield "플레이 시간 " + minutes + "분";
+            }
+            case IN_GAME_TIME -> {
+                long days =
+                        Math.max(
+                                1L,
+                                state.getTimeLimitTicks()
+                                        / ChallengeState.TICKS_PER_DAY
+                        );
+                yield "인게임 " + days + "일";
+            }
+        };
     }
 
     public static long getElapsedTicks() {
