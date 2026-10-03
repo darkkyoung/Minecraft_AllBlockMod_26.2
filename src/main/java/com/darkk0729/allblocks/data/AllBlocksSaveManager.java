@@ -4,6 +4,7 @@ import com.darkk0729.allblocks.AllBlocksMod;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeMode;
 import com.darkk0729.allblocks.challenge.ChallengeState;
+import com.darkk0729.allblocks.challenge.ChallengeTimeLimitType;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.minecraft.server.MinecraftServer;
@@ -57,6 +58,11 @@ public final class AllBlocksSaveManager {
                     data.finished,
                     parseMode(data.mode),
                     parseDifficulty(data.difficulty),
+                    parseTimeLimitType(data.timeLimitType),
+                    getLoadedTimeLimitTicks(
+                            data.timeLimitType,
+                            data.timeLimitTicks
+                    ),
                     savedElapsedTicks,
                     startWorldTime,
                     savedWorldElapsedTicks,
@@ -96,6 +102,8 @@ public final class AllBlocksSaveManager {
             data.result = state.getResult().name();
             data.mode = state.getMode().name();
             data.difficulty = state.getDifficulty().name();
+            data.timeLimitType = state.getTimeLimitType().name();
+            data.timeLimitTicks = state.getTimeLimitTicks();
 
             data.elapsedTicks = state.getElapsedTicks();
             data.startWorldTime = state.getStartWorldTime();
@@ -152,6 +160,39 @@ public final class AllBlocksSaveManager {
         }
     }
 
+    private static ChallengeTimeLimitType parseTimeLimitType(
+            String typeName
+    ) {
+        if (typeName == null || typeName.isBlank()) {
+            return ChallengeTimeLimitType.IN_GAME_TIME;
+        }
+
+        try {
+            return ChallengeTimeLimitType.valueOf(typeName);
+        } catch (IllegalArgumentException e) {
+            return ChallengeTimeLimitType.IN_GAME_TIME;
+        }
+    }
+
+    private static long getLoadedTimeLimitTicks(
+            String typeName,
+            Long savedTicks
+    ) {
+        ChallengeTimeLimitType type =
+                parseTimeLimitType(typeName);
+
+        if (type == ChallengeTimeLimitType.NONE) {
+            return 0L;
+        }
+
+        if (savedTicks == null || savedTicks <= 0L) {
+            return ChallengeState.TICKS_PER_DAY
+                    * ChallengeState.MAX_DAYS;
+        }
+
+        return savedTicks;
+    }
+
     private static ChallengeState.ChallengeResult parseResult(String resultName) {
         if (resultName == null || resultName.isBlank()) {
             return ChallengeState.ChallengeResult.NONE;
@@ -170,6 +211,8 @@ public final class AllBlocksSaveManager {
         String result;
         String mode;
         String difficulty;
+        String timeLimitType;
+        Long timeLimitTicks;
 
         long elapsedTicks;
         Long startWorldTime;
