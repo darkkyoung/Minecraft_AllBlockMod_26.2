@@ -543,9 +543,8 @@ public final class TeamRaceHud {
 
     private static boolean isFinalDay() {
         return ClientChallengeStateCache.isRunning()
-                && ClientChallengeStateCache.getCurrentDay() == 100
-                && ClientChallengeStateCache.getDifficulty()
-                        != ChallengeDifficulty.EASY;
+                && ClientChallengeStateCache
+                .getFinalDayRemainingTicks() > 0L;
     }
 
     private static int getFinalDayAccentColor() {
