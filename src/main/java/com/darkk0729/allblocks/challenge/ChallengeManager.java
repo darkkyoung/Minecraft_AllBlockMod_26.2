@@ -334,6 +334,36 @@ public final class ChallengeManager {
         return state.getParticipants();
     }
 
+    public static boolean isActiveChallengePlayer(
+            ServerPlayer player
+    ) {
+        if (player == null
+                || !state.isRunning()) {
+            return false;
+        }
+
+        String playerUuid =
+                player.getUUID().toString();
+
+        ChallengeState.ParticipantData participant =
+                state.getParticipant(playerUuid);
+
+        if (participant == null) {
+            return false;
+        }
+
+        if (state.getMode()
+                == ChallengeMode.TEAM_RACE) {
+            return !state.isParticipantSpectator(
+                    playerUuid
+            ) && state.getParticipantTeam(
+                    playerUuid
+            ).isAssigned();
+        }
+
+        return true;
+    }
+
     public static TeamRaceTeam getParticipantTeam(String playerUuid) {
         return state.getParticipantTeam(playerUuid);
     }
@@ -2039,6 +2069,133 @@ public final class ChallengeManager {
     }
 
 
+
+    private static void prepareWorldTime(
+            MinecraftServer server,
+            boolean resetWorldTime
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        runServerCommand(
+                server,
+                "time of minecraft:overworld rate 1"
+        );
+
+        runServerCommand(
+                server,
+                "time of minecraft:overworld resume"
+        );
+
+        if (resetWorldTime) {
+            runServerCommand(
+                    server,
+                    "time of minecraft:overworld set 0"
+            );
+        }
+    }
+
+    private static void setPlayerGameMode(
+            MinecraftServer server,
+            ServerPlayer player,
+            String gameMode
+    ) {
+        if (server == null
+                || player == null
+                || gameMode == null
+                || gameMode.isBlank()) {
+            return;
+        }
+
+        runServerCommand(
+                server,
+                "gamemode "
+                        + gameMode
+                        + " "
+                        + player.getName().getString()
+        );
+    }
+
+    private static void setAllPlayersGameMode(
+            MinecraftServer server,
+            String gameMode
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            setPlayerGameMode(
+                    server,
+                    player,
+                    gameMode
+            );
+        }
+    }
+
+    private static MutableComponent buildPlayerNameComponent(
+            ServerPlayer player
+    ) {
+        ChatFormatting color =
+                ChatFormatting.BLUE;
+
+        if (state.getMode()
+                == ChallengeMode.TEAM_RACE) {
+            TeamRaceTeam team =
+                    state.getParticipantTeam(
+                            player.getUUID().toString()
+                    );
+
+            if (team == TeamRaceTeam.RED) {
+                color = ChatFormatting.RED;
+            } else if (team == TeamRaceTeam.BLUE) {
+                color = ChatFormatting.BLUE;
+            }
+        } else {
+            ChallengeState.ParticipantData participant =
+                    state.getParticipant(
+                            player.getUUID().toString()
+                    );
+
+            if (participant != null) {
+                color = getChatFormatting(
+                        PlayerCodexColor.fromName(
+                                participant.color
+                        )
+                );
+            }
+        }
+
+        return Component.literal(
+                player.getName().getString()
+        ).withStyle(
+                color,
+                ChatFormatting.BOLD
+        );
+    }
+
+    private static ChatFormatting getChatFormatting(
+            PlayerCodexColor color
+    ) {
+        if (color == null) {
+            return ChatFormatting.BLUE;
+        }
+
+        return switch (color) {
+            case RED -> ChatFormatting.RED;
+            case ORANGE -> ChatFormatting.GOLD;
+            case YELLOW -> ChatFormatting.YELLOW;
+            case LIME -> ChatFormatting.GREEN;
+            case GREEN -> ChatFormatting.DARK_GREEN;
+            case CYAN -> ChatFormatting.AQUA;
+            case BLUE -> ChatFormatting.BLUE;
+            case PURPLE -> ChatFormatting.DARK_PURPLE;
+            case PINK -> ChatFormatting.LIGHT_PURPLE;
+            case WHITE -> ChatFormatting.WHITE;
+        };
+    }
 
     private static void runServerCommand(MinecraftServer server, String command) {
         try {
