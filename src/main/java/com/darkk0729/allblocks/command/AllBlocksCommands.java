@@ -1,510 +1,338 @@
 package com.darkk0729.allblocks.command;
 
+import com.darkk0729.allblocks.challenge.BlockRaceSetupManager;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeManager;
+import com.darkk0729.allblocks.challenge.ChallengeMode;
+import com.darkk0729.allblocks.challenge.ChallengeSetupManager;
+import com.darkk0729.allblocks.challenge.TeamRaceSetupManager;
+import com.darkk0729.allblocks.event.ChallengeEventManager;
 import com.darkk0729.allblocks.event.DayRaidManager;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import com.darkk0729.allblocks.challenge.TeamRaceSetupManager;
-import com.darkk0729.allblocks.challenge.BlockRaceSetupManager;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 public final class AllBlocksCommands {
     private AllBlocksCommands() {
     }
 
     public static void register() {
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(
-                    Commands.literal("allblocks")
-                            .then(Commands.literal("menu")
-                                    .executes(context -> {
-                                        ChallengeMenuMessages.showWelcome(context.getSource());
-                                        return 1;
-                                    })
-                                    .then(Commands.literal("modes")
-                                            .executes(context -> {
-                                                ChallengeMenuMessages.showModeMenu(context.getSource());
-                                                return 1;
-                                            })
-                                    )
-                                    .then(Commands.literal("single")
-                                            .executes(context -> {
-                                                ChallengeMenuMessages.showSingleDifficultyMenu(context.getSource());
-                                                return 1;
-                                            })
-                                    )
-                                    .then(Commands.literal("coop")
-                                            .executes(context -> {
-                                                ChallengeMenuMessages.showCoopDifficultyMenu(context.getSource());
-                                                return 1;
-                                            })
-                                    )
-                                    .then(Commands.literal("race")
-                                            .executes(context -> {
-                                                ChallengeMenuMessages.showRaceModeMenu(
+        CommandRegistrationCallback.EVENT.register(
+                (dispatcher, registryAccess, environment) ->
+                        dispatcher.register(
+                                Commands.literal("올블록")
+                                        .executes(context ->
+                                                showRoot(
                                                         context.getSource()
-                                                );
-                                                return 1;
-                                            })
-                                    )
-                                    .then(Commands.literal("teamrace")
-                                            .executes(context -> {
-                                                ChallengeMenuMessages.showTeamRaceDifficultyMenu(
-                                                        context.getSource()
-                                                );
-                                                return 1;
-                                            })
-                                    )
-                                    .then(Commands.literal("blockrace")
-                                            .executes(context -> {
-                                                ChallengeMenuMessages.showBlockRaceDifficultyMenu(
-                                                        context.getSource()
-                                                );
-                                                return 1;
-                                            })
-                                    )
-                            )
-                            .then(Commands.literal("start")
-                                    .executes(context -> showStartUsage(context.getSource()))
-                                    .then(Commands.literal("single")
-                                            .then(Commands.literal("easy")
-                                                    .executes(context -> startSingle(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.EASY
-                                                    )))
-                                            .then(Commands.literal("normal")
-                                                    .executes(context -> startSingle(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.NORMAL
-                                                    )))
-                                            .then(Commands.literal("hard")
-                                                    .executes(context -> startSingle(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.HARD
-                                                    )))
-                                    )
-                                    .then(Commands.literal("coop")
-                                            .then(Commands.literal("easy")
-                                                    .executes(context -> startCoop(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.EASY
-                                                    )))
-                                            .then(Commands.literal("normal")
-                                                    .executes(context -> startCoop(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.NORMAL
-                                                    )))
-                                            .then(Commands.literal("hard")
-                                                    .executes(context -> startCoop(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.HARD
-                                                    )))
-                                    )
-                                    .then(Commands.literal("blockrace")
-                                            .then(Commands.literal("easy")
-                                                    .executes(context -> startBlockRace(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.EASY
-                                                    )))
-                                            .then(Commands.literal("normal")
-                                                    .executes(context -> startBlockRace(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.NORMAL
-                                                    )))
-                                            .then(Commands.literal("hard")
-                                                    .executes(context -> startBlockRace(
-                                                            context.getSource(),
-                                                            ChallengeDifficulty.HARD
-                                                    )))
-                                    )
-                            )
-                            .then(Commands.literal("stop")
-                                    .executes(context -> stop(context.getSource())))
-                            .then(Commands.literal("teamrace")
-                                    .then(Commands.literal("begin")
-                                            .then(Commands.literal("easy")
-                                                    .executes(context ->
-                                                            beginTeamRaceSetup(
-                                                                    context.getSource(),
-                                                                    ChallengeDifficulty.EASY
-                                                            )))
-                                            .then(Commands.literal("normal")
-                                                    .executes(context ->
-                                                            beginTeamRaceSetup(
-                                                                    context.getSource(),
-                                                                    ChallengeDifficulty.NORMAL
-                                                            )))
-                                            .then(Commands.literal("hard")
-                                                    .executes(context ->
-                                                            beginTeamRaceSetup(
-                                                                    context.getSource(),
-                                                                    ChallengeDifficulty.HARD
-                                                            )))
-                                    )
-                                    .then(Commands.literal("reroll")
-                                            .executes(context ->
-                                                    teamRaceRerollMenu(
-                                                            context.getSource()
-                                                    ))
-                                    )
-                                    .then(Commands.literal("random")
-                                            .executes(context ->
-                                                    teamRaceRandom(
-                                                            context.getSource()
-                                                    ))
-                                    )
-                                    .then(Commands.literal("manual")
-                                            .executes(context ->
-                                                    teamRaceManual(
-                                                            context.getSource()
-                                                    ))
-                                    )
-                                    .then(Commands.literal("cycle")
-                                            .then(Commands.argument(
-                                                                    "playerUuid",
-                                                                    StringArgumentType.word()
-                                                            )
-                                                            .executes(context ->
-                                                                    teamRaceCycle(
-                                                                            context.getSource(),
-                                                                            StringArgumentType.getString(
-                                                                                    context,
-                                                                                    "playerUuid"
-                                                                            )
-                                                                    ))
-                                            )
-                                    )
-                                    .then(Commands.literal("confirm")
-                                            .executes(context ->
-                                                    teamRaceConfirm(
-                                                            context.getSource()
-                                                    ))
-                                    )
-                            )
-                            .then(Commands.literal("status")
-                                    .executes(context -> status(context.getSource())))
-                            .then(Commands.literal("progress")
-                                    .executes(context -> progress(context.getSource())))
-                            .then(Commands.literal("debug")
-                                    .then(Commands.literal("raid")
-                                            .then(Commands.argument("day", IntegerArgumentType.integer(10, 90))
-                                                    .executes((CommandContext<CommandSourceStack> context) -> {
-                                                        int day = IntegerArgumentType.getInteger(context, "day");
+                                                )
+                                        )
+                                        .then(
+                                                Commands.literal("디버그")
+                                                        .requires(
+                                                                Commands.hasPermission(
+                                                                        Commands.LEVEL_GAMEMASTERS
+                                                                )
+                                                        )
+                                                        .then(
+                                                                Commands.literal("레이드")
+                                                                        .then(
+                                                                                Commands.argument(
+                                                                                                "day",
+                                                                                                IntegerArgumentType.integer(10, 90)
+                                                                                        )
+                                                                                        .executes(context -> {
+                                                                                            int day =
+                                                                                                    IntegerArgumentType.getInteger(
+                                                                                                            context,
+                                                                                                            "day"
+                                                                                                    );
 
-                                                        if (day % 10 != 0) {
-                                                            context.getSource().sendSuccess(
-                                                                    () -> Component.literal("[AllBlocks] Raid day must be 10, 20, 30, ..., 90."),
-                                                                    false
-                                                            );
-                                                            return 0;
-                                                        }
+                                                                                            if (day % 10 != 0) {
+                                                                                                context.getSource()
+                                                                                                        .sendFailure(
+                                                                                                                Component.literal(
+                                                                                                                        "[올블록 디버그] 레이드 일차는 10, 20, 30, ..., 90 중 하나여야 합니다."
+                                                                                                                )
+                                                                                                        );
+                                                                                                return 0;
+                                                                                            }
 
-                                                        DayRaidManager.startDebugRaid(
-                                                                context.getSource().getServer(),
-                                                                day
-                                                        );
+                                                                                            DayRaidManager.startDebugRaid(
+                                                                                                    context.getSource().getServer(),
+                                                                                                    day
+                                                                                            );
+                                                                                            return 1;
+                                                                                        })
+                                                                        )
+                                                        )
+                                                        .then(
+                                                                Commands.literal("일차")
+                                                                        .then(
+                                                                                Commands.argument(
+                                                                                                "day",
+                                                                                                IntegerArgumentType.integer(1, 10000)
+                                                                                        )
+                                                                                        .executes(context -> {
+                                                                                            ChallengeManager.debugSetDay(
+                                                                                                    context.getSource().getServer(),
+                                                                                                    IntegerArgumentType.getInteger(
+                                                                                                            context,
+                                                                                                            "day"
+                                                                                                    )
+                                                                                            );
+                                                                                            return 1;
+                                                                                        })
+                                                                        )
+                                                        )
+                                                        .then(
+                                                                Commands.literal("수집")
+                                                                        .then(
+                                                                                Commands.argument(
+                                                                                                "count",
+                                                                                                IntegerArgumentType.integer(1, 2000)
+                                                                                        )
+                                                                                        .executes(context -> {
+                                                                                            ServerPlayer player =
+                                                                                                    context.getSource()
+                                                                                                            .getPlayerOrException();
 
-                                                        context.getSource().sendSuccess(
-                                                                () -> Component.literal("[AllBlocks] Debug raid requested: Day " + day),
-                                                                false
-                                                        );
-
-                                                        return 1;
-                                                    })
-                                            )
-                                    )
-                                    .then(Commands.literal("day")
-                                            .then(Commands.argument("day", IntegerArgumentType.integer(1, 100))
-                                                    .executes(context -> {
-                                                        int day = IntegerArgumentType.getInteger(context, "day");
-                                                        ChallengeManager.debugSetDay(context.getSource().getServer(), day);
-                                                        return 1;
-                                                    })
-                                            )
-                                    )
-                                    .then(Commands.literal("collect")
-                                            .then(Commands.argument("count", IntegerArgumentType.integer(1, 2000))
-                                                    .executes(context -> {
-                                                        ServerPlayer player = context.getSource().getPlayerOrException();
-                                                        int count = IntegerArgumentType.getInteger(context, "count");
-
-                                                        ChallengeManager.debugCollectBlocks(
-                                                                context.getSource().getServer(),
-                                                                player,
-                                                                count
-                                                        );
-
-                                                        return 1;
-                                                    })
-                                            )
-                                    )
-                            )
-            );
-        });
-    }
-
-    private static int showStartUsage(CommandSourceStack source) {
-        ChallengeMenuMessages.showModeMenu(source);
-        return 1;
-    }
-
-    private static int startSingle(CommandSourceStack source, ChallengeDifficulty difficulty) {
-        if (ChallengeManager.isRunning()) {
-            source.sendFailure(Component.literal("[올블록 챌린지] 이미 챌린지가 진행 중입니다."));
-            return 0;
-        }
-
-        MinecraftServer server = source.getServer();
-        ChallengeManager.startSingle(server, difficulty);
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "[올블록 챌린지] 싱글 "
-                                + difficulty.getDisplayName()
-                                + " 난이도로 챌린지를 시작했습니다."
-                ),
-                false
+                                                                                            ChallengeManager.debugCollectBlocks(
+                                                                                                    context.getSource().getServer(),
+                                                                                                    player,
+                                                                                                    IntegerArgumentType.getInteger(
+                                                                                                            context,
+                                                                                                            "count"
+                                                                                                    )
+                                                                                            );
+                                                                                            return 1;
+                                                                                        })
+                                                                        )
+                                                        )
+                                                        .then(
+                                                                Commands.literal("진행률")
+                                                                        .then(
+                                                                                Commands.argument(
+                                                                                                "percent",
+                                                                                                IntegerArgumentType.integer(10, 100)
+                                                                                        )
+                                                                                        .executes(context -> {
+                                                                                            ChallengeEventManager.startDebugProgressEvent(
+                                                                                                    context.getSource().getServer(),
+                                                                                                    IntegerArgumentType.getInteger(
+                                                                                                            context,
+                                                                                                            "percent"
+                                                                                                    )
+                                                                                            );
+                                                                                            return 1;
+                                                                                        })
+                                                                        )
+                                                        )
+                                        )
+                                        .then(
+                                                Commands.argument(
+                                                                "internal",
+                                                                StringArgumentType.greedyString()
+                                                        )
+                                                        .executes(context ->
+                                                                handleInternalAction(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(
+                                                                                context,
+                                                                                "internal"
+                                                                        )
+                                                                )
+                                                        )
+                                        )
+                        )
         );
-
-        return 1;
     }
 
-    private static int startCoop(
-            CommandSourceStack source,
-            ChallengeDifficulty difficulty
-    ) {
-        if (ChallengeManager.isRunning()) {
-            source.sendFailure(Component.literal(
-                    "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
-            ));
-            return 0;
-        }
-
-        MinecraftServer server = source.getServer();
-
-        ChallengeManager.startCoop(
-                server,
-                difficulty
-        );
-
-        source.sendSuccess(
-                () -> Component.literal(
-                        "[올블록 챌린지] 협동 "
-                                + difficulty.getDisplayName()
-                                + " 난이도로 챌린지를 시작했습니다."
-                ),
-                false
-        );
-
-        return 1;
-    }
-
-    private static int startBlockRace(
-            CommandSourceStack source,
-            ChallengeDifficulty difficulty
-    ) {
-        if (ChallengeManager.isRunning()) {
-            source.sendFailure(Component.literal(
-                    "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
-            ));
-            return 0;
-        }
-
-        if (ChallengeManager.isTeamRaceSetupActive()
-                || ChallengeManager.isBlockRaceSetupActive()) {
-            source.sendFailure(Component.literal(
-                    "[올블록 챌린지] 이미 다른 경쟁 모드 시작 절차가 진행 중입니다."
-            ));
-            return 0;
-        }
-
-        return BlockRaceSetupManager.begin(
-                source.getServer(),
-                difficulty
-        ) ? 1 : 0;
-    }
-
-    private static int beginTeamRaceSetup(
-            CommandSourceStack source,
-            ChallengeDifficulty difficulty
-    ) throws CommandSyntaxException {
-        if (ChallengeManager.isRunning()) {
-            source.sendFailure(Component.literal(
-                    "[올블록 챌린지] 이미 챌린지가 진행 중입니다."
-            ));
-            return 0;
-        }
-
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        return TeamRaceSetupManager.begin(
-                source.getServer(),
-                player,
-                difficulty
-        ) ? 1 : 0;
-    }
-
-    private static int teamRaceRerollMenu(
+    private static int showRoot(
             CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player =
-                source.getPlayerOrException();
+    ) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
 
-        TeamRaceSetupManager.showRerollMenu(player);
-        return 1;
-    }
-
-    private static int teamRaceRandom(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        return TeamRaceSetupManager.randomizeAgain(
-                source.getServer(),
-                player
-        ) ? 1 : 0;
-    }
-
-    private static int teamRaceManual(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        return TeamRaceSetupManager.beginManual(
-                source.getServer(),
-                player
-        ) ? 1 : 0;
-    }
-
-    private static int teamRaceCycle(
-            CommandSourceStack source,
-            String playerUuid
-    ) throws CommandSyntaxException {
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        return TeamRaceSetupManager.cycleManualTeam(
-                source.getServer(),
-                player,
-                playerUuid
-        ) ? 1 : 0;
-    }
-
-    private static int teamRaceConfirm(
-            CommandSourceStack source
-    ) throws CommandSyntaxException {
-        ServerPlayer player =
-                source.getPlayerOrException();
-
-        return TeamRaceSetupManager.confirm(
-                source.getServer(),
-                player
-        ) ? 1 : 0;
-    }
-
-    private static int stop(CommandSourceStack source) {
-        if (!ChallengeManager.shouldShowHud()
-                && !ChallengeManager.isTeamRaceSetupActive()) {
-            source.sendFailure(Component.literal("[올블록 챌린지] 종료할 챌린지가 없습니다."));
-            return 0;
-        }
-
-        String finalTime = ChallengeManager.getFormattedElapsedTime();
-        int finalDay = ChallengeManager.getDisplayedDay();
-        int collected = ChallengeManager.getCollectedCount();
-        int total = ChallengeManager.getTotalTargetCount();
-        double percent = ChallengeManager.getProgressPercent();
-
-        MinecraftServer server = source.getServer();
-        ChallengeManager.stop(server);
-
-        source.sendSuccess(
-                () -> Component.literal(String.format(
-                        "[올블록 챌린지] 챌린지를 종료했습니다. 최종 Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
-                        finalDay,
-                        finalTime,
-                        collected,
-                        total,
-                        percent
-                )),
-                false
-        );
-
-        return 1;
-    }
-
-    private static int status(CommandSourceStack source) {
         if (ChallengeManager.isRunning()) {
-            source.sendSuccess(
-                    () -> Component.literal(String.format(
-                            "[올블록 챌린지] 상태: 진행 중 / 모드: %s / 난이도: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
-                            ChallengeManager.getMode().getDisplayName(),
-                            ChallengeManager.getDifficulty().getDisplayName(),
-                            ChallengeManager.getDisplayedDay(),
-                            ChallengeManager.getFormattedElapsedTime(),
-                            ChallengeManager.getCollectedCount(),
-                            ChallengeManager.getTotalTargetCount(),
-                            ChallengeManager.getProgressPercent()
-                    )),
-                    false
-            );
-
+            ChallengeMenuMessages.showRunningMenu(player);
             return 1;
         }
 
-        if (ChallengeManager.isFinished()) {
-            source.sendSuccess(
-                    () -> Component.literal(String.format(
-                            "[올블록 챌린지] 상태: 결과 확정 / 결과: %s / 난이도: %s / Day: %d / 시간: %s / 도감: %d/%d (%.2f%%)",
-                            ChallengeManager.getResult(),
-                            ChallengeManager.getDifficulty().getDisplayName(),
-                            ChallengeManager.getDisplayedDay(),
-                            ChallengeManager.getFormattedElapsedTime(),
-                            ChallengeManager.getCollectedCount(),
-                            ChallengeManager.getTotalTargetCount(),
-                            ChallengeManager.getProgressPercent()
-                    )),
-                    false
-            );
-
-            return 1;
-        }
-
-        source.sendSuccess(
-                () -> Component.literal(String.format(
-                        "[올블록 챌린지] 상태: 대기 중 / 마지막 도감: %d/%d (%.2f%%)",
-                        ChallengeManager.getCollectedCount(),
-                        ChallengeManager.getTotalTargetCount(),
-                        ChallengeManager.getProgressPercent()
-                )),
-                false
-        );
-
+        ChallengeMenuMessages.showWelcome(player);
         return 1;
     }
 
-    private static int progress(CommandSourceStack source) {
-        source.sendSuccess(
-                () -> Component.literal(String.format(
-                        "[올블록 챌린지] 도감 진행률: %d/%d (%.2f%%)",
-                        ChallengeManager.getCollectedCount(),
-                        ChallengeManager.getTotalTargetCount(),
-                        ChallengeManager.getProgressPercent()
-                )),
-                false
-        );
+    private static int handleInternalAction(
+            CommandSourceStack source,
+            String rawAction
+    ) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        String action = rawAction == null
+                ? ""
+                : rawAction.trim();
 
-        return 1;
+        if (action.equals("@시작")) {
+            return ChallengeSetupManager.begin(
+                    source.getServer(),
+                    player
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@모드 싱글")) {
+            return ChallengeSetupManager.selectMode(
+                    player,
+                    ChallengeMode.SOLO
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@모드 협동")) {
+            return ChallengeSetupManager.selectMode(
+                    player,
+                    ChallengeMode.CO_OP
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@모드 경쟁")) {
+            return ChallengeSetupManager.showRaceModeMenu(
+                    player
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@경쟁 팀레이스")) {
+            return ChallengeSetupManager.selectMode(
+                    player,
+                    ChallengeMode.TEAM_RACE
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@경쟁 블록레이스")) {
+            return ChallengeSetupManager.selectMode(
+                    player,
+                    ChallengeMode.BLOCK_RACE
+            ) ? 1 : 0;
+        }
+
+        if (action.startsWith("@난이도 ")) {
+            ChallengeDifficulty difficulty =
+                    switch (action.substring("@난이도 ".length())) {
+                        case "쉬움" -> ChallengeDifficulty.EASY;
+                        case "보통" -> ChallengeDifficulty.NORMAL;
+                        case "어려움" -> ChallengeDifficulty.HARD;
+                        default -> null;
+                    };
+
+            return difficulty != null
+                    && ChallengeSetupManager.selectDifficulty(
+                            player,
+                            difficulty
+                    ) ? 1 : 0;
+        }
+
+        if (action.equals("@시간 기본")) {
+            return ChallengeSetupManager.useDefaultTimeLimit(
+                    player
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@월드 유지")) {
+            return ChallengeSetupManager.selectWorldTime(
+                    source.getServer(),
+                    player,
+                    false
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@월드 초기화")) {
+            return ChallengeSetupManager.selectWorldTime(
+                    source.getServer(),
+                    player,
+                    true
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@종료 확인")) {
+            if (!ChallengeManager.isRunning()) {
+                ChallengeMenuMessages.showWelcome(player);
+                return 0;
+            }
+
+            ChallengeMenuMessages.showStopConfirm(player);
+            return 1;
+        }
+
+        if (action.equals("@종료 취소")) {
+            if (ChallengeManager.isRunning()) {
+                ChallengeMenuMessages.showRunningMenu(player);
+            } else {
+                ChallengeMenuMessages.showWelcome(player);
+            }
+            return 1;
+        }
+
+        if (action.equals("@종료 실행")) {
+            if (!ChallengeManager.isRunning()
+                    && !ChallengeManager.shouldShowHud()
+                    && !TeamRaceSetupManager.isActive()
+                    && !BlockRaceSetupManager.isActive()) {
+                player.sendSystemMessage(
+                        Component.literal(
+                                "[올블록 챌린지] 종료할 챌린지가 없습니다."
+                        )
+                );
+                return 0;
+            }
+
+            ChallengeManager.stop(source.getServer());
+            player.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 챌린지를 종료했습니다."
+                    )
+            );
+            return 1;
+        }
+
+        if (action.equals("@팀 재추첨메뉴")) {
+            TeamRaceSetupManager.showRerollMenu(player);
+            return 1;
+        }
+
+        if (action.equals("@팀 랜덤")) {
+            return TeamRaceSetupManager.randomizeAgain(
+                    source.getServer(),
+                    player
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@팀 수동")) {
+            return TeamRaceSetupManager.beginManual(
+                    source.getServer(),
+                    player
+            ) ? 1 : 0;
+        }
+
+        if (action.startsWith("@팀 순환 ")) {
+            return TeamRaceSetupManager.cycleManualTeam(
+                    source.getServer(),
+                    player,
+                    action.substring("@팀 순환 ".length())
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@팀 확정")) {
+            return TeamRaceSetupManager.confirm(
+                    source.getServer(),
+                    player
+            ) ? 1 : 0;
+        }
+
+        source.sendFailure(
+                Component.literal(
+                        "[올블록 챌린지] 알 수 없는 메뉴 동작입니다."
+                )
+        );
+        return 0;
     }
 }
