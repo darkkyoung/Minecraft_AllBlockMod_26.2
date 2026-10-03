@@ -2,6 +2,7 @@ package com.darkk0729.allblocks.event;
 
 import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.collection.TargetBlockRegistry;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -32,20 +33,25 @@ public final class ChallengeEventManager {
         }
 
         if (!ChallengeManager.isRunning()) {
-            broadcast(server, Component.literal("[AllBlocks] Start the challenge first."));
+            broadcast(server, Component.literal("[올블록 디버그] 먼저 챌린지를 시작해주세요."));
             return;
         }
 
         if (progressPercent < 10 || progressPercent > 100 || progressPercent % 10 != 0) {
-            broadcast(server, Component.literal("[AllBlocks] Debug progress must be 10, 20, 30, ..., 100."));
+            broadcast(server, Component.literal("[올블록 디버그] 진행률은 10, 20, 30, ..., 100 중 하나여야 합니다."));
             return;
         }
 
         int tier = progressPercent / 10;
 
-        broadcast(server, Component.literal(
-                "[AllBlocks] Debug progress event requested: " + progressPercent + "%"
-        ));
+        broadcast(
+                server,
+                Component.literal(
+                        "[올블록 디버그] 진행률 "
+                                + progressPercent
+                                + "% 이벤트를 실행합니다."
+                )
+        );
 
         triggerProgressEvent(server, tier);
     }
@@ -167,10 +173,9 @@ public final class ChallengeEventManager {
                 );
 
                 player.sendSystemMessage(
-                        Component.literal(
-                                "[AllBlocks] Progress Event "
-                                        + progressPercent
-                                        + "%: Random debuff"
+                        progressEventMessage(
+                                progressPercent,
+                                "랜덤 디버프 발동"
                         )
                 );
             }
@@ -184,10 +189,9 @@ public final class ChallengeEventManager {
                 );
 
                 player.sendSystemMessage(
-                        Component.literal(
-                                "[AllBlocks] Progress Event "
-                                        + progressPercent
-                                        + "%: Random teleport"
+                        progressEventMessage(
+                                progressPercent,
+                                "랜덤 텔레포트 발동"
                         )
                 );
             }
@@ -225,11 +229,9 @@ public final class ChallengeEventManager {
                                 .toString();
 
                 player.sendSystemMessage(
-                        Component.literal(
-                                "[AllBlocks] Progress Event "
-                                        + progressPercent
-                                        + "%: Area filled with "
-                                        + fillBlockName
+                        progressEventMessage(
+                                progressPercent,
+                                "랜덤 블록 가두기 발동"
                         )
                 );
             }
@@ -297,9 +299,12 @@ public final class ChallengeEventManager {
                 case 0 -> {
                     applyRandomDebuffsToPlayer(player, progressPercent);
 
-                    player.sendSystemMessage(Component.literal(
-                            "[AllBlocks] Progress Event " + progressPercent + "%: Random debuff"
-                    ));
+                    player.sendSystemMessage(
+                            progressEventMessage(
+                                    progressPercent,
+                                    "랜덤 디버프 발동"
+                            )
+                    );
                 }
 
                 case 1 -> {
@@ -308,9 +313,12 @@ public final class ChallengeEventManager {
                             getTeleportEventRadius(progressPercent)
                     );
 
-                    player.sendSystemMessage(Component.literal(
-                            "[AllBlocks] Progress Event " + progressPercent + "%: Random teleport"
-                    ));
+                    player.sendSystemMessage(
+                            progressEventMessage(
+                                    progressPercent,
+                                    "랜덤 텔레포트 발동"
+                            )
+                    );
                 }
 
                 case 2 -> {
@@ -339,12 +347,12 @@ public final class ChallengeEventManager {
                                     .getKey(fillBlock)
                                     .toString();
 
-                    player.sendSystemMessage(Component.literal(
-                            "[AllBlocks] Progress Event "
-                                    + progressPercent
-                                    + "%: Area filled with "
-                                    + fillBlockName
-                    ));
+                    player.sendSystemMessage(
+                            progressEventMessage(
+                                    progressPercent,
+                                    "랜덤 블록 가두기 발동"
+                            )
+                    );
                 }
 
                 default -> {
@@ -364,9 +372,13 @@ public final class ChallengeEventManager {
             applyRandomDebuffsToPlayer(player, progressPercent);
         }
 
-        broadcast(server, Component.literal(
-                "[AllBlocks] Progress Event " + progressPercent + "%: Random debuff"
-        ));
+        broadcast(
+                server,
+                progressEventMessage(
+                        progressPercent,
+                        "랜덤 디버프 발동"
+                )
+        );
     }
 
     private static void applyRandomDebuffsToPlayer(
@@ -498,9 +510,13 @@ public final class ChallengeEventManager {
             teleportPlayerRandomly(player, radius);
         }
 
-        broadcast(server, Component.literal(
-                "[AllBlocks] Progress Event " + progressPercent + "%: Random teleport"
-        ));
+        broadcast(
+                server,
+                progressEventMessage(
+                        progressPercent,
+                        "랜덤 텔레포트 발동"
+                )
+        );
     }
 
     private static void teleportPlayerRandomly(ServerPlayer player, int radius) {
@@ -530,9 +546,14 @@ public final class ChallengeEventManager {
             return;
         }
 
-        player.sendSystemMessage(Component.literal(
-                "[AllBlocks] Random teleport failed: no valid space found."
-        ));
+        player.sendSystemMessage(
+                Component.literal(
+                        "랜덤 텔레포트 실패"
+                ).withStyle(
+                        ChatFormatting.RED,
+                        ChatFormatting.BOLD
+                )
+        );
     }
 
     private static boolean isBodySpaceEmpty(ServerLevel level, BlockPos pos) {
@@ -562,9 +583,13 @@ public final class ChallengeEventManager {
 
         String fillBlockName = BuiltInRegistries.BLOCK.getKey(fillBlock).toString();
 
-        broadcast(server, Component.literal(
-                "[AllBlocks] Progress Event " + progressPercent + "%: Area filled with " + fillBlockName
-        ));
+        broadcast(
+                server,
+                progressEventMessage(
+                        progressPercent,
+                        "랜덤 블록 가두기 발동"
+                )
+        );
     }
 
     private static void fillBlocksAroundPlayer(
@@ -653,12 +678,55 @@ public final class ChallengeEventManager {
         );
     }
 
-    private static List<ServerPlayer> getPlayers(MinecraftServer server) {
-        return server.getPlayerList().getPlayers();
+    private static List<ServerPlayer> getPlayers(
+            MinecraftServer server
+    ) {
+        List<ServerPlayer> players =
+                new ArrayList<>();
+
+        if (server == null) {
+            return players;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            if (ChallengeManager.isActiveChallengePlayer(
+                    player
+            )) {
+                players.add(player);
+            }
+        }
+
+        return players;
     }
 
-    private static void broadcast(MinecraftServer server, Component message) {
-        for (ServerPlayer player : getPlayers(server)) {
+    private static Component progressEventMessage(
+            int progressPercent,
+            String eventText
+    ) {
+        return Component.literal(
+                        progressPercent + "%"
+                )
+                .withStyle(
+                        ChatFormatting.GREEN,
+                        ChatFormatting.BOLD
+                )
+                .append(
+                        Component.literal(
+                                " 달성! "
+                                        + eventText
+                        ).withStyle(
+                                ChatFormatting.WHITE
+                        )
+                );
+    }
+
+    private static void broadcast(
+            MinecraftServer server,
+            Component message
+    ) {
+        for (ServerPlayer player :
+                getPlayers(server)) {
             player.sendSystemMessage(message);
         }
     }
