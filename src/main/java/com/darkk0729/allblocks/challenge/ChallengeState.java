@@ -18,6 +18,8 @@ public class ChallengeState {
     private boolean running;
     private ChallengeMode mode;
     private ChallengeDifficulty difficulty;
+    private ChallengeTimeLimitType timeLimitType;
+    private long timeLimitTicks;
     private boolean finished;
     private ChallengeResult result;
 
@@ -41,6 +43,8 @@ public class ChallengeState {
         this.result = ChallengeResult.NONE;
         this.mode = ChallengeMode.SOLO;
         this.difficulty = ChallengeDifficulty.HARD;
+        this.timeLimitType = ChallengeTimeLimitType.IN_GAME_TIME;
+        this.timeLimitTicks = TICKS_PER_DAY * MAX_DAYS;
         this.elapsedTicks = 0L;
         this.startWorldTime = 0L;
         this.worldElapsedTicks = 0L;
@@ -71,6 +75,39 @@ public class ChallengeState {
 
     public ChallengeRules getRules() {
         return ChallengeRules.from(difficulty);
+    }
+
+    public ChallengeTimeLimitType getTimeLimitType() {
+        return timeLimitType;
+    }
+
+    public long getTimeLimitTicks() {
+        return timeLimitTicks;
+    }
+
+    public boolean hasTimeLimit() {
+        return timeLimitType != ChallengeTimeLimitType.NONE
+                && timeLimitTicks > 0L;
+    }
+
+    public long getRemainingTimeLimitTicks() {
+        if (!hasTimeLimit()) {
+            return 0L;
+        }
+
+        long elapsed = timeLimitType == ChallengeTimeLimitType.PLAY_TIME
+                ? elapsedTicks
+                : worldElapsedTicks;
+
+        return Math.max(0L, timeLimitTicks - elapsed);
+    }
+
+    public boolean isInGameFinalDay() {
+        return running
+                && timeLimitType == ChallengeTimeLimitType.IN_GAME_TIME
+                && timeLimitTicks > 0L
+                && getRemainingTimeLimitTicks() > 0L
+                && getRemainingTimeLimitTicks() <= TICKS_PER_DAY;
     }
 
     public long getElapsedTicks() {
@@ -118,22 +155,65 @@ public class ChallengeState {
     }
 
     public void start(ChallengeMode mode) {
-        start(mode, ChallengeDifficulty.HARD, 0L);
+        start(
+                mode,
+                ChallengeDifficulty.HARD,
+                0L,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                TICKS_PER_DAY * MAX_DAYS
+        );
     }
 
     public void start(ChallengeMode mode, long startWorldTime) {
-        start(mode, ChallengeDifficulty.HARD, startWorldTime);
+        start(
+                mode,
+                ChallengeDifficulty.HARD,
+                startWorldTime,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                TICKS_PER_DAY * MAX_DAYS
+        );
     }
 
-    public void start(ChallengeMode mode, ChallengeDifficulty difficulty, long startWorldTime) {
+    public void start(
+            ChallengeMode mode,
+            ChallengeDifficulty difficulty,
+            long startWorldTime
+    ) {
+        start(
+                mode,
+                difficulty,
+                startWorldTime,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                TICKS_PER_DAY * MAX_DAYS
+        );
+    }
+
+    public void start(
+            ChallengeMode mode,
+            ChallengeDifficulty difficulty,
+            long startWorldTime,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks
+    ) {
         this.running = true;
         this.finished = false;
 
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
         this.difficulty = difficulty == null ? ChallengeDifficulty.HARD : difficulty;
+        this.timeLimitType = timeLimitType == null
+                ? ChallengeTimeLimitType.IN_GAME_TIME
+                : timeLimitType;
 
         long safeStartWorldTime = Math.max(0L, startWorldTime);
+        long safeTimeLimitTicks = Math.max(0L, timeLimitTicks);
 
+        if (this.timeLimitType == ChallengeTimeLimitType.NONE) {
+            safeTimeLimitTicks = 0L;
+        } else if (safeTimeLimitTicks <= 0L) {
+            safeTimeLimitTicks = TICKS_PER_DAY * MAX_DAYS;
+        }
+
+        this.timeLimitTicks = safeTimeLimitTicks;
         this.elapsedTicks = 0L;
         this.startWorldTime = safeStartWorldTime;
         this.worldElapsedTicks = 0L;
@@ -163,6 +243,8 @@ public class ChallengeState {
             boolean finished,
             ChallengeMode mode,
             ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
             long elapsedTicks,
             long startWorldTime,
             long worldElapsedTicks,
@@ -182,6 +264,16 @@ public class ChallengeState {
         this.running = running && !this.finished;
         this.mode = mode == null ? ChallengeMode.SOLO : mode;
         this.difficulty = difficulty == null ? ChallengeDifficulty.HARD : difficulty;
+        this.timeLimitType = timeLimitType == null
+                ? ChallengeTimeLimitType.IN_GAME_TIME
+                : timeLimitType;
+        this.timeLimitTicks = Math.max(0L, timeLimitTicks);
+
+        if (this.timeLimitType == ChallengeTimeLimitType.NONE) {
+            this.timeLimitTicks = 0L;
+        } else if (this.timeLimitTicks <= 0L) {
+            this.timeLimitTicks = TICKS_PER_DAY * MAX_DAYS;
+        }
 
         this.elapsedTicks = Math.max(0L, elapsedTicks);
         this.startWorldTime = Math.max(0L, startWorldTime);
@@ -280,7 +372,11 @@ public class ChallengeState {
         // 인게임 Day 카운트
         syncWorldTime(currentWorldTime);
 
-        return worldElapsedTicks >= TICKS_PER_DAY * MAX_DAYS;
+        return switch (timeLimitType) {
+            case NONE -> false;
+            case PLAY_TIME -> elapsedTicks >= timeLimitTicks;
+            case IN_GAME_TIME -> worldElapsedTicks >= timeLimitTicks;
+        };
     }
 
     public boolean collectBlock(String blockId, CollectionOwner owner) {
