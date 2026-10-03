@@ -37,6 +37,11 @@ public final class AllBlocksCommands {
                                                                         Commands.LEVEL_GAMEMASTERS
                                                                 )
                                                         )
+                                                        .executes(context ->
+                                                                showDebugMenu(
+                                                                        context.getSource()
+                                                                )
+                                                        )
                                                         .then(
                                                                 Commands.literal("레이드")
                                                                         .then(
@@ -149,6 +154,54 @@ public final class AllBlocksCommands {
                                         )
                         )
         );
+    }
+
+    private static int showDebugMenu(
+            CommandSourceStack source
+    ) {
+        source.sendSuccess(
+                () -> Component.literal(
+                        "━━━━━━━━━━━━━━━━━━━━"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "[ 올블록 디버그 ]"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "/올블록 디버그 수집 <개수>  - 블록 강제 수집"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "/올블록 디버그 진행률 <10~100>  - 진행률 이벤트 강제 실행"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "/올블록 디버그 일차 <일차>  - 챌린지 일차 이동"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "/올블록 디버그 레이드 <10~90>  - Day 레이드 강제 실행"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "━━━━━━━━━━━━━━━━━━━━"
+                ),
+                false
+        );
+        return 1;
     }
 
     private static int showRoot(
