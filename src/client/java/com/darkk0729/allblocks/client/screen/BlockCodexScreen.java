@@ -15,6 +15,7 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.input.KeyEvent;
 import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
+import com.darkk0729.allblocks.client.network.AllBlocksClientNetworking;
 import net.minecraft.ChatFormatting;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,11 @@ public final class BlockCodexScreen extends Screen {
 
     private static final int CLOSE_BUTTON_SIZE = 24;
     private static final int PLAYER_ICON_SIZE = 14;
+
+    private static final int COLOR_PALETTE_TILE_SIZE = 12;
+    private static final int COLOR_PALETTE_GAP = 2;
+    private static final int COLOR_PALETTE_PADDING = 5;
+    private static final int COLOR_PALETTE_MARGIN = 6;
 
     private static final int FILTER_Y_OFFSET = 95;
 
@@ -82,6 +88,13 @@ public final class BlockCodexScreen extends Screen {
     private int selectedSlotX;
     private int selectedSlotY;
 
+    private final List<PlayerHeadHitbox> playerHeadHitboxes =
+            new ArrayList<>();
+    private String hoveredPlayerName;
+    private boolean colorPaletteOpen = false;
+    private int colorPaletteAnchorX = 0;
+    private int colorPaletteAnchorY = 0;
+
     public BlockCodexScreen() {
         super(Component.literal("블록 도감"));
     }
@@ -97,6 +110,9 @@ public final class BlockCodexScreen extends Screen {
 
         List<Block> filteredBlocks = getFilteredBlocks();
         int maxPage = getMaxPage(filteredBlocks.size());
+
+        playerHeadHitboxes.clear();
+        hoveredPlayerName = null;
 
         if (page > maxPage) {
             page = maxPage;
@@ -121,6 +137,23 @@ public final class BlockCodexScreen extends Screen {
         if (hoveredBlock != null && hoveredBlock != selectedBlock) {
             drawHoverNameTooltip(graphics, mouseX, mouseY, hoveredBlock);
         }
+
+        if (hoveredPlayerName != null) {
+            drawTextTooltip(
+                    graphics,
+                    mouseX,
+                    mouseY,
+                    hoveredPlayerName
+            );
+        }
+
+        if (colorPaletteOpen) {
+            drawColorPalette(
+                    graphics,
+                    mouseX,
+                    mouseY
+            );
+        }
     }
 
     @Override
@@ -137,6 +170,25 @@ public final class BlockCodexScreen extends Screen {
 
         if (handleCloseClick(panelX, panelY, mouseX, mouseY)) {
             return true;
+        }
+
+        if (colorPaletteOpen
+                && handleColorPaletteClick(
+                        mouseX,
+                        mouseY
+                )) {
+            return true;
+        }
+
+        if (handlePlayerHeadClick(
+                mouseX,
+                mouseY
+        )) {
+            return true;
+        }
+
+        if (colorPaletteOpen) {
+            colorPaletteOpen = false;
         }
 
         if (handleFilterClick(panelX, panelY, mouseX, mouseY)) {
@@ -279,19 +331,17 @@ public final class BlockCodexScreen extends Screen {
                     playerColor
             );
 
-            if (isInside(
-                    mouseX,
-                    mouseY,
-                    playerX - 2,
-                    playerY - 2,
-                    PLAYER_ICON_SIZE + 4,
-                    PLAYER_ICON_SIZE + 4
-            )) {
-                drawTextTooltip(
-                        graphics,
+            if (this.minecraft != null
+                    && this.minecraft.player != null) {
+                registerPlayerHeadHitbox(
+                        this.minecraft.player
+                                .getUUID()
+                                .toString(),
+                        playerName,
+                        playerX,
+                        playerY,
                         mouseX,
-                        mouseY,
-                        playerName
+                        mouseY
                 );
             }
         }
@@ -491,11 +541,9 @@ public final class BlockCodexScreen extends Screen {
                     participants.get(i);
 
             int borderColor =
-                    ClientChallengeStateCache.isBlockRace()
-                            ? PlayerCodexColor.fromName(
-                                    participant.color()
-                            ).getArgb()
-                            : COOP_SHARED_COLOR;
+                    PlayerCodexColor.fromName(
+                            participant.color()
+                    ).getArgb();
 
             drawParticipantHead(
                     graphics,
@@ -622,6 +670,37 @@ public final class BlockCodexScreen extends Screen {
                 borderColor
         );
 
+        registerPlayerHeadHitbox(
+                participant.playerUuid(),
+                participant.playerName(),
+                x,
+                y,
+                mouseX,
+                mouseY
+        );
+    }
+
+    private void registerPlayerHeadHitbox(
+            String playerUuid,
+            String playerName,
+            int x,
+            int y,
+            int mouseX,
+            int mouseY
+    ) {
+        if (playerUuid == null || playerUuid.isBlank()) {
+            return;
+        }
+
+        playerHeadHitboxes.add(
+                new PlayerHeadHitbox(
+                        playerUuid,
+                        playerName,
+                        x,
+                        y
+                )
+        );
+
         if (isInside(
                 mouseX,
                 mouseY,
@@ -630,12 +709,7 @@ public final class BlockCodexScreen extends Screen {
                 PLAYER_ICON_SIZE + 2,
                 PLAYER_ICON_SIZE + 2
         )) {
-            drawTextTooltip(
-                    graphics,
-                    mouseX,
-                    mouseY,
-                    participant.playerName()
-            );
+            hoveredPlayerName = playerName;
         }
     }
 
@@ -1284,6 +1358,287 @@ public final class BlockCodexScreen extends Screen {
         );
     }
 
+
+    private boolean handlePlayerHeadClick(
+            double mouseX,
+            double mouseY
+    ) {
+        if (ClientChallengeStateCache.isTeamRace()
+                || this.minecraft == null
+                || this.minecraft.player == null) {
+            return false;
+        }
+
+        String ownUuid =
+                this.minecraft.player
+                        .getUUID()
+                        .toString();
+
+        for (PlayerHeadHitbox hitbox :
+                playerHeadHitboxes) {
+            if (!ownUuid.equals(
+                    hitbox.playerUuid()
+            )) {
+                continue;
+            }
+
+            if (!isInside(
+                    mouseX,
+                    mouseY,
+                    hitbox.x() - 1,
+                    hitbox.y() - 1,
+                    PLAYER_ICON_SIZE + 2,
+                    PLAYER_ICON_SIZE + 2
+            )) {
+                continue;
+            }
+
+            if (colorPaletteOpen
+                    && colorPaletteAnchorX
+                    == hitbox.x() + PLAYER_ICON_SIZE / 2
+                    && colorPaletteAnchorY
+                    == hitbox.y()) {
+                colorPaletteOpen = false;
+            } else {
+                colorPaletteOpen = true;
+                colorPaletteAnchorX =
+                        hitbox.x()
+                                + PLAYER_ICON_SIZE / 2;
+                colorPaletteAnchorY =
+                        hitbox.y();
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean handleColorPaletteClick(
+            double mouseX,
+            double mouseY
+    ) {
+        int paletteX = getColorPaletteX();
+        int paletteY = getColorPaletteY();
+        int paletteWidth = getColorPaletteWidth();
+        int paletteHeight = getColorPaletteHeight();
+
+        if (!isInside(
+                mouseX,
+                mouseY,
+                paletteX,
+                paletteY,
+                paletteWidth,
+                paletteHeight
+        )) {
+            return false;
+        }
+
+        PlayerCodexColor[] colors =
+                PlayerCodexColor.values();
+
+        int tileY =
+                paletteY
+                        + COLOR_PALETTE_PADDING;
+        int tileX =
+                paletteX
+                        + COLOR_PALETTE_PADDING;
+
+        for (PlayerCodexColor color : colors) {
+            if (isInside(
+                    mouseX,
+                    mouseY,
+                    tileX,
+                    tileY,
+                    COLOR_PALETTE_TILE_SIZE,
+                    COLOR_PALETTE_TILE_SIZE
+            )) {
+                AllBlocksClientNetworking
+                        .sendPlayerColorChange(
+                                color.name()
+                        );
+                colorPaletteOpen = false;
+                return true;
+            }
+
+            tileX +=
+                    COLOR_PALETTE_TILE_SIZE
+                            + COLOR_PALETTE_GAP;
+        }
+
+        return true;
+    }
+
+    private void drawColorPalette(
+            GuiGraphicsExtractor graphics,
+            int mouseX,
+            int mouseY
+    ) {
+        int paletteX = getColorPaletteX();
+        int paletteY = getColorPaletteY();
+        int paletteWidth = getColorPaletteWidth();
+        int paletteHeight = getColorPaletteHeight();
+
+        graphics.fill(
+                paletteX,
+                paletteY,
+                paletteX + paletteWidth,
+                paletteY + paletteHeight,
+                0xFFF1DEB6
+        );
+
+        graphics.outline(
+                paletteX,
+                paletteY,
+                paletteWidth,
+                paletteHeight,
+                0xFF7E4E2B
+        );
+
+        PlayerCodexColor selected =
+                getOwnPlayerCodexColor();
+
+        String hoveredColorName = null;
+
+        int tileY =
+                paletteY
+                        + COLOR_PALETTE_PADDING;
+        int tileX =
+                paletteX
+                        + COLOR_PALETTE_PADDING;
+
+        for (PlayerCodexColor color :
+                PlayerCodexColor.values()) {
+            graphics.fill(
+                    tileX,
+                    tileY,
+                    tileX + COLOR_PALETTE_TILE_SIZE,
+                    tileY + COLOR_PALETTE_TILE_SIZE,
+                    color.getArgb()
+            );
+
+            graphics.outline(
+                    tileX,
+                    tileY,
+                    COLOR_PALETTE_TILE_SIZE,
+                    COLOR_PALETTE_TILE_SIZE,
+                    color == selected
+                            ? 0xFFFFD85A
+                            : 0xFF4A3524
+            );
+
+            if (color == selected) {
+                graphics.outline(
+                        tileX - 1,
+                        tileY - 1,
+                        COLOR_PALETTE_TILE_SIZE + 2,
+                        COLOR_PALETTE_TILE_SIZE + 2,
+                        0xFF6B3D20
+                );
+            }
+
+            if (isInside(
+                    mouseX,
+                    mouseY,
+                    tileX,
+                    tileY,
+                    COLOR_PALETTE_TILE_SIZE,
+                    COLOR_PALETTE_TILE_SIZE
+            )) {
+                hoveredColorName =
+                        color.getDisplayName();
+            }
+
+            tileX +=
+                    COLOR_PALETTE_TILE_SIZE
+                            + COLOR_PALETTE_GAP;
+        }
+
+        if (hoveredColorName != null) {
+            drawTextTooltip(
+                    graphics,
+                    mouseX,
+                    mouseY,
+                    hoveredColorName
+            );
+        }
+    }
+
+    private PlayerCodexColor getOwnPlayerCodexColor() {
+        if (this.minecraft == null
+                || this.minecraft.player == null) {
+            return PlayerCodexColor.BLUE;
+        }
+
+        ClientChallengeStateCache.SyncedParticipantData participant =
+                ClientChallengeStateCache.getParticipant(
+                        this.minecraft.player
+                                .getUUID()
+                                .toString()
+                );
+
+        if (participant == null) {
+            return PlayerCodexColor.BLUE;
+        }
+
+        return PlayerCodexColor.fromName(
+                participant.color()
+        );
+    }
+
+    private int getColorPaletteWidth() {
+        int count =
+                PlayerCodexColor.values().length;
+
+        return COLOR_PALETTE_PADDING * 2
+                + count * COLOR_PALETTE_TILE_SIZE
+                + Math.max(
+                        0,
+                        count - 1
+                ) * COLOR_PALETTE_GAP;
+    }
+
+    private int getColorPaletteHeight() {
+        return COLOR_PALETTE_PADDING * 2
+                + COLOR_PALETTE_TILE_SIZE;
+    }
+
+    private int getColorPaletteX() {
+        int width =
+                getColorPaletteWidth();
+
+        return Math.max(
+                4,
+                Math.min(
+                        this.width - width - 4,
+                        colorPaletteAnchorX
+                                - width / 2
+                )
+        );
+    }
+
+    private int getColorPaletteY() {
+        int height =
+                getColorPaletteHeight();
+
+        int below =
+                colorPaletteAnchorY
+                        + PLAYER_ICON_SIZE
+                        + COLOR_PALETTE_MARGIN;
+
+        if (below + height
+                <= this.height - 4) {
+            return below;
+        }
+
+        return Math.max(
+                4,
+                colorPaletteAnchorY
+                        - height
+                        - COLOR_PALETTE_MARGIN
+        );
+    }
+
     private boolean handleFilterClick(int panelX, int panelY, double mouseX, double mouseY) {
         int totalFilterWidth = 40 + 5 + 42 + 5 + 50 + 5 + 42;
         int x = panelX + (PANEL_WIDTH - totalFilterWidth) / 2;
@@ -1746,6 +2101,14 @@ public final class BlockCodexScreen extends Screen {
                 height,
                 color
         );
+    }
+
+    private record PlayerHeadHitbox(
+            String playerUuid,
+            String playerName,
+            int x,
+            int y
+    ) {
     }
 
     private enum CodexFilter {

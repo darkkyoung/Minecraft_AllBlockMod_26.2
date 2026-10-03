@@ -2019,6 +2019,7 @@ public final class ChallengeManager {
             case BLUE -> "blue";
             case PURPLE -> "dark_purple";
             case PINK -> "light_purple";
+            case BLACK -> "black";
             case WHITE -> "white";
         };
     }
@@ -2194,6 +2195,7 @@ public final class ChallengeManager {
             case BLUE -> ChatFormatting.BLUE;
             case PURPLE -> ChatFormatting.DARK_PURPLE;
             case PINK -> ChatFormatting.LIGHT_PURPLE;
+            case BLACK -> ChatFormatting.BLACK;
             case WHITE -> ChatFormatting.WHITE;
         };
     }

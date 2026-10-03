@@ -10,7 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 
 public final class BlockCollectionTracker {
-    private static final long SCAN_INTERVAL_TICKS = 20L;
+    private static final long SCAN_INTERVAL_TICKS = 1L;
     private static long tickCounter = 0L;
 
     private BlockCollectionTracker() {

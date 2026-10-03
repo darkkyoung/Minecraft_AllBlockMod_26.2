@@ -6,10 +6,25 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import com.darkk0729.allblocks.network.ChallengeStatusPayload;
 import com.darkk0729.allblocks.client.hud.TeamRevealHud;
 import com.darkk0729.allblocks.network.TeamRevealPayload;
+import com.darkk0729.allblocks.network.PlayerColorChangePayload;
 
 
 public final class AllBlocksClientNetworking {
     private AllBlocksClientNetworking() {
+    }
+
+    public static void sendPlayerColorChange(
+            String color
+    ) {
+        if (color == null || color.isBlank()) {
+            return;
+        }
+
+        ClientPlayNetworking.send(
+                new PlayerColorChangePayload(
+                        color
+                )
+        );
     }
 
     public static void registerReceivers() {
