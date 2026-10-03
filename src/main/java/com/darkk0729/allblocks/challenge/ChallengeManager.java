@@ -691,31 +691,107 @@ public final class ChallengeManager {
             MinecraftServer server,
             ChallengeDifficulty difficulty
     ) {
+        startSingle(
+                server,
+                difficulty,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS,
+                true
+        );
+    }
+
+    public static void startSingle(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            boolean resetWorldTime
+    ) {
         TeamRaceSetupManager.reset(server);
         BlockRaceSetupManager.reset(server);
-        startMode(server, ChallengeMode.SOLO, difficulty);
+        startMode(
+                server,
+                ChallengeMode.SOLO,
+                difficulty,
+                timeLimitType,
+                timeLimitTicks,
+                resetWorldTime
+        );
     }
 
     public static void startCoop(
             MinecraftServer server,
             ChallengeDifficulty difficulty
     ) {
+        startCoop(
+                server,
+                difficulty,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS,
+                true
+        );
+    }
+
+    public static void startCoop(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            boolean resetWorldTime
+    ) {
         TeamRaceSetupManager.reset(server);
         BlockRaceSetupManager.reset(server);
-        startMode(server, ChallengeMode.CO_OP, difficulty);
+        startMode(
+                server,
+                ChallengeMode.CO_OP,
+                difficulty,
+                timeLimitType,
+                timeLimitTicks,
+                resetWorldTime
+        );
     }
 
     public static boolean startBlockRace(
             MinecraftServer server,
             ChallengeDifficulty difficulty
     ) {
+        return startBlockRace(
+                server,
+                difficulty,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS,
+                true
+        );
+    }
+
+    public static boolean startBlockRace(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            boolean resetWorldTime
+    ) {
         if (server == null
-                || server.getPlayerList().getPlayers().size() < 2) {
+                || server.getPlayerList()
+                .getPlayers()
+                .size() < 2) {
             return false;
         }
 
         TeamRaceSetupManager.reset(server);
-        startMode(server, ChallengeMode.BLOCK_RACE, difficulty);
+
+        startMode(
+                server,
+                ChallengeMode.BLOCK_RACE,
+                difficulty,
+                timeLimitType,
+                timeLimitTicks,
+                resetWorldTime
+        );
+
         return true;
     }
 
@@ -723,6 +799,27 @@ public final class ChallengeManager {
             MinecraftServer server,
             ChallengeDifficulty difficulty,
             Map<UUID, TeamRaceTeam> assignments
+    ) {
+        startTeamRace(
+                server,
+                difficulty,
+                assignments,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS,
+                true,
+                Set.of()
+        );
+    }
+
+    public static void startTeamRace(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            Map<UUID, TeamRaceTeam> assignments,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            boolean resetWorldTime,
+            Set<UUID> spectators
     ) {
         if (server == null
                 || assignments == null
@@ -733,19 +830,9 @@ public final class ChallengeManager {
         BlockRaceSetupManager.reset(server);
         clearBlockRaceScoreboardTeams(server);
 
-        runServerCommand(
+        prepareWorldTime(
                 server,
-                "time of minecraft:overworld rate 1"
-        );
-
-        runServerCommand(
-                server,
-                "time of minecraft:overworld resume"
-        );
-
-        runServerCommand(
-                server,
-                "time of minecraft:overworld set 0"
+                resetWorldTime
         );
 
         ChallengeDifficulty safeDifficulty =
@@ -753,18 +840,51 @@ public final class ChallengeManager {
                         ? ChallengeDifficulty.HARD
                         : difficulty;
 
+        ChallengeTimeLimitType safeTimeLimitType =
+                timeLimitType == null
+                        ? ChallengeTimeLimitType.IN_GAME_TIME
+                        : timeLimitType;
+
         state.start(
                 ChallengeMode.TEAM_RACE,
                 safeDifficulty,
-                getCurrentWorldTime(server)
+                getCurrentWorldTime(server),
+                safeTimeLimitType,
+                timeLimitTicks
         );
+
+        Set<UUID> safeSpectators =
+                spectators == null
+                        ? Set.of()
+                        : spectators;
 
         for (ServerPlayer player :
                 server.getPlayerList().getPlayers()) {
+            UUID playerUuid =
+                    player.getUUID();
+
+            if (safeSpectators.contains(playerUuid)) {
+                state.registerParticipant(
+                        playerUuid,
+                        player.getName().getString()
+                );
+
+                state.setParticipantSpectator(
+                        playerUuid
+                );
+
+                setPlayerGameMode(
+                        server,
+                        player,
+                        "spectator"
+                );
+
+                continue;
+            }
 
             TeamRaceTeam team =
                     assignments.getOrDefault(
-                            player.getUUID(),
+                            playerUuid,
                             TeamRaceTeam.NONE
                     );
 
@@ -773,12 +893,12 @@ public final class ChallengeManager {
             }
 
             state.registerParticipant(
-                    player.getUUID(),
+                    playerUuid,
                     player.getName().getString()
             );
 
             state.setParticipantTeam(
-                    player.getUUID(),
+                    playerUuid,
                     team
             );
 
@@ -786,6 +906,12 @@ public final class ChallengeManager {
                     server,
                     player,
                     team
+            );
+
+            setPlayerGameMode(
+                    server,
+                    player,
+                    "survival"
             );
         }
 
@@ -812,29 +938,46 @@ public final class ChallengeManager {
     private static void startMode(
             MinecraftServer server,
             ChallengeMode mode,
-            ChallengeDifficulty difficulty
+            ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            boolean resetWorldTime
     ) {
-        if (server == null) return;
+        if (server == null) {
+            return;
+        }
 
-        runServerCommand(server, "time of minecraft:overworld rate 1");
-        runServerCommand(server, "time of minecraft:overworld resume");
-        runServerCommand(server, "time of minecraft:overworld set 0");
+        prepareWorldTime(
+                server,
+                resetWorldTime
+        );
 
-        ChallengeDifficulty safeDifficulty = difficulty == null
-                ? ChallengeDifficulty.HARD
-                : difficulty;
+        ChallengeDifficulty safeDifficulty =
+                difficulty == null
+                        ? ChallengeDifficulty.HARD
+                        : difficulty;
+
+        ChallengeTimeLimitType safeTimeLimitType =
+                timeLimitType == null
+                        ? ChallengeTimeLimitType.IN_GAME_TIME
+                        : timeLimitType;
 
         state.start(
-                mode == null ? ChallengeMode.SOLO : mode,
+                mode == null
+                        ? ChallengeMode.SOLO
+                        : mode,
                 safeDifficulty,
-                getCurrentWorldTime(server)
+                getCurrentWorldTime(server),
+                safeTimeLimitType,
+                timeLimitTicks
         );
 
         registerOnlinePlayers(server);
 
         clearBlockRaceScoreboardTeams(server);
 
-        if (state.getMode() == ChallengeMode.BLOCK_RACE) {
+        if (state.getMode()
+                == ChallengeMode.BLOCK_RACE) {
             for (ServerPlayer player :
                     server.getPlayerList().getPlayers()) {
                 ChallengeState.ParticipantData participant =
