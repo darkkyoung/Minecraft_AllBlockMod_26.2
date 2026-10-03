@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import com.google.gson.annotations.SerializedName;
 
 public class ChallengeState {
+    public static final String SPECTATOR_TEAM_ID = "SPECTATOR";
     public static final long TICKS_PER_SECOND = 20L;
     public static final long TICKS_PER_DAY = 24000L;
     public static final int MAX_DAYS = 100;
@@ -601,6 +602,38 @@ public class ChallengeState {
                         Math.min(10, tier)
                 );
 
+        return true;
+    }
+
+    public boolean isParticipantSpectator(
+            String playerUuid
+    ) {
+        ParticipantData participant =
+                getParticipant(playerUuid);
+
+        return participant != null
+                && SPECTATOR_TEAM_ID.equals(
+                        participant.teamId
+                );
+    }
+
+    public boolean setParticipantSpectator(
+            UUID playerUuid
+    ) {
+        if (playerUuid == null) {
+            return false;
+        }
+
+        ParticipantData participant =
+                participants.get(
+                        playerUuid.toString()
+                );
+
+        if (participant == null) {
+            return false;
+        }
+
+        participant.teamId = SPECTATOR_TEAM_ID;
         return true;
     }
 
