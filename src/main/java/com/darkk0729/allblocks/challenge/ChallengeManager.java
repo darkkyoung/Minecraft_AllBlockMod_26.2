@@ -14,6 +14,7 @@ import com.darkk0729.allblocks.event.ChallengeEventManager;
 import com.darkk0729.allblocks.event.DayRaidManager;
 import com.darkk0729.allblocks.event.FinalDayManager;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 
 import com.darkk0729.allblocks.network.CodexToastPayload;
@@ -901,10 +902,8 @@ public final class ChallengeManager {
                         playerUuid
                 );
 
-                setPlayerGameMode(
-                        server,
-                        player,
-                        "spectator"
+                player.setGameMode(
+                        GameType.SPECTATOR
                 );
 
                 continue;
@@ -936,10 +935,8 @@ public final class ChallengeManager {
                     team
             );
 
-            setPlayerGameMode(
-                    server,
-                    player,
-                    "survival"
+            player.setGameMode(
+                    GameType.SURVIVAL
             );
         }
 

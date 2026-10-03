@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -454,9 +455,9 @@ public final class TeamRaceSetupManager {
         lastCountdownSecond = COUNTDOWN_SECONDS;
 
         clearParticipantInventories(server);
-        setParticipantGameMode(
+        setParticipantGameModeSilently(
                 server,
-                "adventure"
+                GameType.ADVENTURE
         );
 
         broadcast(
@@ -557,6 +558,24 @@ public final class TeamRaceSetupManager {
                     server,
                     "clear " + playerName
             );
+        }
+    }
+
+    private static void setParticipantGameModeSilently(
+            MinecraftServer server,
+            GameType gameMode
+    ) {
+        if (server == null || gameMode == null) {
+            return;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            if (participantNames.containsKey(
+                    player.getUUID()
+            )) {
+                player.setGameMode(gameMode);
+            }
         }
     }
 
