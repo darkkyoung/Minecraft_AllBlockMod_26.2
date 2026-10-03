@@ -248,14 +248,8 @@ public final class DayRaidManager {
                         + "@e[tag=allblocks_raid_mob]"
         );
 
-        broadcast(
-                server,
-                Component.literal(
-                        "[AllBlocks] Day "
-                                + raidDay
-                                + " Raid has started."
-                )
-        );
+        // 플레이어용 시작 메시지는 tickActiveRaidWarning에서 이미 출력한다.
+        // 세부 스폰 상태는 서버 로그에만 남긴다.
     }
 
     private static void applyNormalRaidMobAttributes(
