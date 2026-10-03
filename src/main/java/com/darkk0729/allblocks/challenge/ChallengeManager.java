@@ -1002,6 +1002,11 @@ public final class ChallengeManager {
 
         registerOnlinePlayers(server);
 
+        setAllPlayersGameMode(
+                server,
+                "survival"
+        );
+
         clearBlockRaceScoreboardTeams(server);
 
         if (state.getMode()
@@ -2074,7 +2079,8 @@ public final class ChallengeManager {
             MinecraftServer server,
             boolean resetWorldTime
     ) {
-        if (server == null) {
+        if (server == null
+                || !resetWorldTime) {
             return;
         }
 
@@ -2088,12 +2094,10 @@ public final class ChallengeManager {
                 "time of minecraft:overworld resume"
         );
 
-        if (resetWorldTime) {
-            runServerCommand(
-                    server,
-                    "time of minecraft:overworld set 0"
-            );
-        }
+        runServerCommand(
+                server,
+                "time of minecraft:overworld set 0"
+        );
     }
 
     private static void setPlayerGameMode(
