@@ -1,13 +1,16 @@
 package com.darkk0729.allblocks.event;
 
+import com.darkk0729.allblocks.AllBlocksMod;
 import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -61,12 +64,17 @@ public final class DayRaidManager {
         }
 
         if (!ChallengeManager.isRunning()) {
-            broadcast(server, Component.literal("[AllBlocks] Start the challenge first."));
+            AllBlocksMod.LOGGER.warn(
+                    "Day raid debug requested while challenge is not running."
+            );
             return;
         }
 
         if (raidDay < 10 || raidDay > 90 || raidDay % 10 != 0) {
-            broadcast(server, Component.literal("[AllBlocks] Debug raid day must be 10, 20, 30, ..., 90."));
+            AllBlocksMod.LOGGER.warn(
+                    "Invalid debug raid day requested: {}",
+                    raidDay
+            );
             return;
         }
 
@@ -111,7 +119,10 @@ public final class DayRaidManager {
         runCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " players @a");
         runCommand(server, "playsound minecraft:event.raid.horn master @a ~ ~ ~ 1 1");
 
-        broadcast(server, Component.literal("[AllBlocks] Day " + raidDay + " Raid is coming..."));
+        broadcast(
+                server,
+                raidWarningMessage(raidDay)
+        );
     }
 
     private static void tickActiveRaidWarning(MinecraftServer server) {
@@ -131,8 +142,22 @@ public final class DayRaidManager {
 
         runCommand(server, "bossbar set " + PROGRESS_BOSSBAR_ID + " value 100");
 
-        runCommand(server, "title @a title {\"text\":\"Day " + raidDay + " Raid\",\"color\":\"red\",\"bold\":true}");
-        runCommand(server, "title @a subtitle {\"text\":\"Survive the wave\",\"color\":\"dark_red\"}");
+        runCommand(
+                server,
+                "title @a times 5 50 15"
+        );
+        runCommand(
+                server,
+                "title @a title "
+                        + "{\"text\":\""
+                        + raidDay
+                        + "일차 레이드 시작\",\"color\":\"red\",\"bold\":true}"
+        );
+
+        broadcast(
+                server,
+                raidStartMessage(raidDay)
+        );
 
         triggerRaid(server, raidDay);
 
@@ -142,7 +167,10 @@ public final class DayRaidManager {
             ChallengeManager.setLastDayRaidEventDay(raidDay);
             ChallengeManager.save(server);
         } else {
-            broadcast(server, Component.literal("[AllBlocks] Debug raid finished. Day raid progress was not saved."));
+            AllBlocksMod.LOGGER.info(
+                    "Debug Day {} raid finished. Raid progress was not persisted.",
+                    raidDay
+            );
         }
     }
 
@@ -151,7 +179,7 @@ public final class DayRaidManager {
             int raidDay
     ) {
         List<ServerPlayer> players =
-                server.getPlayerList().getPlayers();
+                getActiveRaidPlayers(server);
 
         if (players.isEmpty()) {
             return;
@@ -494,12 +522,9 @@ public final class DayRaidManager {
                 );
 
         if (spawnPos == null) {
-            targetPlayer.sendSystemMessage(
-                    Component.literal(
-                            "[AllBlocks] Normal baby zombie "
-                                    + "spawn failed: "
-                                    + "no valid position found."
-                    )
+            AllBlocksMod.LOGGER.warn(
+                    "Normal baby zombie raid spawn failed near {}.",
+                    targetPlayer.getName().getString()
             );
 
             return;
@@ -557,12 +582,9 @@ public final class DayRaidManager {
                 );
 
         if (spawnPos == null) {
-            targetPlayer.sendSystemMessage(
-                    Component.literal(
-                            "[AllBlocks] Normal Piglin Brute "
-                                    + "spawn failed: "
-                                    + "no valid position found."
-                    )
+            AllBlocksMod.LOGGER.warn(
+                    "Normal Piglin Brute raid spawn failed near {}.",
+                    targetPlayer.getName().getString()
             );
 
             return;
@@ -667,9 +689,11 @@ public final class DayRaidManager {
             applyDay70WaterMovement(server);
         }
 
-        player.sendSystemMessage(Component.literal(
-                "[AllBlocks] Day 70 Raid: enhanced mobs spawned. Total: " + total
-        ));
+        AllBlocksMod.LOGGER.info(
+                "Day 70 enhanced raid mobs spawned near {}. Total: {}",
+                player.getName().getString(),
+                total
+        );
     }
 
     private static void spawnDay80Raid(ServerPlayer player) {
@@ -680,9 +704,10 @@ public final class DayRaidManager {
         BlockPos spawnPos = findSpawnPosition(level, player.blockPosition());
 
         if (spawnPos == null) {
-            player.sendSystemMessage(Component.literal(
-                    "[AllBlocks] Day 80 Warden spawn failed: no valid position found."
-            ));
+            AllBlocksMod.LOGGER.warn(
+                    "Day 80 Warden spawn failed near {}.",
+                    player.getName().getString()
+            );
             return;
         }
 
@@ -701,9 +726,10 @@ public final class DayRaidManager {
 
         applyDay80WardenAttributes(server);
 
-        player.sendSystemMessage(Component.literal(
-                "[AllBlocks] Day 80 Raid: weakened Warden spawned. HP: 150"
-        ));
+        AllBlocksMod.LOGGER.info(
+                "Day 80 weakened Warden spawned near {}. HP: 150",
+                player.getName().getString()
+        );
     }
 
     private static void applyDay80WardenAttributes(MinecraftServer server) {
@@ -724,9 +750,10 @@ public final class DayRaidManager {
         BlockPos spawnPos = findBossSpawnPosition(level, player.blockPosition());
 
         if (spawnPos == null) {
-            player.sendSystemMessage(Component.literal(
-                    "[AllBlocks] Day 90 Wither spawn failed: no valid position found."
-            ));
+            AllBlocksMod.LOGGER.warn(
+                    "Day 90 Wither spawn failed near {}.",
+                    player.getName().getString()
+            );
             return;
         }
 
@@ -744,9 +771,10 @@ public final class DayRaidManager {
         rememberNearestDay90Wither(level, x, y, z);
         applyDay90WitherAttributes(server);
 
-        player.sendSystemMessage(Component.literal(
-                "[AllBlocks] Day 90 Raid: Wither spawned."
-        ));
+        AllBlocksMod.LOGGER.info(
+                "Day 90 Wither spawned near {}.",
+                player.getName().getString()
+        );
     }
 
     private static void applyDay90WitherAttributes(MinecraftServer server) {
@@ -903,9 +931,10 @@ public final class DayRaidManager {
         BlockPos spawnPos = findSpawnPosition(level, targetPlayer.blockPosition());
 
         if (spawnPos == null) {
-            targetPlayer.sendSystemMessage(Component.literal(
-                    "[AllBlocks] Enhanced raid mob spawn failed: no valid position found."
-            ));
+            AllBlocksMod.LOGGER.warn(
+                    "Enhanced raid mob spawn failed near {}.",
+                    targetPlayer.getName().getString()
+            );
             return;
         }
 
@@ -990,9 +1019,10 @@ public final class DayRaidManager {
         BlockPos spawnPos = findSpawnPosition(level, targetPlayer.blockPosition());
 
         if (spawnPos == null) {
-            targetPlayer.sendSystemMessage(Component.literal(
-                    "[AllBlocks] Raid mob spawn failed: no valid position found."
-            ));
+            AllBlocksMod.LOGGER.warn(
+                    "Raid mob spawn failed near {}.",
+                    targetPlayer.getName().getString()
+            );
             return;
         }
 
@@ -1199,6 +1229,58 @@ public final class DayRaidManager {
         runCommand(server, "team add allblocks_raid");
         runCommand(server, "team modify allblocks_raid friendlyFire false");
         runCommand(server, "team modify allblocks_raid collisionRule never");
+    }
+
+    private static List<ServerPlayer> getActiveRaidPlayers(
+            MinecraftServer server
+    ) {
+        List<ServerPlayer> players =
+                new ArrayList<>();
+
+        if (server == null) {
+            return players;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            if (ChallengeManager.isActiveChallengePlayer(
+                    player
+            )) {
+                players.add(player);
+            }
+        }
+
+        return players;
+    }
+
+    private static Component raidWarningMessage(
+            int raidDay
+    ) {
+        return Component.literal(
+                        raidDay + "일차 레이드"
+                )
+                .withStyle(
+                        ChatFormatting.RED,
+                        ChatFormatting.BOLD
+                )
+                .append(
+                        Component.literal(
+                                " 오는 중..."
+                        ).withStyle(
+                                ChatFormatting.WHITE
+                        )
+                );
+    }
+
+    private static Component raidStartMessage(
+            int raidDay
+    ) {
+        return Component.literal(
+                raidDay + "일차 레이드 시작"
+        ).withStyle(
+                ChatFormatting.RED,
+                ChatFormatting.BOLD
+        );
     }
 
     private static void broadcast(MinecraftServer server, Component message) {
