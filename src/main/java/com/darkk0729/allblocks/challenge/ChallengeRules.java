@@ -15,21 +15,21 @@ public record ChallengeRules(
             case EASY -> new ChallengeRules(
                     false,  // 진행률 이벤트 없음
                     false,  // Day 습격 없음
-                    false,  // 100일 제한 없음
+                    false,  // 시간 제한은 별도 설정
                     true    // 사망 패널티 있음
             );
 
             case NORMAL -> new ChallengeRules(
                     true,   // 진행률 이벤트 있음
                     true,   // Day 습격 있음
-                    true,   // 100일 제한 있음
+                    false,  // 시간 제한은 별도 설정
                     true    // 사망 패널티 있음
             );
 
             case HARD -> new ChallengeRules(
                     true,   // 진행률 이벤트 있음
                     true,   // Day 습격 있음
-                    true,   // 100일 제한 있음
+                    false,  // 시간 제한은 별도 설정
                     true    // 사망 패널티 있음
             );
         };
