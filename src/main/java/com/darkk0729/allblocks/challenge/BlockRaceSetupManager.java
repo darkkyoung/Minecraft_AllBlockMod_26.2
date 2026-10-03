@@ -1,6 +1,7 @@
 package com.darkk0729.allblocks.challenge;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,10 +12,19 @@ import java.util.UUID;
 
 public final class BlockRaceSetupManager {
     private static final int COUNTDOWN_SECONDS = 5;
-    private static final int COUNTDOWN_TICKS = 20 * COUNTDOWN_SECONDS;
+    private static final int COUNTDOWN_TICKS =
+            20 * COUNTDOWN_SECONDS;
 
     private static boolean active = false;
-    private static ChallengeDifficulty difficulty = ChallengeDifficulty.HARD;
+    private static ChallengeDifficulty difficulty =
+            ChallengeDifficulty.HARD;
+    private static ChallengeTimeLimitType timeLimitType =
+            ChallengeTimeLimitType.IN_GAME_TIME;
+    private static long timeLimitTicks =
+            ChallengeState.TICKS_PER_DAY
+                    * ChallengeState.MAX_DAYS;
+    private static boolean resetWorldTime = true;
+
     private static int countdownTicksRemaining = 0;
     private static int lastCountdownSecond = -1;
 
@@ -31,6 +41,23 @@ public final class BlockRaceSetupManager {
     public static boolean begin(
             MinecraftServer server,
             ChallengeDifficulty selectedDifficulty
+    ) {
+        return begin(
+                server,
+                selectedDifficulty,
+                ChallengeTimeLimitType.IN_GAME_TIME,
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS,
+                true
+        );
+    }
+
+    public static boolean begin(
+            MinecraftServer server,
+            ChallengeDifficulty selectedDifficulty,
+            ChallengeTimeLimitType selectedTimeLimitType,
+            long selectedTimeLimitTicks,
+            boolean shouldResetWorldTime
     ) {
         if (server == null
                 || ChallengeManager.isRunning()
@@ -54,6 +81,21 @@ public final class BlockRaceSetupManager {
                         ? ChallengeDifficulty.HARD
                         : selectedDifficulty;
 
+        timeLimitType =
+                selectedTimeLimitType == null
+                        ? ChallengeTimeLimitType.IN_GAME_TIME
+                        : selectedTimeLimitType;
+
+        timeLimitTicks =
+                timeLimitType == ChallengeTimeLimitType.NONE
+                        ? 0L
+                        : Math.max(
+                                1L,
+                                selectedTimeLimitTicks
+                        );
+
+        resetWorldTime = shouldResetWorldTime;
+
         active = true;
         countdownTicksRemaining = COUNTDOWN_TICKS;
         lastCountdownSecond = COUNTDOWN_SECONDS;
@@ -68,7 +110,11 @@ public final class BlockRaceSetupManager {
                 ).withStyle(ChatFormatting.GREEN)
         );
 
-        showCountdownTitle(server, COUNTDOWN_SECONDS);
+        showCountdownTitle(
+                server,
+                COUNTDOWN_SECONDS
+        );
+
         return true;
     }
 
@@ -106,46 +152,80 @@ public final class BlockRaceSetupManager {
         if (second > 0
                 && second != lastCountdownSecond) {
             lastCountdownSecond = second;
-            showCountdownTitle(server, second);
+
+            showCountdownTitle(
+                    server,
+                    second
+            );
         }
     }
 
     public static void reset(MinecraftServer server) {
         if (server != null && active) {
-            setParticipantGameMode(server, "survival");
+            setParticipantGameMode(
+                    server,
+                    "survival"
+            );
 
-            for (String playerName : participantNames.values()) {
-                runCommand(server, "title " + playerName + " clear");
+            for (String playerName :
+                    participantNames.values()) {
+                runCommand(
+                        server,
+                        "title "
+                                + playerName
+                                + " clear"
+                );
             }
         }
 
-        active = false;
-        difficulty = ChallengeDifficulty.HARD;
-        countdownTicksRemaining = 0;
-        lastCountdownSecond = -1;
-        participantNames.clear();
+        completeSetup();
     }
 
-    private static void finishCountdown(MinecraftServer server) {
+    private static void finishCountdown(
+            MinecraftServer server
+    ) {
         ChallengeDifficulty finalDifficulty =
                 difficulty;
+        ChallengeTimeLimitType finalTimeLimitType =
+                timeLimitType;
+        long finalTimeLimitTicks =
+                timeLimitTicks;
+        boolean finalResetWorldTime =
+                resetWorldTime;
 
         clearParticipantInventories(server);
-        setParticipantGameMode(server, "survival");
+        setParticipantGameMode(
+                server,
+                "survival"
+        );
 
         active = false;
 
         boolean started =
                 ChallengeManager.startBlockRace(
                         server,
-                        finalDifficulty
+                        finalDifficulty,
+                        finalTimeLimitType,
+                        finalTimeLimitTicks,
+                        finalResetWorldTime
                 );
 
         if (started) {
             showStartTitle(server);
         }
 
+        completeSetup();
+    }
+
+    private static void completeSetup() {
+        active = false;
         difficulty = ChallengeDifficulty.HARD;
+        timeLimitType =
+                ChallengeTimeLimitType.IN_GAME_TIME;
+        timeLimitTicks =
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS;
+        resetWorldTime = true;
         countdownTicksRemaining = 0;
         lastCountdownSecond = -1;
         participantNames.clear();
@@ -158,7 +238,9 @@ public final class BlockRaceSetupManager {
             return false;
         }
 
-        if (server.getPlayerList().getPlayers().size() < 2) {
+        if (server.getPlayerList()
+                .getPlayers()
+                .size() < 2) {
             return false;
         }
 
@@ -179,14 +261,17 @@ public final class BlockRaceSetupManager {
             MinecraftServer server
     ) {
         if (server == null
-                || server.getPlayerList().getPlayers().size()
+                || server.getPlayerList()
+                .getPlayers()
+                .size()
                 != participantNames.size()) {
             return false;
         }
 
         for (ServerPlayer player :
                 server.getPlayerList().getPlayers()) {
-            if (!participantNames.containsKey(player.getUUID())) {
+            if (!participantNames.containsKey(
+                    player.getUUID())) {
                 return false;
             }
         }
@@ -197,8 +282,12 @@ public final class BlockRaceSetupManager {
     private static void clearParticipantInventories(
             MinecraftServer server
     ) {
-        for (String playerName : participantNames.values()) {
-            runCommand(server, "clear " + playerName);
+        for (String playerName :
+                participantNames.values()) {
+            runCommand(
+                    server,
+                    "clear " + playerName
+            );
         }
     }
 
@@ -206,7 +295,8 @@ public final class BlockRaceSetupManager {
             MinecraftServer server,
             String gameMode
     ) {
-        for (String playerName : participantNames.values()) {
+        for (String playerName :
+                participantNames.values()) {
             runCommand(
                     server,
                     "gamemode "
@@ -221,7 +311,8 @@ public final class BlockRaceSetupManager {
             MinecraftServer server,
             int second
     ) {
-        for (String playerName : participantNames.values()) {
+        for (String playerName :
+                participantNames.values()) {
             runCommand(
                     server,
                     "title "
@@ -244,7 +335,8 @@ public final class BlockRaceSetupManager {
     private static void showStartTitle(
             MinecraftServer server
     ) {
-        for (String playerName : participantNames.values()) {
+        for (String playerName :
+                participantNames.values()) {
             runCommand(
                     server,
                     "title "
@@ -280,9 +372,20 @@ public final class BlockRaceSetupManager {
             MinecraftServer server,
             String command
     ) {
-        server.getCommands().performPrefixedCommand(
-                server.createCommandSourceStack().withSuppressedOutput(),
-                command
-        );
+        if (server == null
+                || command == null
+                || command.isBlank()) {
+            return;
+        }
+
+        CommandSourceStack source =
+                server.createCommandSourceStack()
+                        .withSuppressedOutput();
+
+        server.getCommands()
+                .performPrefixedCommand(
+                        source,
+                        command
+                );
     }
 }
