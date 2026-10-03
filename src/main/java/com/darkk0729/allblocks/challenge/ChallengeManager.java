@@ -1717,7 +1717,7 @@ public final class ChallengeManager {
         }
 
         if (!state.isRunning()) {
-            broadcast(server, Component.literal("[AllBlocks] Challenge is not running."));
+            broadcast(server, Component.literal("[올블록 디버그] 진행 중인 챌린지가 없습니다."));
             return;
         }
 
