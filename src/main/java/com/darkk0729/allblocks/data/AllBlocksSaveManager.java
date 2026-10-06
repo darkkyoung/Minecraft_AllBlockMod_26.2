@@ -63,6 +63,12 @@ public final class AllBlocksSaveManager {
                             data.timeLimitType,
                             data.timeLimitTicks
                     ),
+                    getLoadedProgressEventInterval(
+                            data.progressEventIntervalPercent
+                    ),
+                    getLoadedDayRaidInterval(
+                            data.dayRaidIntervalDays
+                    ),
                     savedElapsedTicks,
                     startWorldTime,
                     savedWorldElapsedTicks,
@@ -104,6 +110,10 @@ public final class AllBlocksSaveManager {
             data.difficulty = state.getDifficulty().name();
             data.timeLimitType = state.getTimeLimitType().name();
             data.timeLimitTicks = state.getTimeLimitTicks();
+            data.progressEventIntervalPercent =
+                    state.getProgressEventIntervalPercent();
+            data.dayRaidIntervalDays =
+                    state.getDayRaidIntervalDays();
 
             data.elapsedTicks = state.getElapsedTicks();
             data.startWorldTime = state.getStartWorldTime();
@@ -193,6 +203,38 @@ public final class AllBlocksSaveManager {
         return savedTicks;
     }
 
+    private static int getLoadedProgressEventInterval(
+            Integer savedInterval
+    ) {
+        if (savedInterval == null) {
+            return 10;
+        }
+
+        return Math.max(
+                0,
+                Math.min(
+                        100,
+                        savedInterval
+                )
+        );
+    }
+
+    private static int getLoadedDayRaidInterval(
+            Integer savedInterval
+    ) {
+        if (savedInterval == null) {
+            return 10;
+        }
+
+        return Math.max(
+                0,
+                Math.min(
+                        10000,
+                        savedInterval
+                )
+        );
+    }
+
     private static ChallengeState.ChallengeResult parseResult(String resultName) {
         if (resultName == null || resultName.isBlank()) {
             return ChallengeState.ChallengeResult.NONE;
@@ -213,6 +255,8 @@ public final class AllBlocksSaveManager {
         String difficulty;
         String timeLimitType;
         Long timeLimitTicks;
+        Integer progressEventIntervalPercent;
+        Integer dayRaidIntervalDays;
 
         long elapsedTicks;
         Long startWorldTime;

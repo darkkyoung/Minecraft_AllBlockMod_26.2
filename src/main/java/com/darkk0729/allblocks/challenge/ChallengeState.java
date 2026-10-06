@@ -21,6 +21,8 @@ public class ChallengeState {
     private ChallengeDifficulty difficulty;
     private ChallengeTimeLimitType timeLimitType;
     private long timeLimitTicks;
+    private int progressEventIntervalPercent;
+    private int dayRaidIntervalDays;
     private boolean finished;
     private ChallengeResult result;
 
@@ -46,6 +48,8 @@ public class ChallengeState {
         this.difficulty = ChallengeDifficulty.HARD;
         this.timeLimitType = ChallengeTimeLimitType.IN_GAME_TIME;
         this.timeLimitTicks = TICKS_PER_DAY * MAX_DAYS;
+        this.progressEventIntervalPercent = 10;
+        this.dayRaidIntervalDays = 10;
         this.elapsedTicks = 0L;
         this.startWorldTime = 0L;
         this.worldElapsedTicks = 0L;
@@ -84,6 +88,14 @@ public class ChallengeState {
 
     public long getTimeLimitTicks() {
         return timeLimitTicks;
+    }
+
+    public int getProgressEventIntervalPercent() {
+        return progressEventIntervalPercent;
+    }
+
+    public int getDayRaidIntervalDays() {
+        return dayRaidIntervalDays;
     }
 
     public boolean hasTimeLimit() {
@@ -132,11 +144,11 @@ public class ChallengeState {
     }
 
     public void setLastDayRaidEventDay(int lastDayRaidEventDay) {
-        this.lastDayRaidEventDay = Math.max(0, Math.min(100, lastDayRaidEventDay));
+        this.lastDayRaidEventDay = Math.max(0, lastDayRaidEventDay);
     }
 
     public void setLastProgressEventTier(int lastProgressEventTier) {
-        this.lastProgressEventTier = Math.max(0, Math.min(10, lastProgressEventTier));
+        this.lastProgressEventTier = Math.max(0, Math.min(100, lastProgressEventTier));
     }
 
     // Day는 실제 플레이타임이 아니라 인게임 월드 시간 기준
@@ -161,7 +173,9 @@ public class ChallengeState {
                 ChallengeDifficulty.HARD,
                 0L,
                 ChallengeTimeLimitType.IN_GAME_TIME,
-                TICKS_PER_DAY * MAX_DAYS
+                TICKS_PER_DAY * MAX_DAYS,
+                10,
+                10
         );
     }
 
@@ -171,7 +185,9 @@ public class ChallengeState {
                 ChallengeDifficulty.HARD,
                 startWorldTime,
                 ChallengeTimeLimitType.IN_GAME_TIME,
-                TICKS_PER_DAY * MAX_DAYS
+                TICKS_PER_DAY * MAX_DAYS,
+                10,
+                10
         );
     }
 
@@ -185,7 +201,9 @@ public class ChallengeState {
                 difficulty,
                 startWorldTime,
                 ChallengeTimeLimitType.IN_GAME_TIME,
-                TICKS_PER_DAY * MAX_DAYS
+                TICKS_PER_DAY * MAX_DAYS,
+                10,
+                10
         );
     }
 
@@ -195,6 +213,26 @@ public class ChallengeState {
             long startWorldTime,
             ChallengeTimeLimitType timeLimitType,
             long timeLimitTicks
+    ) {
+        start(
+                mode,
+                difficulty,
+                startWorldTime,
+                timeLimitType,
+                timeLimitTicks,
+                10,
+                10
+        );
+    }
+
+    public void start(
+            ChallengeMode mode,
+            ChallengeDifficulty difficulty,
+            long startWorldTime,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            int progressEventIntervalPercent,
+            int dayRaidIntervalDays
     ) {
         this.running = true;
         this.finished = false;
@@ -215,6 +253,22 @@ public class ChallengeState {
         }
 
         this.timeLimitTicks = safeTimeLimitTicks;
+        this.progressEventIntervalPercent =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                progressEventIntervalPercent
+                        )
+                );
+        this.dayRaidIntervalDays =
+                Math.max(
+                        0,
+                        Math.min(
+                                10000,
+                                dayRaidIntervalDays
+                        )
+                );
         this.elapsedTicks = 0L;
         this.startWorldTime = safeStartWorldTime;
         this.worldElapsedTicks = 0L;
@@ -246,6 +300,8 @@ public class ChallengeState {
             ChallengeDifficulty difficulty,
             ChallengeTimeLimitType timeLimitType,
             long timeLimitTicks,
+            int progressEventIntervalPercent,
+            int dayRaidIntervalDays,
             long elapsedTicks,
             long startWorldTime,
             long worldElapsedTicks,
@@ -269,6 +325,22 @@ public class ChallengeState {
                 ? ChallengeTimeLimitType.IN_GAME_TIME
                 : timeLimitType;
         this.timeLimitTicks = Math.max(0L, timeLimitTicks);
+        this.progressEventIntervalPercent =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                progressEventIntervalPercent
+                        )
+                );
+        this.dayRaidIntervalDays =
+                Math.max(
+                        0,
+                        Math.min(
+                                10000,
+                                dayRaidIntervalDays
+                        )
+                );
 
         if (this.timeLimitType == ChallengeTimeLimitType.NONE) {
             this.timeLimitTicks = 0L;
@@ -280,8 +352,8 @@ public class ChallengeState {
         this.startWorldTime = Math.max(0L, startWorldTime);
         this.worldElapsedTicks = Math.max(0L, worldElapsedTicks);
 
-        this.lastProgressEventTier = Math.max(0, Math.min(10, lastProgressEventTier));
-        this.lastDayRaidEventDay = Math.max(0, Math.min(100, lastDayRaidEventDay));
+        this.lastProgressEventTier = Math.max(0, Math.min(100, lastProgressEventTier));
+        this.lastDayRaidEventDay = Math.max(0, lastDayRaidEventDay);
 
         this.collectedBlocks.clear();
 
@@ -599,7 +671,7 @@ public class ChallengeState {
         participant.lastProgressEventTier =
                 Math.max(
                         0,
-                        Math.min(10, tier)
+                        Math.min(100, tier)
                 );
 
         return true;

@@ -78,35 +78,72 @@ public final class DayRaidManager {
             return;
         }
 
-        startRaidWarning(server, raidDay, true);
+        startRaidWarning(
+                server,
+                raidDay,
+                raidDay,
+                true
+        );
     }
 
     private static void checkDayRaidStart(MinecraftServer server) {
-        int currentDay = ChallengeManager.getDisplayedDay();
+        int interval =
+                ChallengeManager
+                        .getDayRaidIntervalDays();
 
-        if (currentDay < 10) {
+        if (interval <= 0) {
             return;
         }
 
-        int raidDay = (currentDay / 10) * 10;
+        int currentDay =
+                ChallengeManager.getDisplayedDay();
 
-        if (raidDay <= 0 || raidDay > 90) {
+        if (currentDay < interval) {
             return;
         }
 
-        if (raidDay <= ChallengeManager.getLastDayRaidEventDay()) {
+        int eventIndex =
+                currentDay / interval;
+
+        if (eventIndex <= 0) {
             return;
         }
 
-        startRaidWarning(server, raidDay);
+        int raidDay =
+                eventIndex * interval;
+
+        if (raidDay
+                <= ChallengeManager
+                .getLastDayRaidEventDay()) {
+            return;
+        }
+
+        int raidProfileDay =
+                Math.min(
+                        90,
+                        eventIndex * 10
+                );
+
+        startRaidWarning(
+                server,
+                raidDay,
+                raidProfileDay,
+                false
+        );
     }
 
-    private static void startRaidWarning(MinecraftServer server, int raidDay) {
-        startRaidWarning(server, raidDay, false);
-    }
-
-    private static void startRaidWarning(MinecraftServer server, int raidDay, boolean debugMode) {
-        activeRaid = new ActiveRaid(raidDay, debugMode);
+    private static void startRaidWarning(
+            MinecraftServer server,
+            int raidDay,
+            int raidProfileDay,
+            boolean debugMode
+    ) {
+        activeRaid =
+                new ActiveRaid(
+                        raidDay,
+                        raidProfileDay,
+                        debugMode
+                );
 
         setupRaidTeam(server);
 
@@ -137,6 +174,8 @@ public final class DayRaidManager {
         }
 
         int raidDay = activeRaid.raidDay;
+        int raidProfileDay =
+                activeRaid.raidProfileDay;
         boolean debugMode = activeRaid.debugMode;
         activeRaid = null;
 
@@ -159,7 +198,10 @@ public final class DayRaidManager {
                 raidStartMessage(raidDay)
         );
 
-        triggerRaid(server, raidDay);
+        triggerRaid(
+                server,
+                raidProfileDay
+        );
 
         ChallengeManager.refreshProgressBossBar(server);
 
@@ -1299,11 +1341,17 @@ public final class DayRaidManager {
 
     private static final class ActiveRaid {
         private final int raidDay;
+        private final int raidProfileDay;
         private final boolean debugMode;
         private int elapsedTicks;
 
-        private ActiveRaid(int raidDay, boolean debugMode) {
+        private ActiveRaid(
+                int raidDay,
+                int raidProfileDay,
+                boolean debugMode
+        ) {
             this.raidDay = raidDay;
+            this.raidProfileDay = raidProfileDay;
             this.debugMode = debugMode;
             this.elapsedTicks = 0;
         }

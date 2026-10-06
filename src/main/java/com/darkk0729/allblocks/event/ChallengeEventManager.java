@@ -22,7 +22,7 @@ import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeMode;
 
 public final class ChallengeEventManager {
-    private static final int MAX_PROGRESS_TIER = 10;
+    private static final int MAX_PROGRESS_TIER = 100;
 
     private ChallengeEventManager() {
     }
@@ -42,8 +42,6 @@ public final class ChallengeEventManager {
             return;
         }
 
-        int tier = progressPercent / 10;
-
         broadcast(
                 server,
                 Component.literal(
@@ -53,7 +51,10 @@ public final class ChallengeEventManager {
                 )
         );
 
-        triggerProgressEvent(server, tier);
+        triggerProgressEvent(
+                server,
+                progressPercent
+        );
     }
 
     public static void tick(MinecraftServer server) {
@@ -79,6 +80,13 @@ public final class ChallengeEventManager {
                         1,
                         ChallengeManager.getTotalTargetCount()
                 );
+        int interval =
+                ChallengeManager
+                        .getProgressEventIntervalPercent();
+
+        if (interval <= 0) {
+            return;
+        }
 
         for (ServerPlayer player : getPlayers(server)) {
             String playerUuid =
@@ -95,16 +103,26 @@ public final class ChallengeEventManager {
                             playerUuid
                     );
 
+            int currentPercent =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    100,
+                                    (int) Math.floor(
+                                            collected
+                                                    * 100.0D
+                                                    / total
+                                    )
+                            )
+                    );
+
             int currentTier =
                     Math.max(
                             0,
                             Math.min(
                                     MAX_PROGRESS_TIER,
-                                    (int) Math.floor(
-                                            collected
-                                                    * 10.0D
-                                                    / total
-                                    )
+                                    currentPercent
+                                            / interval
                             )
                     );
 
@@ -135,7 +153,10 @@ public final class ChallengeEventManager {
                 triggerBlockRaceProgressEvent(
                         server,
                         player,
-                        tier * 10
+                        Math.min(
+                                100,
+                                tier * interval
+                        )
                 );
             }
 
@@ -242,7 +263,18 @@ public final class ChallengeEventManager {
     }
 
     private static void checkProgressEvents(MinecraftServer server) {
-        int currentTier = getCurrentProgressTier();
+        int interval =
+                ChallengeManager
+                        .getProgressEventIntervalPercent();
+
+        if (interval <= 0) {
+            return;
+        }
+
+        int currentTier =
+                getCurrentProgressTier(
+                        interval
+                );
         int lastTier = ChallengeManager.getLastProgressEventTier();
 
         // 사망 패널티 등으로 진행률이 떨어진 경우, 재달성 이벤트가 가능하도록 기준 tier도 낮춘다.
@@ -256,19 +288,54 @@ public final class ChallengeEventManager {
         }
 
         for (int tier = lastTier + 1; tier <= currentTier; tier++) {
-            triggerProgressEvent(server, tier);
+            triggerProgressEvent(
+                    server,
+                    Math.min(
+                            100,
+                            tier * interval
+                    )
+            );
         }
 
         ChallengeManager.setLastProgressEventTier(currentTier);
     }
 
-    private static int getCurrentProgressTier() {
-        int tier = (int) Math.floor(ChallengeManager.getProgressPercent() / 10.0D);
-        return Math.max(0, Math.min(MAX_PROGRESS_TIER, tier));
+    private static int getCurrentProgressTier(
+            int interval
+    ) {
+        if (interval <= 0) {
+            return 0;
+        }
+
+        int progressPercent =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                (int) Math.floor(
+                                        ChallengeManager
+                                                .getProgressPercent()
+                                )
+                        )
+                );
+
+        int tier =
+                progressPercent
+                        / interval;
+
+        return Math.max(
+                0,
+                Math.min(
+                        MAX_PROGRESS_TIER,
+                        tier
+                )
+        );
     }
 
-    private static void triggerProgressEvent(MinecraftServer server, int tier) {
-        int progressPercent = tier * 10;
+    private static void triggerProgressEvent(
+            MinecraftServer server,
+            int progressPercent
+    ) {
 
         if (ChallengeManager.getMode() == ChallengeMode.CO_OP) {
             triggerCoopProgressEvent(server, progressPercent);

@@ -253,6 +253,14 @@ public final class ChallengeManager {
         return state.getTimeLimitTicks();
     }
 
+    public static int getProgressEventIntervalPercent() {
+        return state.getProgressEventIntervalPercent();
+    }
+
+    public static int getDayRaidIntervalDays() {
+        return state.getDayRaidIntervalDays();
+    }
+
     public static long getRemainingTimeLimitTicks() {
         return state.getRemainingTimeLimitTicks();
     }
@@ -726,6 +734,8 @@ public final class ChallengeManager {
                 ChallengeTimeLimitType.IN_GAME_TIME,
                 ChallengeState.TICKS_PER_DAY
                         * ChallengeState.MAX_DAYS,
+                10,
+                10,
                 true
         );
     }
@@ -737,6 +747,26 @@ public final class ChallengeManager {
             long timeLimitTicks,
             boolean resetWorldTime
     ) {
+        startSingle(
+                server,
+                difficulty,
+                timeLimitType,
+                timeLimitTicks,
+                10,
+                10,
+                resetWorldTime
+        );
+    }
+
+    public static void startSingle(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            int progressEventIntervalPercent,
+            int dayRaidIntervalDays,
+            boolean resetWorldTime
+    ) {
         TeamRaceSetupManager.reset(server);
         BlockRaceSetupManager.reset(server);
         startMode(
@@ -745,6 +775,8 @@ public final class ChallengeManager {
                 difficulty,
                 timeLimitType,
                 timeLimitTicks,
+                progressEventIntervalPercent,
+                dayRaidIntervalDays,
                 resetWorldTime
         );
     }
@@ -759,6 +791,8 @@ public final class ChallengeManager {
                 ChallengeTimeLimitType.IN_GAME_TIME,
                 ChallengeState.TICKS_PER_DAY
                         * ChallengeState.MAX_DAYS,
+                10,
+                10,
                 true
         );
     }
@@ -770,6 +804,26 @@ public final class ChallengeManager {
             long timeLimitTicks,
             boolean resetWorldTime
     ) {
+        startCoop(
+                server,
+                difficulty,
+                timeLimitType,
+                timeLimitTicks,
+                10,
+                10,
+                resetWorldTime
+        );
+    }
+
+    public static void startCoop(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            int progressEventIntervalPercent,
+            int dayRaidIntervalDays,
+            boolean resetWorldTime
+    ) {
         TeamRaceSetupManager.reset(server);
         BlockRaceSetupManager.reset(server);
         startMode(
@@ -778,6 +832,8 @@ public final class ChallengeManager {
                 difficulty,
                 timeLimitType,
                 timeLimitTicks,
+                progressEventIntervalPercent,
+                dayRaidIntervalDays,
                 resetWorldTime
         );
     }
@@ -792,6 +848,8 @@ public final class ChallengeManager {
                 ChallengeTimeLimitType.IN_GAME_TIME,
                 ChallengeState.TICKS_PER_DAY
                         * ChallengeState.MAX_DAYS,
+                10,
+                10,
                 true
         );
     }
@@ -801,6 +859,26 @@ public final class ChallengeManager {
             ChallengeDifficulty difficulty,
             ChallengeTimeLimitType timeLimitType,
             long timeLimitTicks,
+            boolean resetWorldTime
+    ) {
+        return startBlockRace(
+                server,
+                difficulty,
+                timeLimitType,
+                timeLimitTicks,
+                10,
+                10,
+                resetWorldTime
+        );
+    }
+
+    public static boolean startBlockRace(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            int progressEventIntervalPercent,
+            int dayRaidIntervalDays,
             boolean resetWorldTime
     ) {
         if (server == null
@@ -818,6 +896,8 @@ public final class ChallengeManager {
                 difficulty,
                 timeLimitType,
                 timeLimitTicks,
+                progressEventIntervalPercent,
+                dayRaidIntervalDays,
                 resetWorldTime
         );
 
@@ -836,6 +916,8 @@ public final class ChallengeManager {
                 ChallengeTimeLimitType.IN_GAME_TIME,
                 ChallengeState.TICKS_PER_DAY
                         * ChallengeState.MAX_DAYS,
+                10,
+                10,
                 true,
                 Set.of()
         );
@@ -847,6 +929,30 @@ public final class ChallengeManager {
             Map<UUID, TeamRaceTeam> assignments,
             ChallengeTimeLimitType timeLimitType,
             long timeLimitTicks,
+            boolean resetWorldTime,
+            Set<UUID> spectators
+    ) {
+        startTeamRace(
+                server,
+                difficulty,
+                assignments,
+                timeLimitType,
+                timeLimitTicks,
+                10,
+                10,
+                resetWorldTime,
+                spectators
+        );
+    }
+
+    public static void startTeamRace(
+            MinecraftServer server,
+            ChallengeDifficulty difficulty,
+            Map<UUID, TeamRaceTeam> assignments,
+            ChallengeTimeLimitType timeLimitType,
+            long timeLimitTicks,
+            int progressEventIntervalPercent,
+            int dayRaidIntervalDays,
             boolean resetWorldTime,
             Set<UUID> spectators
     ) {
@@ -879,7 +985,9 @@ public final class ChallengeManager {
                 safeDifficulty,
                 getCurrentWorldTime(server),
                 safeTimeLimitType,
-                timeLimitTicks
+                timeLimitTicks,
+                progressEventIntervalPercent,
+                dayRaidIntervalDays
         );
 
         Set<UUID> safeSpectators =
@@ -966,6 +1074,8 @@ public final class ChallengeManager {
             ChallengeDifficulty difficulty,
             ChallengeTimeLimitType timeLimitType,
             long timeLimitTicks,
+            int progressEventIntervalPercent,
+            int dayRaidIntervalDays,
             boolean resetWorldTime
     ) {
         if (server == null) {
@@ -994,7 +1104,9 @@ public final class ChallengeManager {
                 safeDifficulty,
                 getCurrentWorldTime(server),
                 safeTimeLimitType,
-                timeLimitTicks
+                timeLimitTicks,
+                progressEventIntervalPercent,
+                dayRaidIntervalDays
         );
 
         registerOnlinePlayers(server);
@@ -1077,11 +1189,13 @@ public final class ChallengeManager {
 
         BlockCollectionTracker.tick(server);
 
-        if (rules.progressEventsEnabled()) {
+        if (rules.progressEventsEnabled()
+                && state.getProgressEventIntervalPercent() > 0) {
             ChallengeEventManager.tick(server);
         }
 
-        if (rules.dayRaidEventsEnabled()) {
+        if (rules.dayRaidEventsEnabled()
+                && state.getDayRaidIntervalDays() > 0) {
             DayRaidManager.tick(server);
         }
 
