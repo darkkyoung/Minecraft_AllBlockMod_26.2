@@ -14,7 +14,6 @@ import com.darkk0729.allblocks.network.CodexToastNetworking;
 
 import com.darkk0729.allblocks.command.ChallengeMenuMessages;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import com.darkk0729.allblocks.network.AllBlocksNetworking;
 
 public class AllBlocksMod implements ModInitializer {
@@ -32,19 +31,6 @@ public class AllBlocksMod implements ModInitializer {
         AllBlocksCommands.register();
         ChallengeTicker.register();
         PlayerDeathHandler.register();
-
-        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register(
-                (message, sender, boundChatType) -> {
-                    var server = sender.level().getServer();
-
-                    return server == null
-                            || !ChallengeSetupManager.handleChatInput(
-                                    server,
-                                    sender,
-                                    message.signedContent()
-                            );
-                }
-        );
 
         ServerLifecycleEvents.SERVER_STARTED.register(ChallengeManager::load);
         ServerLifecycleEvents.SERVER_STOPPING.register(ChallengeManager::save);

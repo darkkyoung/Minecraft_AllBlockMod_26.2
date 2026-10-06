@@ -406,9 +406,7 @@ public class ChallengeState {
             participant.lastProgressEventTier =
                     Math.max(
                             0,
-                            Math.min(
-                                    10,
-                                    participant.lastProgressEventTier
+                            Math.min(\n                                    100,\n                                    participant.lastProgressEventTier
                             )
                     );
         }
@@ -650,9 +648,7 @@ public class ChallengeState {
 
         return Math.max(
                 0,
-                Math.min(
-                        10,
-                        participant.lastProgressEventTier
+                Math.min(\n                                    100,\n                                    participant.lastProgressEventTier
                 )
         );
     }

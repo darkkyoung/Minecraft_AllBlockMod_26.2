@@ -7,22 +7,39 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class ChallengeSetupManager {
-    private static final long TICKS_PER_MINUTE = 20L * 60L;
-    private static final Pattern TIME_PATTERN =
-            Pattern.compile("^(\\d+)\\s*(분|일)$");
+    private static final long TICKS_PER_MINUTE =
+            ChallengeState.TICKS_PER_SECOND * 60L;
+
+    private static final int DEFAULT_PROGRESS_EVENT_INTERVAL = 10;
+    private static final int DEFAULT_DAY_RAID_INTERVAL = 10;
+    private static final int MAX_MANUAL_TIME_VALUE = 10000;
+    private static final int MAX_MANUAL_DAY_INTERVAL = 10000;
 
     private static SetupPhase phase = SetupPhase.IDLE;
     private static UUID controllerUuid;
     private static ChallengeMode mode;
-    private static ChallengeDifficulty difficulty = ChallengeDifficulty.NORMAL;
+
+    private static ChallengeDifficulty difficulty =
+            ChallengeDifficulty.NORMAL;
+
     private static ChallengeTimeLimitType timeLimitType =
             ChallengeTimeLimitType.IN_GAME_TIME;
     private static long timeLimitTicks =
-            ChallengeState.TICKS_PER_DAY * ChallengeState.MAX_DAYS;
+            ChallengeState.TICKS_PER_DAY
+                    * ChallengeState.MAX_DAYS;
+    private static boolean timeLimitManual = false;
+
+    private static int progressEventIntervalPercent =
+            DEFAULT_PROGRESS_EVENT_INTERVAL;
+    private static boolean progressEventManual = false;
+
+    private static int dayRaidIntervalDays =
+            DEFAULT_DAY_RAID_INTERVAL;
+    private static boolean dayRaidManual = false;
+
+    private static boolean resetWorldTime = false;
 
     private ChallengeSetupManager() {
     }
@@ -56,7 +73,9 @@ public final class ChallengeSetupManager {
 
         if (isActive()
                 && controllerUuid != null
-                && !controllerUuid.equals(player.getUUID())) {
+                && !controllerUuid.equals(
+                        player.getUUID()
+                )) {
             player.sendSystemMessage(
                     Component.literal(
                             "[올블록 챌린지] 다른 플레이어가 챌린지 설정을 진행 중입니다."
@@ -68,11 +87,7 @@ public final class ChallengeSetupManager {
         controllerUuid = player.getUUID();
         phase = SetupPhase.MODE;
         mode = null;
-        difficulty = ChallengeDifficulty.NORMAL;
-        timeLimitType = ChallengeTimeLimitType.IN_GAME_TIME;
-        timeLimitTicks =
-                ChallengeState.TICKS_PER_DAY
-                        * ChallengeState.MAX_DAYS;
+        resetSettings();
 
         ChallengeMenuMessages.showModeMenu(player);
         return true;
@@ -88,19 +103,8 @@ public final class ChallengeSetupManager {
         }
 
         mode = selectedMode;
-        phase = SetupPhase.DIFFICULTY;
-
-        switch (selectedMode) {
-            case SOLO ->
-                    ChallengeMenuMessages.showSingleDifficultyMenu(player);
-            case CO_OP ->
-                    ChallengeMenuMessages.showCoopDifficultyMenu(player);
-            case TEAM_RACE ->
-                    ChallengeMenuMessages.showTeamRaceDifficultyMenu(player);
-            case BLOCK_RACE ->
-                    ChallengeMenuMessages.showBlockRaceDifficultyMenu(player);
-        }
-
+        phase = SetupPhase.SETTINGS;
+        showSettings(player);
         return true;
     }
 
@@ -121,131 +125,319 @@ public final class ChallengeSetupManager {
             ServerPlayer player,
             ChallengeDifficulty selectedDifficulty
     ) {
-        if (!canControl(player)
-                || mode == null
+        if (!isSettingsController(player)
                 || selectedDifficulty == null) {
             return false;
         }
 
         difficulty = selectedDifficulty;
-        phase = SetupPhase.TIME_LIMIT;
-        ChallengeMenuMessages.showTimeLimitMenu(player);
+        showSettings(player);
         return true;
     }
 
-    public static boolean useDefaultTimeLimit(
+    public static boolean selectTimeLimitType(
+            ServerPlayer player,
+            ChallengeTimeLimitType selectedType
+    ) {
+        if (!isSettingsController(player)
+                || selectedType == null) {
+            return false;
+        }
+
+        timeLimitType = selectedType;
+        timeLimitManual = false;
+
+        switch (selectedType) {
+            case IN_GAME_TIME ->
+                    timeLimitTicks =
+                            ChallengeState.TICKS_PER_DAY
+                                    * ChallengeState.MAX_DAYS;
+
+            case PLAY_TIME ->
+                    timeLimitTicks =
+                            TICKS_PER_MINUTE * 100L;
+
+            case NONE ->
+                    timeLimitTicks = 0L;
+        }
+
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean selectTimeLimitPreset(
+            ServerPlayer player,
+            int amount
+    ) {
+        if (!isSettingsController(player)
+                || timeLimitType
+                == ChallengeTimeLimitType.NONE
+                || amount <= 0) {
+            return false;
+        }
+
+        if (timeLimitType
+                == ChallengeTimeLimitType.IN_GAME_TIME) {
+            if (amount != 25
+                    && amount != 50
+                    && amount != 75
+                    && amount != 100) {
+                return false;
+            }
+
+            timeLimitTicks =
+                    ChallengeState.TICKS_PER_DAY
+                            * amount;
+        } else {
+            if (amount != 60
+                    && amount != 100
+                    && amount != 180
+                    && amount != 360) {
+                return false;
+            }
+
+            timeLimitTicks =
+                    TICKS_PER_MINUTE
+                            * amount;
+        }
+
+        timeLimitManual = false;
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean selectTimeLimitManual(
             ServerPlayer player
     ) {
-        if (!canControl(player)
-                || phase != SetupPhase.TIME_LIMIT) {
+        if (!isSettingsController(player)
+                || timeLimitType
+                == ChallengeTimeLimitType.NONE) {
             return false;
         }
 
-        timeLimitType = ChallengeTimeLimitType.IN_GAME_TIME;
-        timeLimitTicks =
-                ChallengeState.TICKS_PER_DAY
-                        * ChallengeState.MAX_DAYS;
+        if (timeLimitTicks <= 0L) {
+            timeLimitTicks =
+                    timeLimitType
+                            == ChallengeTimeLimitType.IN_GAME_TIME
+                            ? ChallengeState.TICKS_PER_DAY
+                            * ChallengeState.MAX_DAYS
+                            : TICKS_PER_MINUTE * 100L;
+        }
 
-        phase = SetupPhase.WORLD_TIME;
-        ChallengeMenuMessages.showWorldTimeMenu(player);
+        timeLimitManual = true;
+        showSettings(player);
         return true;
     }
 
-    public static boolean handleChatInput(
-            MinecraftServer server,
+    public static boolean adjustTimeLimit(
             ServerPlayer player,
-            String rawMessage
+            int delta
     ) {
-        if (server == null
-                || player == null
-                || phase != SetupPhase.TIME_LIMIT
-                || controllerUuid == null
-                || !controllerUuid.equals(player.getUUID())) {
+        if (!isSettingsController(player)
+                || !timeLimitManual
+                || timeLimitType
+                == ChallengeTimeLimitType.NONE
+                || delta == 0) {
             return false;
         }
 
-        String message = rawMessage == null
-                ? ""
-                : rawMessage.trim();
+        long unitTicks =
+                timeLimitType
+                        == ChallengeTimeLimitType.IN_GAME_TIME
+                        ? ChallengeState.TICKS_PER_DAY
+                        : TICKS_PER_MINUTE;
 
-        if (message.equals("없음")) {
-            timeLimitType = ChallengeTimeLimitType.NONE;
-            timeLimitTicks = 0L;
-            phase = SetupPhase.WORLD_TIME;
-            ChallengeMenuMessages.showWorldTimeMenu(player);
-            return true;
+        long currentAmount =
+                Math.max(
+                        1L,
+                        timeLimitTicks / unitTicks
+                );
+
+        long adjusted =
+                Math.max(
+                        1L,
+                        Math.min(
+                                MAX_MANUAL_TIME_VALUE,
+                                currentAmount + delta
+                        )
+                );
+
+        timeLimitTicks =
+                unitTicks * adjusted;
+
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean selectProgressEventInterval(
+            ServerPlayer player,
+            int intervalPercent
+    ) {
+        if (!isSettingsController(player)
+                || difficulty == ChallengeDifficulty.EASY
+                || (intervalPercent != 0
+                && intervalPercent != 5
+                && intervalPercent != 10
+                && intervalPercent != 20)) {
+            return false;
         }
 
-        Matcher matcher = TIME_PATTERN.matcher(message);
+        progressEventIntervalPercent =
+                intervalPercent;
+        progressEventManual = false;
+        showSettings(player);
+        return true;
+    }
 
-        if (!matcher.matches()) {
-            sendInvalidTimeMessage(player);
-            return true;
+    public static boolean selectProgressEventManual(
+            ServerPlayer player
+    ) {
+        if (!isSettingsController(player)
+                || difficulty == ChallengeDifficulty.EASY) {
+            return false;
         }
 
-        long amount;
-
-        try {
-            amount = Long.parseLong(matcher.group(1));
-        } catch (NumberFormatException e) {
-            sendInvalidTimeMessage(player);
-            return true;
+        if (progressEventIntervalPercent <= 0) {
+            progressEventIntervalPercent =
+                    DEFAULT_PROGRESS_EVENT_INTERVAL;
         }
 
-        if (amount <= 0L) {
-            sendInvalidTimeMessage(player);
-            return true;
+        progressEventManual = true;
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean adjustProgressEventInterval(
+            ServerPlayer player,
+            int delta
+    ) {
+        if (!isSettingsController(player)
+                || difficulty == ChallengeDifficulty.EASY
+                || !progressEventManual
+                || delta == 0) {
+            return false;
         }
 
-        String unit = matcher.group(2);
+        progressEventIntervalPercent =
+                Math.max(
+                        1,
+                        Math.min(
+                                100,
+                                progressEventIntervalPercent
+                                        + delta
+                        )
+                );
 
-        try {
-            if ("분".equals(unit)) {
-                timeLimitType = ChallengeTimeLimitType.PLAY_TIME;
-                timeLimitTicks =
-                        Math.multiplyExact(
-                                amount,
-                                TICKS_PER_MINUTE
-                        );
-            } else {
-                timeLimitType = ChallengeTimeLimitType.IN_GAME_TIME;
-                timeLimitTicks =
-                        Math.multiplyExact(
-                                amount,
-                                ChallengeState.TICKS_PER_DAY
-                        );
-            }
-        } catch (ArithmeticException e) {
-            player.sendSystemMessage(
-                    Component.literal(
-                            "[올블록 챌린지] 입력한 시간이 너무 큽니다."
-                    ).withStyle(ChatFormatting.RED)
-            );
-            return true;
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean selectDayRaidInterval(
+            ServerPlayer player,
+            int intervalDays
+    ) {
+        if (!isSettingsController(player)
+                || difficulty == ChallengeDifficulty.EASY
+                || (intervalDays != 0
+                && intervalDays != 5
+                && intervalDays != 10
+                && intervalDays != 20)) {
+            return false;
         }
 
-        phase = SetupPhase.WORLD_TIME;
-        ChallengeMenuMessages.showWorldTimeMenu(player);
+        dayRaidIntervalDays = intervalDays;
+        dayRaidManual = false;
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean selectDayRaidManual(
+            ServerPlayer player
+    ) {
+        if (!isSettingsController(player)
+                || difficulty == ChallengeDifficulty.EASY) {
+            return false;
+        }
+
+        if (dayRaidIntervalDays <= 0) {
+            dayRaidIntervalDays =
+                    DEFAULT_DAY_RAID_INTERVAL;
+        }
+
+        dayRaidManual = true;
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean adjustDayRaidInterval(
+            ServerPlayer player,
+            int delta
+    ) {
+        if (!isSettingsController(player)
+                || difficulty == ChallengeDifficulty.EASY
+                || !dayRaidManual
+                || delta == 0) {
+            return false;
+        }
+
+        dayRaidIntervalDays =
+                Math.max(
+                        1,
+                        Math.min(
+                                MAX_MANUAL_DAY_INTERVAL,
+                                dayRaidIntervalDays + delta
+                        )
+                );
+
+        showSettings(player);
         return true;
     }
 
     public static boolean selectWorldTime(
-            MinecraftServer server,
             ServerPlayer player,
-            boolean resetWorldTime
+            boolean shouldResetWorldTime
+    ) {
+        if (!isSettingsController(player)) {
+            return false;
+        }
+
+        resetWorldTime = shouldResetWorldTime;
+        showSettings(player);
+        return true;
+    }
+
+    public static boolean finishSettings(
+            MinecraftServer server,
+            ServerPlayer player
     ) {
         if (server == null
-                || !canControl(player)
-                || phase != SetupPhase.WORLD_TIME
+                || !isSettingsController(player)
                 || mode == null) {
             return false;
         }
 
         ChallengeMode selectedMode = mode;
-        ChallengeDifficulty selectedDifficulty = difficulty;
+        ChallengeDifficulty selectedDifficulty =
+                difficulty;
         ChallengeTimeLimitType selectedTimeLimitType =
                 timeLimitType;
-        long selectedTimeLimitTicks = timeLimitTicks;
+        long selectedTimeLimitTicks =
+                timeLimitTicks;
+
+        int selectedProgressEventInterval =
+                selectedDifficulty
+                        == ChallengeDifficulty.EASY
+                        ? 0
+                        : progressEventIntervalPercent;
+
+        int selectedDayRaidInterval =
+                selectedDifficulty
+                        == ChallengeDifficulty.EASY
+                        ? 0
+                        : dayRaidIntervalDays;
+
+        boolean selectedResetWorldTime =
+                resetWorldTime;
 
         completeSetup();
 
@@ -255,7 +447,9 @@ public final class ChallengeSetupManager {
                     selectedDifficulty,
                     selectedTimeLimitType,
                     selectedTimeLimitTicks,
-                    resetWorldTime
+                    selectedProgressEventInterval,
+                    selectedDayRaidInterval,
+                    selectedResetWorldTime
             );
 
             case CO_OP -> ChallengeManager.startCoop(
@@ -263,7 +457,9 @@ public final class ChallengeSetupManager {
                     selectedDifficulty,
                     selectedTimeLimitType,
                     selectedTimeLimitTicks,
-                    resetWorldTime
+                    selectedProgressEventInterval,
+                    selectedDayRaidInterval,
+                    selectedResetWorldTime
             );
 
             case BLOCK_RACE -> {
@@ -273,7 +469,9 @@ public final class ChallengeSetupManager {
                                 selectedDifficulty,
                                 selectedTimeLimitType,
                                 selectedTimeLimitTicks,
-                                resetWorldTime
+                                selectedProgressEventInterval,
+                                selectedDayRaidInterval,
+                                selectedResetWorldTime
                         );
 
                 if (!started) {
@@ -293,7 +491,9 @@ public final class ChallengeSetupManager {
                                 selectedDifficulty,
                                 selectedTimeLimitType,
                                 selectedTimeLimitTicks,
-                                resetWorldTime
+                                selectedProgressEventInterval,
+                                selectedDayRaidInterval,
+                                selectedResetWorldTime
                         );
 
                 if (!started) {
@@ -313,12 +513,22 @@ public final class ChallengeSetupManager {
         completeSetup();
     }
 
+    private static boolean isSettingsController(
+            ServerPlayer player
+    ) {
+        return canControl(player)
+                && phase == SetupPhase.SETTINGS
+                && mode != null;
+    }
+
     private static boolean canControl(
             ServerPlayer player
     ) {
         if (player == null
                 || controllerUuid == null
-                || !controllerUuid.equals(player.getUUID())) {
+                || !controllerUuid.equals(
+                        player.getUUID()
+                )) {
             if (player != null) {
                 player.sendSystemMessage(
                         Component.literal(
@@ -332,32 +542,53 @@ public final class ChallengeSetupManager {
         return true;
     }
 
-    private static void sendInvalidTimeMessage(
+    private static void showSettings(
             ServerPlayer player
     ) {
-        player.sendSystemMessage(
-                Component.literal(
-                        "[올블록 챌린지] 시간 설정을 확인할 수 없습니다. '120분', '100일', '없음'과 같이 입력해주세요."
-                ).withStyle(ChatFormatting.RED)
+        ChallengeMenuMessages.showGameSettings(
+                player,
+                difficulty,
+                timeLimitType,
+                timeLimitTicks,
+                timeLimitManual,
+                progressEventIntervalPercent,
+                progressEventManual,
+                dayRaidIntervalDays,
+                dayRaidManual,
+                resetWorldTime
         );
+    }
+
+    private static void resetSettings() {
+        difficulty = ChallengeDifficulty.NORMAL;
+        timeLimitType =
+                ChallengeTimeLimitType.IN_GAME_TIME;
+        timeLimitTicks =
+                ChallengeState.TICKS_PER_DAY
+                        * ChallengeState.MAX_DAYS;
+        timeLimitManual = false;
+
+        progressEventIntervalPercent =
+                DEFAULT_PROGRESS_EVENT_INTERVAL;
+        progressEventManual = false;
+
+        dayRaidIntervalDays =
+                DEFAULT_DAY_RAID_INTERVAL;
+        dayRaidManual = false;
+
+        resetWorldTime = false;
     }
 
     private static void completeSetup() {
         phase = SetupPhase.IDLE;
         controllerUuid = null;
         mode = null;
-        difficulty = ChallengeDifficulty.NORMAL;
-        timeLimitType = ChallengeTimeLimitType.IN_GAME_TIME;
-        timeLimitTicks =
-                ChallengeState.TICKS_PER_DAY
-                        * ChallengeState.MAX_DAYS;
+        resetSettings();
     }
 
     private enum SetupPhase {
         IDLE,
         MODE,
-        DIFFICULTY,
-        TIME_LIMIT,
-        WORLD_TIME
+        SETTINGS
     }
 }

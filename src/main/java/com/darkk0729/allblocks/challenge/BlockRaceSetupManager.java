@@ -23,6 +23,8 @@ public final class BlockRaceSetupManager {
     private static long timeLimitTicks =
             ChallengeState.TICKS_PER_DAY
                     * ChallengeState.MAX_DAYS;
+    private static int progressEventIntervalPercent = 10;
+    private static int dayRaidIntervalDays = 10;
     private static boolean resetWorldTime = true;
 
     private static int countdownTicksRemaining = 0;
@@ -48,6 +50,8 @@ public final class BlockRaceSetupManager {
                 ChallengeTimeLimitType.IN_GAME_TIME,
                 ChallengeState.TICKS_PER_DAY
                         * ChallengeState.MAX_DAYS,
+                10,
+                10,
                 true
         );
     }
@@ -57,6 +61,26 @@ public final class BlockRaceSetupManager {
             ChallengeDifficulty selectedDifficulty,
             ChallengeTimeLimitType selectedTimeLimitType,
             long selectedTimeLimitTicks,
+            boolean shouldResetWorldTime
+    ) {
+        return begin(
+                server,
+                selectedDifficulty,
+                selectedTimeLimitType,
+                selectedTimeLimitTicks,
+                10,
+                10,
+                shouldResetWorldTime
+        );
+    }
+
+    public static boolean begin(
+            MinecraftServer server,
+            ChallengeDifficulty selectedDifficulty,
+            ChallengeTimeLimitType selectedTimeLimitType,
+            long selectedTimeLimitTicks,
+            int selectedProgressEventIntervalPercent,
+            int selectedDayRaidIntervalDays,
             boolean shouldResetWorldTime
     ) {
         if (server == null
@@ -93,6 +117,24 @@ public final class BlockRaceSetupManager {
                                 1L,
                                 selectedTimeLimitTicks
                         );
+
+        progressEventIntervalPercent =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                selectedProgressEventIntervalPercent
+                        )
+                );
+
+        dayRaidIntervalDays =
+                Math.max(
+                        0,
+                        Math.min(
+                                10000,
+                                selectedDayRaidIntervalDays
+                        )
+                );
 
         resetWorldTime = shouldResetWorldTime;
 
@@ -190,6 +232,10 @@ public final class BlockRaceSetupManager {
                 timeLimitType;
         long finalTimeLimitTicks =
                 timeLimitTicks;
+        int finalProgressEventIntervalPercent =
+                progressEventIntervalPercent;
+        int finalDayRaidIntervalDays =
+                dayRaidIntervalDays;
         boolean finalResetWorldTime =
                 resetWorldTime;
 
@@ -207,6 +253,8 @@ public final class BlockRaceSetupManager {
                         finalDifficulty,
                         finalTimeLimitType,
                         finalTimeLimitTicks,
+                        finalProgressEventIntervalPercent,
+                        finalDayRaidIntervalDays,
                         finalResetWorldTime
                 );
 
@@ -225,6 +273,8 @@ public final class BlockRaceSetupManager {
         timeLimitTicks =
                 ChallengeState.TICKS_PER_DAY
                         * ChallengeState.MAX_DAYS;
+        progressEventIntervalPercent = 10;
+        dayRaidIntervalDays = 10;
         resetWorldTime = true;
         countdownTicksRemaining = 0;
         lastCountdownSecond = -1;

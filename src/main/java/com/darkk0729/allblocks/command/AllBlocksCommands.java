@@ -5,6 +5,7 @@ import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.challenge.ChallengeMode;
 import com.darkk0729.allblocks.challenge.ChallengeSetupManager;
+import com.darkk0729.allblocks.challenge.ChallengeTimeLimitType;
 import com.darkk0729.allblocks.challenge.TeamRaceSetupManager;
 import com.darkk0729.allblocks.event.ChallengeEventManager;
 import com.darkk0729.allblocks.event.DayRaidManager;
@@ -218,6 +219,27 @@ public final class AllBlocksCommands {
         return 1;
     }
 
+    private static Integer parseIntegerActionValue(
+            String action,
+            String prefix
+    ) {
+        if (action == null
+                || prefix == null
+                || !action.startsWith(prefix)) {
+            return null;
+        }
+
+        try {
+            return Integer.parseInt(
+                    action.substring(
+                            prefix.length()
+                    ).trim()
+            );
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     private static int handleInternalAction(
             CommandSourceStack source,
             String rawAction
@@ -284,25 +306,157 @@ public final class AllBlocksCommands {
                     ) ? 1 : 0;
         }
 
-        if (action.equals("@시간 기본")) {
-            return ChallengeSetupManager.useDefaultTimeLimit(
-                    player
-            ) ? 1 : 0;
+        if (action.startsWith("@설정 시간종류 ")) {
+            ChallengeTimeLimitType type =
+                    switch (action.substring(
+                            "@설정 시간종류 ".length()
+                    )) {
+                        case "인게임" ->
+                                ChallengeTimeLimitType.IN_GAME_TIME;
+                        case "실제" ->
+                                ChallengeTimeLimitType.PLAY_TIME;
+                        case "없음" ->
+                                ChallengeTimeLimitType.NONE;
+                        default -> null;
+                    };
+
+            return type != null
+                    && ChallengeSetupManager
+                    .selectTimeLimitType(
+                            player,
+                            type
+                    ) ? 1 : 0;
         }
 
-        if (action.equals("@월드 유지")) {
+        if (action.startsWith("@설정 시간값 ")) {
+            Integer value =
+                    parseIntegerActionValue(
+                            action,
+                            "@설정 시간값 "
+                    );
+
+            return value != null
+                    && ChallengeSetupManager
+                    .selectTimeLimitPreset(
+                            player,
+                            value
+                    ) ? 1 : 0;
+        }
+
+        if (action.equals("@설정 시간수동")) {
+            return ChallengeSetupManager
+                    .selectTimeLimitManual(
+                            player
+                    ) ? 1 : 0;
+        }
+
+        if (action.startsWith("@설정 시간조정 ")) {
+            Integer delta =
+                    parseIntegerActionValue(
+                            action,
+                            "@설정 시간조정 "
+                    );
+
+            return delta != null
+                    && ChallengeSetupManager
+                    .adjustTimeLimit(
+                            player,
+                            delta
+                    ) ? 1 : 0;
+        }
+
+        if (action.startsWith("@설정 진행률값 ")) {
+            Integer value =
+                    parseIntegerActionValue(
+                            action,
+                            "@설정 진행률값 "
+                    );
+
+            return value != null
+                    && ChallengeSetupManager
+                    .selectProgressEventInterval(
+                            player,
+                            value
+                    ) ? 1 : 0;
+        }
+
+        if (action.equals("@설정 진행률수동")) {
+            return ChallengeSetupManager
+                    .selectProgressEventManual(
+                            player
+                    ) ? 1 : 0;
+        }
+
+        if (action.startsWith("@설정 진행률조정 ")) {
+            Integer delta =
+                    parseIntegerActionValue(
+                            action,
+                            "@설정 진행률조정 "
+                    );
+
+            return delta != null
+                    && ChallengeSetupManager
+                    .adjustProgressEventInterval(
+                            player,
+                            delta
+                    ) ? 1 : 0;
+        }
+
+        if (action.startsWith("@설정 데이값 ")) {
+            Integer value =
+                    parseIntegerActionValue(
+                            action,
+                            "@설정 데이값 "
+                    );
+
+            return value != null
+                    && ChallengeSetupManager
+                    .selectDayRaidInterval(
+                            player,
+                            value
+                    ) ? 1 : 0;
+        }
+
+        if (action.equals("@설정 데이수동")) {
+            return ChallengeSetupManager
+                    .selectDayRaidManual(
+                            player
+                    ) ? 1 : 0;
+        }
+
+        if (action.startsWith("@설정 데이조정 ")) {
+            Integer delta =
+                    parseIntegerActionValue(
+                            action,
+                            "@설정 데이조정 "
+                    );
+
+            return delta != null
+                    && ChallengeSetupManager
+                    .adjustDayRaidInterval(
+                            player,
+                            delta
+                    ) ? 1 : 0;
+        }
+
+        if (action.equals("@설정 월드 유지")) {
             return ChallengeSetupManager.selectWorldTime(
-                    source.getServer(),
                     player,
                     false
             ) ? 1 : 0;
         }
 
-        if (action.equals("@월드 초기화")) {
+        if (action.equals("@설정 월드 초기화")) {
             return ChallengeSetupManager.selectWorldTime(
-                    source.getServer(),
                     player,
                     true
+            ) ? 1 : 0;
+        }
+
+        if (action.equals("@설정 완료")) {
+            return ChallengeSetupManager.finishSettings(
+                    source.getServer(),
+                    player
             ) ? 1 : 0;
         }
 
