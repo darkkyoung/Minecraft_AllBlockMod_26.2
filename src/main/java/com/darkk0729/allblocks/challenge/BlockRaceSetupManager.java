@@ -361,6 +361,11 @@ public final class BlockRaceSetupManager {
             MinecraftServer server,
             int second
     ) {
+        playCountdownSound(
+                server,
+                second
+        );
+
         for (String playerName :
                 participantNames.values()) {
             runCommand(
@@ -385,6 +390,8 @@ public final class BlockRaceSetupManager {
     private static void showStartTitle(
             MinecraftServer server
     ) {
+        playStartSound(server);
+
         for (String playerName :
                 participantNames.values()) {
             runCommand(
@@ -400,6 +407,50 @@ public final class BlockRaceSetupManager {
                             + playerName
                             + " title "
                             + "{\"text\":\"시작!\",\"color\":\"green\",\"bold\":true}"
+            );
+        }
+    }
+
+    private static void playCountdownSound(
+            MinecraftServer server,
+            int second
+    ) {
+        float pitch =
+                switch (second) {
+                    case 5 -> 0.8F;
+                    case 4 -> 0.9F;
+                    case 3 -> 1.0F;
+                    case 2 -> 1.1F;
+                    case 1 -> 1.2F;
+                    default -> 1.0F;
+                };
+
+        for (String playerName :
+                participantNames.values()) {
+            runCommand(
+                    server,
+                    "execute as "
+                            + playerName
+                            + " at @s run playsound "
+                            + "minecraft:block.note_block.bit "
+                            + "master @s ~ ~ ~ 0.8 "
+                            + pitch
+            );
+        }
+    }
+
+    private static void playStartSound(
+            MinecraftServer server
+    ) {
+        for (String playerName :
+                participantNames.values()) {
+            runCommand(
+                    server,
+                    "execute as "
+                            + playerName
+                            + " at @s run playsound "
+                            + "minecraft:block.note_block.pling "
+                            + "master @s ~ ~ ~ 1.0 1.8"
             );
         }
     }
