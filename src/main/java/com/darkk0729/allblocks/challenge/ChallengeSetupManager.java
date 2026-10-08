@@ -482,6 +482,10 @@ public final class ChallengeSetupManager {
         boolean selectedResetWorldTime =
                 resetWorldTime;
 
+        ChallengeMenuMessages.restoreMenuChat(
+                player
+        );
+
         completeSetup();
 
         switch (selectedMode) {

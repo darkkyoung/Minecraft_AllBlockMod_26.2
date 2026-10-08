@@ -26,6 +26,8 @@ public final class AllBlocksClient implements ClientModInitializer {
                 (handler, client) -> {
                     ClientChallengeStateCache.clear();
                     TeamRevealHud.clear();
+                    AllBlocksClientNetworking
+                            .clearMenuChatLayout(client);
                 }
         );
 
@@ -41,6 +43,9 @@ public final class AllBlocksClient implements ClientModInitializer {
         ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            AllBlocksClientNetworking
+                    .tickMenuChatLayout(client);
+
             while (openCodexKey.consumeClick()) {
                 if (client.player == null) {
                     continue;

@@ -349,6 +349,7 @@ public final class TeamRaceSetupManager {
         }
 
         phase = SetupPhase.MANUAL;
+        restoreMenuChatForAll(server);
         clearScoreboardMembers(server);
         showManualEditor(controller);
 
@@ -511,6 +512,7 @@ public final class TeamRaceSetupManager {
     private static void startCountdown(
             MinecraftServer server
     ) {
+        restoreMenuChatForAll(server);
         phase = SetupPhase.COUNTDOWN;
         countdownTicksRemaining = COUNTDOWN_TICKS;
         lastCountdownSecond = COUNTDOWN_SECONDS;
@@ -886,6 +888,7 @@ public final class TeamRaceSetupManager {
     private static void startReveal(
             MinecraftServer server
     ) {
+        restoreMenuChatForAll(server);
         phase = SetupPhase.REVEALING;
         revealTicksRemaining = REVEAL_TICKS;
         revealElapsedTicks = 0;
@@ -977,6 +980,21 @@ public final class TeamRaceSetupManager {
                     )
             );
             return;
+        }
+    }
+
+    private static void restoreMenuChatForAll(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            ChallengeMenuMessages.restoreMenuChat(
+                    player
+            );
         }
     }
 

@@ -518,6 +518,9 @@ public final class AllBlocksCommands {
                 return 0;
             }
 
+            ChallengeMenuMessages.restoreMenuChat(
+                    player
+            );
             ChallengeManager.stop(source.getServer());
             player.sendSystemMessage(
                     Component.literal(

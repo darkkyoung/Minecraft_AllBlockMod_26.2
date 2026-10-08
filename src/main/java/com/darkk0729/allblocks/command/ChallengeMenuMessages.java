@@ -731,6 +731,25 @@ public final class ChallengeMenuMessages {
     public static void clearMenuChat(
             ServerPlayer player
     ) {
+        setMenuChatLayout(
+                player,
+                true
+        );
+    }
+
+    public static void restoreMenuChat(
+            ServerPlayer player
+    ) {
+        setMenuChatLayout(
+                player,
+                false
+        );
+    }
+
+    private static void setMenuChatLayout(
+            ServerPlayer player,
+            boolean active
+    ) {
         if (player == null) {
             return;
         }
@@ -738,7 +757,7 @@ public final class ChallengeMenuMessages {
         ServerPlayNetworking.send(
                 player,
                 new ClearMenuChatPayload(
-                        true
+                        active
                 )
         );
     }
