@@ -64,6 +64,11 @@ public abstract class RecipeButtonMixin {
             return;
         }
 
+        // Minecraft 26.2의 GUI는 즉시 그리지 않고 렌더 상태를 모아 처리한다.
+        // 명시적으로 레이어를 분리해서
+        // 바닐라 버튼 배경 < 초록 오버레이 < 아이템 아이콘 순서를 보장한다.
+        graphics.nextStratum();
+
         graphics.fill(
                 button.getX() + 2,
                 button.getY() + 2,
@@ -73,5 +78,7 @@ public abstract class RecipeButtonMixin {
                 button.getY() + 23,
                 ALLBLOCKS_CLAIMED_OVERLAY
         );
+
+        graphics.nextStratum();
     }
 }
