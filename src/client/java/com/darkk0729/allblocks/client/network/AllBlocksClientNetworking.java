@@ -65,7 +65,7 @@ public final class AllBlocksClientNetworking {
                 (payload, context) -> context.client().execute(() -> {
                     if (payload.clear()) {
                         context.client()
-                                .gui
+                                .hud
                                 .getChat()
                                 .clearMessages(false);
                     }
