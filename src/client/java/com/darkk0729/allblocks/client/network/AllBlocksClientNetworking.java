@@ -49,6 +49,12 @@ public final class AllBlocksClientNetworking {
                 (payload, context) -> context.client().execute(() -> {
                     context.client()
                             .gui
+                            .hud
+                            .getChat()
+                            .clearMessages(false);
+
+                    context.client()
+                            .gui
                             .setScreen(null);
 
                     TeamRevealHud.start(
