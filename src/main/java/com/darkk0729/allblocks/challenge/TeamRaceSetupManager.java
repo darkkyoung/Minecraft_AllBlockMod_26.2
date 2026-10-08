@@ -893,8 +893,8 @@ public final class TeamRaceSetupManager {
                     "execute as "
                             + playerName
                             + " at @s run playsound "
-                            + "minecraft:block.comparator.click "
-                            + "master @s ~ ~ ~ 0.7 1.4"
+                            + "minecraft:block.note_block.bell "
+                            + "master @s ~ ~ ~ 0.7 1.0"
             );
         }
     }
