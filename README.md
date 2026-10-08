@@ -732,6 +732,47 @@ BlockItem이 존재하는 블록만 대상
 
 ---
 
+## 향후 배포 계획: AllBlock 원클릭 설치기
+
+정식 배포 단계에서는 사용자가 Fabric 환경을 직접 구성하지 않아도 되도록 별도의 **AllBlock Installer**를 개발하는 것을 목표로 한다.
+
+설치기는 다음 작업을 원클릭으로 처리하는 방향으로 설계한다.
+
+* Minecraft 공식 Launcher 설치 경로 자동 탐지
+* AllBlock 전용 Game Directory 생성
+* 호환되는 Fabric Loader 자동 설치
+* 호환되는 Fabric API 자동 설치
+* All Blocks Challenge JAR 자동 설치
+* 공식 Minecraft Launcher용 AllBlock 전용 프로필 구성
+* GitHub Releases 기준 최신 안정 버전 확인
+* 설치된 AllBlock 버전과 최신 버전 비교
+* `[업데이트]` 버튼을 통한 모드 JAR 자동 교체
+* 기존 월드, 설정, 사용자 데이터는 유지하고 필요한 모드 파일만 업데이트
+* 필요 시 안정 버전 / 테스트 버전 업데이트 채널 분리
+
+개발 저장소의 `master` 브랜치는 최신 개발 상태로 사용하고, 일반 사용자에게 배포되는 설치기 업데이트는 플레이 검증을 거친 **GitHub Release**를 기준으로 한다.
+
+예상 사용자 흐름:
+
+```text
+AllBlock Installer 실행
+→ [설치하기]
+→ Fabric / Fabric API / AllBlock 자동 구성
+→ 공식 Minecraft Launcher 실행
+→ AllBlock Challenge 프로필 선택
+→ 플레이
+
+업데이트가 있을 경우
+→ Installer 실행
+→ [업데이트]
+→ 최신 Release JAR 자동 교체
+→ 플레이
+```
+
+설치기는 기존 모드 코드와 분리된 별도 프로젝트/저장소로 개발하는 것을 권장한다.
+
+---
+
 ## 현재 확정된 핵심 규칙
 
 ```text
