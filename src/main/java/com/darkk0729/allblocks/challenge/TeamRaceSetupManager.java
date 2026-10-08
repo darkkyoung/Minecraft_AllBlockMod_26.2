@@ -2,6 +2,7 @@ package com.darkk0729.allblocks.challenge;
 
 import com.darkk0729.allblocks.network.TeamRevealPayload;
 import com.darkk0729.allblocks.network.CloseSetupScreenPayload;
+import com.darkk0729.allblocks.command.ChallengeMenuMessages;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -280,6 +281,9 @@ public final class TeamRaceSetupManager {
             return;
         }
 
+        ChallengeMenuMessages.clearMenuChat(
+                controller
+        );
         controller.sendSystemMessage(separator());
         controller.sendSystemMessage(
                 Component.literal(
@@ -981,6 +985,9 @@ public final class TeamRaceSetupManager {
     ) {
         for (ServerPlayer player :
                 server.getPlayerList().getPlayers()) {
+            ChallengeMenuMessages.clearMenuChat(
+                    player
+            );
             player.sendSystemMessage(separator());
             player.sendSystemMessage(
                     Component.literal(
@@ -1058,6 +1065,9 @@ public final class TeamRaceSetupManager {
     private static void showManualEditor(
             ServerPlayer controller
     ) {
+        ChallengeMenuMessages.clearMenuChat(
+                controller
+        );
         controller.sendSystemMessage(separator());
         controller.sendSystemMessage(
                 Component.literal(

@@ -4,7 +4,7 @@ import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeState;
 import com.darkk0729.allblocks.challenge.ChallengeTimeLimitType;
-import com.darkk0729.allblocks.network.ChatHeightBoostPayload;
+import com.darkk0729.allblocks.network.ClearMenuChatPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -15,9 +15,6 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class ChallengeMenuMessages {
-    private static final int CHAT_HEIGHT_BOOST_TICKS =
-            20 * 12;
-
     private ChallengeMenuMessages() {
     }
 
@@ -26,24 +23,24 @@ public final class ChallengeMenuMessages {
     }
 
     public static void showWelcome(ServerPlayer player) {
-        boostChatHeight(player);
+        clearMenuChat(player);
         sendWelcome(player::sendSystemMessage);
     }
 
     public static void showModeMenu(ServerPlayer player) {
-        boostChatHeight(player);
+        clearMenuChat(player);
         sendModeMenu(player::sendSystemMessage);
     }
 
     public static void showRaceModeMenu(ServerPlayer player) {
-        boostChatHeight(player);
+        clearMenuChat(player);
         sendRaceModeMenu(player::sendSystemMessage);
     }
 
     public static void showDifficultyMenu(
             ServerPlayer player
     ) {
-        boostChatHeight(player);
+        clearMenuChat(player);
 
         MessageSender sender =
                 player::sendSystemMessage;
@@ -128,7 +125,7 @@ public final class ChallengeMenuMessages {
             boolean dayRaidManual,
             boolean resetWorldTime
     ) {
-        boostChatHeight(player);
+        clearMenuChat(player);
 
         MessageSender sender =
                 player::sendSystemMessage;
@@ -506,6 +503,7 @@ public final class ChallengeMenuMessages {
     }
 
     public static void showRunningMenu(ServerPlayer player) {
+        clearMenuChat(player);
         MessageSender sender = player::sendSystemMessage;
 
         sender.send(separator());
@@ -558,6 +556,7 @@ public final class ChallengeMenuMessages {
     }
 
     public static void showStopConfirm(ServerPlayer player) {
+        clearMenuChat(player);
         MessageSender sender = player::sendSystemMessage;
 
         sender.send(separator());
@@ -729,7 +728,7 @@ public final class ChallengeMenuMessages {
         sender.send(separator());
     }
 
-    private static void boostChatHeight(
+    public static void clearMenuChat(
             ServerPlayer player
     ) {
         if (player == null) {
@@ -738,8 +737,8 @@ public final class ChallengeMenuMessages {
 
         ServerPlayNetworking.send(
                 player,
-                new ChatHeightBoostPayload(
-                        CHAT_HEIGHT_BOOST_TICKS
+                new ClearMenuChatPayload(
+                        true
                 )
         );
     }

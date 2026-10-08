@@ -5,46 +5,38 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-public record ChatHeightBoostPayload(int durationTicks)
+public record ClearMenuChatPayload(boolean clear)
         implements CustomPacketPayload {
 
     public static final Identifier ID =
             Identifier.fromNamespaceAndPath(
                     "allblocks",
-                    "chat_height_boost"
+                    "clear_menu_chat"
             );
 
-    public static final Type<ChatHeightBoostPayload> TYPE =
+    public static final Type<ClearMenuChatPayload> TYPE =
             new Type<>(ID);
 
     public static final StreamCodec<
             RegistryFriendlyByteBuf,
-            ChatHeightBoostPayload
+            ClearMenuChatPayload
             > CODEC =
             StreamCodec.ofMember(
-                    ChatHeightBoostPayload::write,
-                    ChatHeightBoostPayload::read
+                    ClearMenuChatPayload::write,
+                    ClearMenuChatPayload::read
             );
 
     private void write(
             RegistryFriendlyByteBuf buf
     ) {
-        buf.writeVarInt(
-                Math.max(
-                        1,
-                        durationTicks
-                )
-        );
+        buf.writeBoolean(clear);
     }
 
-    private static ChatHeightBoostPayload read(
+    private static ClearMenuChatPayload read(
             RegistryFriendlyByteBuf buf
     ) {
-        return new ChatHeightBoostPayload(
-                Math.max(
-                        1,
-                        buf.readVarInt()
-                )
+        return new ClearMenuChatPayload(
+                buf.readBoolean()
         );
     }
 

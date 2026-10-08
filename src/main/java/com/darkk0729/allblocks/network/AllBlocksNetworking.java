@@ -33,8 +33,8 @@ public final class AllBlocksNetworking {
         );
 
         PayloadTypeRegistry.clientboundPlay().register(
-                ChatHeightBoostPayload.TYPE,
-                ChatHeightBoostPayload.CODEC
+                ClearMenuChatPayload.TYPE,
+                ClearMenuChatPayload.CODEC
         );
 
         // 클라이언트 -> 서버
