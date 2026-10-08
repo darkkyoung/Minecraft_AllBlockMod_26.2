@@ -158,6 +158,11 @@ public final class AllBlocksCommands {
 
                     dispatcher.register(
                             Commands.literal("allblocks")
+                                    .executes(context ->
+                                            showRoot(
+                                                    context.getSource()
+                                            )
+                                    )
                                     .redirect(allBlocksRoot)
                     );
                 }
