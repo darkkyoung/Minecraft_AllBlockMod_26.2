@@ -23,9 +23,10 @@ public final class AllBlocksCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register(
-                (dispatcher, registryAccess, environment) ->
-                        dispatcher.register(
-                                Commands.literal("올블록")
+                (dispatcher, registryAccess, environment) -> {
+                    var allBlocksRoot =
+                            dispatcher.register(
+                                    Commands.literal("올블록")
                                         .executes(context ->
                                                 showRoot(
                                                         context.getSource()
@@ -153,7 +154,13 @@ public final class AllBlocksCommands {
                                                                 )
                                                         )
                                         )
-                        )
+                            );
+
+                    dispatcher.register(
+                            Commands.literal("allblocks")
+                                    .redirect(allBlocksRoot)
+                    );
+                }
         );
     }
 
