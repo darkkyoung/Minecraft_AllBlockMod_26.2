@@ -444,6 +444,24 @@ public final class ChallengeManager {
         );
     }
 
+    public static int getTeamLastProgressEventTier(
+            TeamRaceTeam team
+    ) {
+        return state.getTeamLastProgressEventTier(
+                team
+        );
+    }
+
+    public static void setTeamLastProgressEventTier(
+            TeamRaceTeam team,
+            int tier
+    ) {
+        state.setTeamLastProgressEventTier(
+                team,
+                tier
+        );
+    }
+
     private static void registerOnlinePlayers(
             MinecraftServer server
     ) {

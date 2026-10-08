@@ -74,6 +74,18 @@ public final class AllBlocksSaveManager {
                     savedWorldElapsedTicks,
                     parseResult(data.result),
                     Math.max(0, data.lastProgressEventTier),
+                    data.blueTeamLastProgressEventTier == null
+                            ? 0
+                            : Math.max(
+                                    0,
+                                    data.blueTeamLastProgressEventTier
+                            ),
+                    data.redTeamLastProgressEventTier == null
+                            ? 0
+                            : Math.max(
+                                    0,
+                                    data.redTeamLastProgressEventTier
+                            ),
                     Math.max(0, data.lastDayRaidEventDay),
                     data.collectedBlocks == null
                             ? new HashMap<>()
@@ -122,6 +134,14 @@ public final class AllBlocksSaveManager {
             data.currentDay = state.getCurrentDay();
             data.formattedTime = state.getFormattedElapsedTime();
             data.lastProgressEventTier = state.getLastProgressEventTier();
+            data.blueTeamLastProgressEventTier =
+                    state.getTeamLastProgressEventTier(
+                            com.darkk0729.allblocks.challenge.TeamRaceTeam.BLUE
+                    );
+            data.redTeamLastProgressEventTier =
+                    state.getTeamLastProgressEventTier(
+                            com.darkk0729.allblocks.challenge.TeamRaceTeam.RED
+                    );
             data.lastDayRaidEventDay = state.getLastDayRaidEventDay();
             data.collectedBlocks = new HashMap<>(state.getCollectedBlocks());
             data.participants = new LinkedHashMap<>(state.getParticipants());
@@ -265,6 +285,8 @@ public final class AllBlocksSaveManager {
         int currentDay;
         String formattedTime;
         int lastProgressEventTier;
+        Integer blueTeamLastProgressEventTier;
+        Integer redTeamLastProgressEventTier;
         int lastDayRaidEventDay;
         Map<String, ChallengeState.CollectedBlockData> collectedBlocks;
         Map<String, ChallengeState.ParticipantData> participants;

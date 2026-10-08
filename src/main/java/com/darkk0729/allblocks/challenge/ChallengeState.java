@@ -35,6 +35,8 @@ public class ChallengeState {
     private long lastWorldClockTime;
 
     private int lastProgressEventTier;
+    private int blueTeamLastProgressEventTier;
+    private int redTeamLastProgressEventTier;
     private int lastDayRaidEventDay;
 
     private final Map<String, CollectedBlockData> collectedBlocks = new HashMap<>();
@@ -55,6 +57,8 @@ public class ChallengeState {
         this.worldElapsedTicks = 0L;
         this.lastWorldClockTime = 0L;
         this.lastProgressEventTier = 0;
+        this.blueTeamLastProgressEventTier = 0;
+        this.redTeamLastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
     }
 
@@ -137,6 +141,42 @@ public class ChallengeState {
 
     public int getLastProgressEventTier() {
         return lastProgressEventTier;
+    }
+
+    public int getTeamLastProgressEventTier(
+            TeamRaceTeam team
+    ) {
+        if (team == TeamRaceTeam.BLUE) {
+            return blueTeamLastProgressEventTier;
+        }
+
+        if (team == TeamRaceTeam.RED) {
+            return redTeamLastProgressEventTier;
+        }
+
+        return 0;
+    }
+
+    public void setTeamLastProgressEventTier(
+            TeamRaceTeam team,
+            int tier
+    ) {
+        int safeTier =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                tier
+                        )
+                );
+
+        if (team == TeamRaceTeam.BLUE) {
+            blueTeamLastProgressEventTier =
+                    safeTier;
+        } else if (team == TeamRaceTeam.RED) {
+            redTeamLastProgressEventTier =
+                    safeTier;
+        }
     }
 
     public int getLastDayRaidEventDay() {
@@ -276,6 +316,8 @@ public class ChallengeState {
 
         this.result = ChallengeResult.NONE;
         this.lastProgressEventTier = 0;
+        this.blueTeamLastProgressEventTier = 0;
+        this.redTeamLastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
         this.collectedBlocks.clear();
         this.participants.clear();
@@ -307,6 +349,8 @@ public class ChallengeState {
             long worldElapsedTicks,
             ChallengeResult result,
             int lastProgressEventTier,
+            int blueTeamLastProgressEventTier,
+            int redTeamLastProgressEventTier,
             int lastDayRaidEventDay,
             Map<String, CollectedBlockData> loadedCollectedBlocks,
             Map<String, ParticipantData> loadedParticipants
@@ -352,7 +396,30 @@ public class ChallengeState {
         this.startWorldTime = Math.max(0L, startWorldTime);
         this.worldElapsedTicks = Math.max(0L, worldElapsedTicks);
 
-        this.lastProgressEventTier = Math.max(0, Math.min(100, lastProgressEventTier));
+        this.lastProgressEventTier =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                lastProgressEventTier
+                        )
+                );
+        this.blueTeamLastProgressEventTier =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                blueTeamLastProgressEventTier
+                        )
+                );
+        this.redTeamLastProgressEventTier =
+                Math.max(
+                        0,
+                        Math.min(
+                                100,
+                                redTeamLastProgressEventTier
+                        )
+                );
         this.lastDayRaidEventDay = Math.max(0, lastDayRaidEventDay);
 
         this.collectedBlocks.clear();

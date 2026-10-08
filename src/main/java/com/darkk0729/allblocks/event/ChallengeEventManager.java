@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeMode;
+import com.darkk0729.allblocks.challenge.TeamRaceTeam;
 
 public final class ChallengeEventManager {
     private static final int MAX_PROGRESS_TIER = 100;
@@ -65,6 +66,12 @@ public final class ChallengeEventManager {
         if (ChallengeManager.getMode()
                 == ChallengeMode.BLOCK_RACE) {
             checkBlockRaceProgressEvents(server);
+            return;
+        }
+
+        if (ChallengeManager.getMode()
+                == ChallengeMode.TEAM_RACE) {
+            checkTeamRaceProgressEvents(server);
             return;
         }
 
@@ -250,6 +257,211 @@ public final class ChallengeEventManager {
                                 .toString();
 
                 player.sendSystemMessage(
+                        progressEventMessage(
+                                progressPercent,
+                                "랜덤 블록 가두기 발동"
+                        )
+                );
+            }
+
+            default -> {
+            }
+        }
+    }
+
+    private static void checkTeamRaceProgressEvents(
+            MinecraftServer server
+    ) {
+        int interval =
+                ChallengeManager
+                        .getProgressEventIntervalPercent();
+
+        if (interval <= 0) {
+            return;
+        }
+
+        boolean tierChanged = false;
+        int total =
+                Math.max(
+                        1,
+                        ChallengeManager
+                                .getTotalTargetCount()
+                );
+
+        for (TeamRaceTeam team :
+                List.of(
+                        TeamRaceTeam.BLUE,
+                        TeamRaceTeam.RED
+                )) {
+            int collected =
+                    ChallengeManager
+                            .getTeamBlockCount(team);
+
+            int currentPercent =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    100,
+                                    (int) Math.floor(
+                                            collected
+                                                    * 100.0D
+                                                    / total
+                                    )
+                            )
+                    );
+
+            int currentTier =
+                    Math.max(
+                            0,
+                            Math.min(
+                                    MAX_PROGRESS_TIER,
+                                    currentPercent
+                                            / interval
+                            )
+                    );
+
+            int lastTier =
+                    ChallengeManager
+                            .getTeamLastProgressEventTier(
+                                    team
+                            );
+
+            if (currentTier < lastTier) {
+                ChallengeManager
+                        .setTeamLastProgressEventTier(
+                                team,
+                                currentTier
+                        );
+                tierChanged = true;
+                continue;
+            }
+
+            if (currentTier <= lastTier) {
+                continue;
+            }
+
+            for (int tier = lastTier + 1;
+                 tier <= currentTier;
+                 tier++) {
+                triggerTeamRaceProgressEvent(
+                        server,
+                        team,
+                        Math.min(
+                                100,
+                                tier * interval
+                        )
+                );
+            }
+
+            ChallengeManager
+                    .setTeamLastProgressEventTier(
+                            team,
+                            currentTier
+                    );
+            tierChanged = true;
+        }
+
+        if (tierChanged) {
+            ChallengeManager.save(server);
+        }
+    }
+
+    private static void triggerTeamRaceProgressEvent(
+            MinecraftServer server,
+            TeamRaceTeam team,
+            int progressPercent
+    ) {
+        List<ServerPlayer> teamPlayers =
+                getTeamPlayers(
+                        server,
+                        team
+                );
+
+        if (teamPlayers.isEmpty()) {
+            return;
+        }
+
+        int eventType =
+                ThreadLocalRandom.current()
+                        .nextInt(3);
+
+        switch (eventType) {
+            case 0 -> {
+                for (ServerPlayer player :
+                        teamPlayers) {
+                    applyRandomDebuffsToPlayer(
+                            player,
+                            progressPercent
+                    );
+                }
+
+                sendToPlayers(
+                        teamPlayers,
+                        progressEventMessage(
+                                progressPercent,
+                                "랜덤 디버프 발동"
+                        )
+                );
+            }
+
+            case 1 -> {
+                int radius =
+                        getTeleportEventRadius(
+                                progressPercent
+                        );
+
+                for (ServerPlayer player :
+                        teamPlayers) {
+                    teleportPlayerRandomly(
+                            player,
+                            radius
+                    );
+                }
+
+                sendToPlayers(
+                        teamPlayers,
+                        progressEventMessage(
+                                progressPercent,
+                                "랜덤 텔레포트 발동"
+                        )
+                );
+            }
+
+            case 2 -> {
+                Block fillBlock =
+                        TargetBlockRegistry
+                                .getRandomFillEventBlock();
+
+                if (fillBlock == null) {
+                    fillBlock = Blocks.OBSIDIAN;
+                }
+
+                int sideLength =
+                        getProgressEventSideLength(
+                                progressPercent
+                        );
+
+                int radius =
+                        Math.max(
+                                1,
+                                sideLength / 2
+                        );
+
+                List<ServerPlayer> protectedPlayers =
+                        getPlayers(server);
+
+                for (ServerPlayer player :
+                        teamPlayers) {
+                    fillBlocksAroundPlayer(
+                            player,
+                            radius,
+                            fillBlock,
+                            protectedPlayers
+                    );
+                }
+
+                sendToPlayers(
+                        teamPlayers,
                         progressEventMessage(
                                 progressPercent,
                                 "랜덤 블록 가두기 발동"
@@ -765,6 +977,45 @@ public final class ChallengeEventManager {
         }
 
         return players;
+    }
+
+    private static List<ServerPlayer> getTeamPlayers(
+            MinecraftServer server,
+            TeamRaceTeam team
+    ) {
+        List<ServerPlayer> players =
+                new ArrayList<>();
+
+        if (server == null
+                || team == null
+                || !team.isAssigned()) {
+            return players;
+        }
+
+        for (ServerPlayer player :
+                getPlayers(server)) {
+            TeamRaceTeam playerTeam =
+                    ChallengeManager
+                            .getParticipantTeam(
+                                    player.getUUID()
+                                            .toString()
+                            );
+
+            if (playerTeam == team) {
+                players.add(player);
+            }
+        }
+
+        return players;
+    }
+
+    private static void sendToPlayers(
+            List<ServerPlayer> players,
+            Component message
+    ) {
+        for (ServerPlayer player : players) {
+            player.sendSystemMessage(message);
+        }
     }
 
     private static Component progressEventMessage(
