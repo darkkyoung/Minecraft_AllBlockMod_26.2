@@ -798,21 +798,120 @@ public final class ChallengeEventManager {
         );
     }
 
-    private static void teleportPlayerRandomly(ServerPlayer player, int radius) {
-        if (!(player.level() instanceof ServerLevel level)) {
+    private static void teleportPlayerRandomly(
+            ServerPlayer player,
+            int radius
+    ) {
+        if (!(player.level()
+                instanceof ServerLevel level)) {
             return;
         }
 
-        BlockPos origin = player.blockPosition();
+        BlockPos origin =
+                player.blockPosition();
 
-        for (int attempt = 0; attempt < 40; attempt++) {
-            int dx = ThreadLocalRandom.current().nextInt(-radius, radius + 1);
-            int dy = ThreadLocalRandom.current().nextInt(-radius, radius + 1);
-            int dz = ThreadLocalRandom.current().nextInt(-radius, radius + 1);
+        int safeRadius =
+                Math.max(
+                        1,
+                        radius
+                );
 
-            BlockPos target = origin.offset(dx, dy, dz);
+        int minY =
+                level.getMinY() + 1;
 
-            if (!isBodySpaceEmpty(level, target)) {
+        int maxY =
+                level.getMaxY() - 2;
+
+        // 현재 플레이어가 점프 중인지, 낙하 중인지와 무관하게
+        // 바닐라 randomTeleport의 착지/충돌 판정을 이용해 목적지를 찾는다.
+        for (int attempt = 0;
+             attempt < 128;
+             attempt++) {
+            int dx =
+                    ThreadLocalRandom.current()
+                            .nextInt(
+                                    -safeRadius,
+                                    safeRadius + 1
+                            );
+
+            int dy =
+                    ThreadLocalRandom.current()
+                            .nextInt(
+                                    -safeRadius,
+                                    safeRadius + 1
+                            );
+
+            int dz =
+                    ThreadLocalRandom.current()
+                            .nextInt(
+                                    -safeRadius,
+                                    safeRadius + 1
+                            );
+
+            if (dx == 0
+                    && dz == 0) {
+                continue;
+            }
+
+            int targetY =
+                    Math.max(
+                            minY,
+                            Math.min(
+                                    maxY,
+                                    origin.getY() + dy
+                            )
+                    );
+
+            boolean teleported =
+                    player.randomTeleport(
+                            origin.getX()
+                                    + dx
+                                    + 0.5D,
+                            targetY,
+                            origin.getZ()
+                                    + dz
+                                    + 0.5D,
+                            false
+                    );
+
+            if (teleported) {
+                return;
+            }
+        }
+
+        // 극단적으로 랜덤 시도가 모두 막힌 경우,
+        // 주변의 랜덤 X/Z 열에서 현재 높이에 가까운 안전한 공간을 직접 찾는다.
+        for (int attempt = 0;
+             attempt < 32;
+             attempt++) {
+            int dx =
+                    ThreadLocalRandom.current()
+                            .nextInt(
+                                    -safeRadius,
+                                    safeRadius + 1
+                            );
+
+            int dz =
+                    ThreadLocalRandom.current()
+                            .nextInt(
+                                    -safeRadius,
+                                    safeRadius + 1
+                            );
+
+            if (dx == 0
+                    && dz == 0) {
+                continue;
+            }
+
+            BlockPos target =
+                    findNearestSafeTeleportSpace(
+                            level,
+                            origin.getX() + dx,
+                            origin.getY(),
+                            origin.getZ() + dz
+                    );
+
+            if (target == null) {
                 continue;
             }
 
@@ -824,20 +923,107 @@ public final class ChallengeEventManager {
 
             return;
         }
-
-        player.sendSystemMessage(
-                Component.literal(
-                        "랜덤 텔레포트 실패"
-                ).withStyle(
-                        ChatFormatting.RED,
-                        ChatFormatting.BOLD
-                )
-        );
     }
 
-    private static boolean isBodySpaceEmpty(ServerLevel level, BlockPos pos) {
+    private static BlockPos findNearestSafeTeleportSpace(
+            ServerLevel level,
+            int x,
+            int originY,
+            int z
+    ) {
+        int minY =
+                level.getMinY() + 1;
+
+        int maxY =
+                level.getMaxY() - 2;
+
+        int clampedOriginY =
+                Math.max(
+                        minY,
+                        Math.min(
+                                maxY,
+                                originY
+                        )
+                );
+
+        int maxOffset =
+                Math.max(
+                        clampedOriginY - minY,
+                        maxY - clampedOriginY
+                );
+
+        for (int offset = 0;
+             offset <= maxOffset;
+             offset++) {
+            int upY =
+                    clampedOriginY
+                            + offset;
+
+            if (upY <= maxY) {
+                BlockPos up =
+                        new BlockPos(
+                                x,
+                                upY,
+                                z
+                        );
+
+                if (isSafeTeleportSpace(
+                        level,
+                        up
+                )) {
+                    return up;
+                }
+            }
+
+            if (offset == 0) {
+                continue;
+            }
+
+            int downY =
+                    clampedOriginY
+                            - offset;
+
+            if (downY >= minY) {
+                BlockPos down =
+                        new BlockPos(
+                                x,
+                                downY,
+                                z
+                        );
+
+                if (isSafeTeleportSpace(
+                        level,
+                        down
+                )) {
+                    return down;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean isSafeTeleportSpace(
+            ServerLevel level,
+            BlockPos pos
+    ) {
+        return isBodySpaceEmpty(
+                level,
+                pos
+        )
+                && level.getBlockState(
+                        pos.below()
+                ).blocksMotion();
+    }
+
+    private static boolean isBodySpaceEmpty(
+            ServerLevel level,
+            BlockPos pos
+    ) {
         return level.getBlockState(pos).isAir()
-                && level.getBlockState(pos.above()).isAir();
+                && level.getBlockState(
+                        pos.above()
+                ).isAir();
     }
 
     private static void triggerRandomBlockReplaceEvent(MinecraftServer server, int progressPercent) {

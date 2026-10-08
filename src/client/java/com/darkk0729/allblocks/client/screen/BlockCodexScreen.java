@@ -8,6 +8,9 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
@@ -17,8 +20,12 @@ import net.minecraft.client.input.KeyEvent;
 import com.darkk0729.allblocks.client.data.ClientChallengeStateCache;
 import com.darkk0729.allblocks.client.network.AllBlocksClientNetworking;
 import net.minecraft.ChatFormatting;
+import java.text.Collator;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import java.util.UUID;
 
@@ -42,8 +49,8 @@ public final class BlockCodexScreen extends Screen {
     private static final int PANEL_WIDTH = 380;
     private static final int PANEL_HEIGHT = 300;
 
-    private static final int HEADER_HEIGHT = 114;
-    private static final int FOOTER_HEIGHT = 30;
+    private static final int HEADER_HEIGHT = 125;
+    private static final int FOOTER_HEIGHT = 17;
 
     private static final int CLOSE_BUTTON_SIZE = 24;
     private static final int PLAYER_ICON_SIZE = 14;
@@ -54,6 +61,9 @@ public final class BlockCodexScreen extends Screen {
     private static final int COLOR_PALETTE_MARGIN = 6;
 
     private static final int FILTER_Y_OFFSET = 95;
+    private static final int SORT_Y_OFFSET = 111;
+    private static final int SORT_BUTTON_HEIGHT = 11;
+    private static final int SORT_BUTTON_GAP = 3;
 
     private static final int COLOR_OVERLAY = 0x99000000;
 
@@ -83,6 +93,14 @@ public final class BlockCodexScreen extends Screen {
 
     private int page = 0;
     private CodexFilter filter = CodexFilter.ALL;
+    private CodexSort sort = CodexSort.CREATIVE;
+
+    private final Map<String, Integer> creativeOrder =
+            new HashMap<>();
+    private boolean creativeOrderInitialized = false;
+
+    private static final Collator KOREAN_COLLATOR =
+            Collator.getInstance(Locale.KOREAN);
 
     private Block selectedBlock;
     private int selectedSlotX;
@@ -125,6 +143,7 @@ public final class BlockCodexScreen extends Screen {
         drawMainPanel(graphics, panelX, panelY);
         drawHeader(graphics, panelX, panelY, filteredBlocks.size(), mouseX, mouseY);
         drawFilters(graphics, panelX, panelY, mouseX, mouseY);
+        drawSortOptions(graphics, panelX, panelY, mouseX, mouseY);
         drawBlockGrid(graphics, panelX, panelY, mouseX, mouseY, filteredBlocks);
         drawFooter(graphics, panelX, panelY, maxPage, mouseX, mouseY);
 
@@ -192,6 +211,10 @@ public final class BlockCodexScreen extends Screen {
         }
 
         if (handleFilterClick(panelX, panelY, mouseX, mouseY)) {
+            return true;
+        }
+
+        if (handleSortClick(panelX, panelY, mouseX, mouseY)) {
             return true;
         }
 
@@ -930,6 +953,119 @@ public final class BlockCodexScreen extends Screen {
         }
     }
 
+    private void drawSortOptions(
+            GuiGraphicsExtractor graphics,
+            int panelX,
+            int panelY,
+            int mouseX,
+            int mouseY
+    ) {
+        int gridWidth =
+                COLUMNS * SLOT_SIZE
+                        + (COLUMNS - 1) * SLOT_GAP;
+
+        int rightX =
+                getGridX(panelX)
+                        + gridWidth;
+
+        String label = "정렬";
+        int labelWidth = this.font.width(label);
+
+        int optionsWidth =
+                labelWidth + 4;
+
+        for (CodexSort currentSort : CodexSort.values()) {
+            optionsWidth += currentSort.width;
+
+            if (currentSort
+                    != CodexSort.values()[
+                    CodexSort.values().length - 1
+                    ]) {
+                optionsWidth += SORT_BUTTON_GAP;
+            }
+        }
+
+        int x = rightX - optionsWidth;
+        int y = panelY + SORT_Y_OFFSET;
+
+        graphics.text(
+                this.font,
+                label,
+                x,
+                y + 2,
+                COLOR_TEXT_DIM,
+                false
+        );
+
+        x += labelWidth + 4;
+
+        for (CodexSort currentSort : CodexSort.values()) {
+            int width = currentSort.width;
+
+            boolean hovered =
+                    isInside(
+                            mouseX,
+                            mouseY,
+                            x,
+                            y,
+                            width,
+                            SORT_BUTTON_HEIGHT
+                    );
+
+            boolean selected =
+                    sort == currentSort;
+
+            int bgColor =
+                    selected
+                            ? 0xAA7C4C28
+                            : hovered
+                            ? 0x77D6B980
+                            : 0x44E7D2AA;
+
+            int borderColor =
+                    selected
+                            ? 0xFFE0B35A
+                            : 0xAA8C6740;
+
+            int textColor =
+                    selected
+                            ? 0xFFFFF1CE
+                            : COLOR_TEXT_DIM;
+
+            graphics.fill(
+                    x,
+                    y,
+                    x + width,
+                    y + SORT_BUTTON_HEIGHT,
+                    bgColor
+            );
+
+            graphics.outline(
+                    x,
+                    y,
+                    width,
+                    SORT_BUTTON_HEIGHT,
+                    borderColor
+            );
+
+            graphics.text(
+                    this.font,
+                    currentSort.label,
+                    x + (
+                            width
+                                    - this.font.width(
+                                    currentSort.label
+                            )
+                    ) / 2,
+                    y + 2,
+                    textColor,
+                    false
+            );
+
+            x += width + SORT_BUTTON_GAP;
+        }
+    }
+
     private void drawBlockGrid(
             GuiGraphicsExtractor graphics,
             int panelX,
@@ -1079,7 +1215,7 @@ public final class BlockCodexScreen extends Screen {
 
         // 하단 중앙 페이지 텍스트
         int pageTextY =
-                panelY + PANEL_HEIGHT - 28;
+                panelY + PANEL_HEIGHT - 13;
 
         drawCenteredText(
                 graphics,
@@ -1662,6 +1798,68 @@ public final class BlockCodexScreen extends Screen {
         return false;
     }
 
+    private boolean handleSortClick(
+            int panelX,
+            int panelY,
+            double mouseX,
+            double mouseY
+    ) {
+        int gridWidth =
+                COLUMNS * SLOT_SIZE
+                        + (COLUMNS - 1) * SLOT_GAP;
+
+        int rightX =
+                getGridX(panelX)
+                        + gridWidth;
+
+        String label = "정렬";
+        int labelWidth = this.font.width(label);
+
+        int optionsWidth =
+                labelWidth + 4;
+
+        for (CodexSort currentSort : CodexSort.values()) {
+            optionsWidth += currentSort.width;
+
+            if (currentSort
+                    != CodexSort.values()[
+                    CodexSort.values().length - 1
+                    ]) {
+                optionsWidth += SORT_BUTTON_GAP;
+            }
+        }
+
+        int x =
+                rightX
+                        - optionsWidth
+                        + labelWidth
+                        + 4;
+
+        int y = panelY + SORT_Y_OFFSET;
+
+        for (CodexSort currentSort : CodexSort.values()) {
+            if (isInside(
+                    mouseX,
+                    mouseY,
+                    x,
+                    y,
+                    currentSort.width,
+                    SORT_BUTTON_HEIGHT
+            )) {
+                sort = currentSort;
+                page = 0;
+                selectedBlock = null;
+                return true;
+            }
+
+            x +=
+                    currentSort.width
+                            + SORT_BUTTON_GAP;
+        }
+
+        return false;
+    }
+
     private boolean handlePageClick(
             int panelX,
             int panelY,
@@ -1815,7 +2013,153 @@ public final class BlockCodexScreen extends Screen {
             }
         }
 
+        sortBlocks(result);
+
         return result;
+    }
+
+    private void sortBlocks(
+            List<Block> blocks
+    ) {
+        if (blocks == null
+                || blocks.size() <= 1) {
+            return;
+        }
+
+        if (sort == CodexSort.NAME) {
+            blocks.sort(
+                    (left, right) -> {
+                        int compared =
+                                KOREAN_COLLATOR.compare(
+                                        getBlockDisplayName(left),
+                                        getBlockDisplayName(right)
+                                );
+
+                        if (compared != 0) {
+                            return compared;
+                        }
+
+                        return getBlockId(left)
+                                .compareTo(
+                                        getBlockId(right)
+                                );
+                    }
+            );
+
+            return;
+        }
+
+        ensureCreativeOrder();
+
+        blocks.sort(
+                (left, right) -> {
+                    int compared =
+                            Integer.compare(
+                                    creativeOrder
+                                            .getOrDefault(
+                                                    getBlockId(left),
+                                                    Integer.MAX_VALUE
+                                            ),
+                                    creativeOrder
+                                            .getOrDefault(
+                                                    getBlockId(right),
+                                                    Integer.MAX_VALUE
+                                            )
+                            );
+
+                    if (compared != 0) {
+                        return compared;
+                    }
+
+                    return getBlockId(left)
+                            .compareTo(
+                                    getBlockId(right)
+                            );
+                }
+        );
+    }
+
+    private void ensureCreativeOrder() {
+        if (creativeOrderInitialized) {
+            return;
+        }
+
+        creativeOrder.clear();
+
+        if (this.minecraft != null
+                && this.minecraft.level != null) {
+            try {
+                CreativeModeTabs
+                        .tryRebuildTabContents(
+                                this.minecraft.level
+                                        .enabledFeatures(),
+                                false,
+                                this.minecraft.level
+                                        .registryAccess()
+                        );
+            } catch (Exception ignored) {
+            }
+
+            int index = 0;
+
+            for (CreativeModeTab tab :
+                    CreativeModeTabs.tabs()) {
+                if (tab.getType()
+                        != CreativeModeTab.Type.CATEGORY) {
+                    continue;
+                }
+
+                for (ItemStack stack :
+                        tab.getDisplayItems()) {
+                    if (!(stack.getItem()
+                            instanceof BlockItem blockItem)) {
+                        continue;
+                    }
+
+                    String blockId =
+                            getBlockId(
+                                    blockItem.getBlock()
+                            );
+
+                    if (!TargetBlockRegistry
+                            .isTargetBlock(blockId)
+                            || creativeOrder
+                            .containsKey(blockId)) {
+                        continue;
+                    }
+
+                    creativeOrder.put(
+                            blockId,
+                            index++
+                    );
+                }
+            }
+        }
+
+        int fallbackIndex =
+                creativeOrder.size();
+
+        for (Block block :
+                TargetBlockRegistry.getTargetBlocks()) {
+            creativeOrder.putIfAbsent(
+                    getBlockId(block),
+                    fallbackIndex++
+            );
+        }
+
+        creativeOrderInitialized = true;
+    }
+
+    private String getBlockDisplayName(
+            Block block
+    ) {
+        if (block == null) {
+            return "";
+        }
+
+        return new ItemStack(block)
+                .getHoverName()
+                .getString();
     }
 
     private BlockStatus getBlockStatus(String blockId) {
@@ -2134,6 +2478,22 @@ public final class BlockCodexScreen extends Screen {
                 case UNCLAIMED -> status == BlockStatus.UNCLAIMED || status == BlockStatus.RELEASED;
                 case RELEASED -> status == BlockStatus.RELEASED;
             };
+        }
+    }
+
+    private enum CodexSort {
+        CREATIVE("크리에이티브", 62),
+        NAME("가나다순", 48);
+
+        private final String label;
+        private final int width;
+
+        CodexSort(
+                String label,
+                int width
+        ) {
+            this.label = label;
+            this.width = width;
         }
     }
 

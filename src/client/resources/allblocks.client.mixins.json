@@ -3,7 +3,8 @@
   "package": "com.darkk0729.allblocks.client.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "ExampleClientMixin"
+    "ExampleClientMixin",
+    "RecipeButtonMixin"
   ],
   "injectors": {
     "defaultRequire": 1
