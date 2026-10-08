@@ -103,10 +103,8 @@ public final class ChallengeSetupManager {
         }
 
         mode = selectedMode;
-        phase = SetupPhase.DIFFICULTY;
-        ChallengeMenuMessages.showDifficultyMenu(
-                player
-        );
+        phase = SetupPhase.SETTINGS;
+        showSettings(player);
         return true;
     }
 
@@ -127,40 +125,13 @@ public final class ChallengeSetupManager {
             ServerPlayer player,
             ChallengeDifficulty selectedDifficulty
     ) {
-        if (!isDifficultyController(player)
+        if (!isSettingsController(player)
                 || selectedDifficulty == null) {
             return false;
         }
 
         difficulty = selectedDifficulty;
-        phase = SetupPhase.SETTINGS;
         showSettings(player);
-        return true;
-    }
-
-    public static boolean backFromDifficulty(
-            ServerPlayer player
-    ) {
-        if (!isDifficultyController(player)) {
-            return false;
-        }
-
-        ChallengeMode previousMode = mode;
-        mode = null;
-        phase = SetupPhase.MODE;
-
-        if (previousMode == ChallengeMode.TEAM_RACE
-                || previousMode
-                == ChallengeMode.BLOCK_RACE) {
-            ChallengeMenuMessages.showRaceModeMenu(
-                    player
-            );
-        } else {
-            ChallengeMenuMessages.showModeMenu(
-                    player
-            );
-        }
-
         return true;
     }
 
@@ -442,10 +413,22 @@ public final class ChallengeSetupManager {
             return false;
         }
 
-        phase = SetupPhase.DIFFICULTY;
-        ChallengeMenuMessages.showDifficultyMenu(
-                player
-        );
+        ChallengeMode previousMode = mode;
+        mode = null;
+        phase = SetupPhase.MODE;
+
+        if (previousMode == ChallengeMode.TEAM_RACE
+                || previousMode
+                == ChallengeMode.BLOCK_RACE) {
+            ChallengeMenuMessages.showRaceModeMenu(
+                    player
+            );
+        } else {
+            ChallengeMenuMessages.showModeMenu(
+                    player
+            );
+        }
+
         return true;
     }
 
@@ -481,10 +464,6 @@ public final class ChallengeSetupManager {
 
         boolean selectedResetWorldTime =
                 resetWorldTime;
-
-        ChallengeMenuMessages.restoreMenuChat(
-                player
-        );
 
         completeSetup();
 
@@ -558,14 +537,6 @@ public final class ChallengeSetupManager {
 
     public static void reset() {
         completeSetup();
-    }
-
-    private static boolean isDifficultyController(
-            ServerPlayer player
-    ) {
-        return canControl(player)
-                && phase == SetupPhase.DIFFICULTY
-                && mode != null;
     }
 
     private static boolean isSettingsController(
@@ -644,7 +615,6 @@ public final class ChallengeSetupManager {
     private enum SetupPhase {
         IDLE,
         MODE,
-        DIFFICULTY,
         SETTINGS
     }
 }

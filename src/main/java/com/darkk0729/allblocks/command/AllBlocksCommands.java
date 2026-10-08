@@ -302,13 +302,6 @@ public final class AllBlocksCommands {
             ) ? 1 : 0;
         }
 
-        if (action.equals("@난이도 돌아가기")) {
-            return ChallengeSetupManager
-                    .backFromDifficulty(
-                            player
-                    ) ? 1 : 0;
-        }
-
         if (action.startsWith("@난이도 ")) {
             ChallengeDifficulty difficulty =
                     switch (action.substring("@난이도 ".length())) {
@@ -518,9 +511,6 @@ public final class AllBlocksCommands {
                 return 0;
             }
 
-            ChallengeMenuMessages.restoreMenuChat(
-                    player
-            );
             ChallengeManager.stop(source.getServer());
             player.sendSystemMessage(
                     Component.literal(
