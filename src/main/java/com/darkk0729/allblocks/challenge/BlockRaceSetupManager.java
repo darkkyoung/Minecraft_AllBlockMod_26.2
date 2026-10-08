@@ -417,11 +417,11 @@ public final class BlockRaceSetupManager {
     ) {
         float pitch =
                 switch (second) {
-                    case 5 -> 0.8F;
-                    case 4 -> 0.9F;
-                    case 3 -> 1.0F;
-                    case 2 -> 1.1F;
-                    case 1 -> 1.2F;
+                    case 5 -> 0.65F;
+                    case 4 -> 0.78F;
+                    case 3 -> 0.93F;
+                    case 2 -> 1.10F;
+                    case 1 -> 1.30F;
                     default -> 1.0F;
                 };
 
@@ -432,8 +432,8 @@ public final class BlockRaceSetupManager {
                     "execute as "
                             + playerName
                             + " at @s run playsound "
-                            + "minecraft:block.note_block.bit "
-                            + "master @s ~ ~ ~ 0.8 "
+                            + "minecraft:block.note_block.pling "
+                            + "master @s ~ ~ ~ 0.9 "
                             + pitch
             );
         }
@@ -450,7 +450,7 @@ public final class BlockRaceSetupManager {
                             + playerName
                             + " at @s run playsound "
                             + "minecraft:block.note_block.pling "
-                            + "master @s ~ ~ ~ 1.0 1.8"
+                            + "master @s ~ ~ ~ 1.0 1.65"
             );
         }
     }

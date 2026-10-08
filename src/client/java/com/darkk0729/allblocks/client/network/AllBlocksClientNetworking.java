@@ -8,9 +8,16 @@ import com.darkk0729.allblocks.client.hud.TeamRevealHud;
 import com.darkk0729.allblocks.network.TeamRevealPayload;
 import com.darkk0729.allblocks.network.PlayerColorChangePayload;
 import com.darkk0729.allblocks.network.CloseSetupScreenPayload;
+import com.darkk0729.allblocks.network.ChatHeightBoostPayload;
+import net.minecraft.client.Minecraft;
 
 
 public final class AllBlocksClientNetworking {
+    private static boolean chatHeightBoostActive = false;
+    private static int chatHeightBoostTicksRemaining = 0;
+    private static double originalChatHeightFocused = 1.0D;
+    private static double originalChatHeightUnfocused = 1.0D;
+
     private AllBlocksClientNetworking() {
     }
 
@@ -58,5 +65,104 @@ public final class AllBlocksClientNetworking {
                     }
                 })
         );
+
+        ClientPlayNetworking.registerGlobalReceiver(
+                ChatHeightBoostPayload.TYPE,
+                (payload, context) -> context.client().execute(() ->
+                        startChatHeightBoost(
+                                context.client(),
+                                payload.durationTicks()
+                        )
+                )
+        );
+    }
+
+    public static void tickChatHeightBoost(
+            Minecraft client
+    ) {
+        if (!chatHeightBoostActive
+                || client == null) {
+            return;
+        }
+
+        if (chatHeightBoostTicksRemaining > 0) {
+            chatHeightBoostTicksRemaining--;
+        }
+
+        if (chatHeightBoostTicksRemaining <= 0) {
+            restoreChatHeight(client);
+        }
+    }
+
+    public static void clearChatHeightBoost(
+            Minecraft client
+    ) {
+        if (client == null) {
+            chatHeightBoostActive = false;
+            chatHeightBoostTicksRemaining = 0;
+            return;
+        }
+
+        restoreChatHeight(client);
+    }
+
+    private static void startChatHeightBoost(
+            Minecraft client,
+            int durationTicks
+    ) {
+        if (client == null) {
+            return;
+        }
+
+        if (!chatHeightBoostActive) {
+            originalChatHeightFocused =
+                    client.options
+                            .chatHeightFocused()
+                            .get();
+
+            originalChatHeightUnfocused =
+                    client.options
+                            .chatHeightUnfocused()
+                            .get();
+
+            chatHeightBoostActive = true;
+        }
+
+        client.options
+                .chatHeightFocused()
+                .set(1.0D);
+
+        client.options
+                .chatHeightUnfocused()
+                .set(1.0D);
+
+        chatHeightBoostTicksRemaining =
+                Math.max(
+                        chatHeightBoostTicksRemaining,
+                        Math.max(
+                                1,
+                                durationTicks
+                        )
+                );
+    }
+
+    private static void restoreChatHeight(
+            Minecraft client
+    ) {
+        if (!chatHeightBoostActive
+                || client == null) {
+            return;
+        }
+
+        client.options
+                .chatHeightFocused()
+                .set(originalChatHeightFocused);
+
+        client.options
+                .chatHeightUnfocused()
+                .set(originalChatHeightUnfocused);
+
+        chatHeightBoostActive = false;
+        chatHeightBoostTicksRemaining = 0;
     }
 }

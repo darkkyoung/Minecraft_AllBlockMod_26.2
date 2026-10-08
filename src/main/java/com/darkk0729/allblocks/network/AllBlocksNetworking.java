@@ -32,6 +32,11 @@ public final class AllBlocksNetworking {
                 CloseSetupScreenPayload.CODEC
         );
 
+        PayloadTypeRegistry.clientboundPlay().register(
+                ChatHeightBoostPayload.TYPE,
+                ChatHeightBoostPayload.CODEC
+        );
+
         // 클라이언트 -> 서버
         PayloadTypeRegistry.serverboundPlay().register(
                 PlayerColorChangePayload.TYPE,

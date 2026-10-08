@@ -4,6 +4,8 @@ import com.darkk0729.allblocks.challenge.ChallengeManager;
 import com.darkk0729.allblocks.challenge.ChallengeDifficulty;
 import com.darkk0729.allblocks.challenge.ChallengeState;
 import com.darkk0729.allblocks.challenge.ChallengeTimeLimitType;
+import com.darkk0729.allblocks.network.ChatHeightBoostPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
@@ -13,6 +15,9 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class ChallengeMenuMessages {
+    private static final int CHAT_HEIGHT_BOOST_TICKS =
+            20 * 12;
+
     private ChallengeMenuMessages() {
     }
 
@@ -21,20 +26,25 @@ public final class ChallengeMenuMessages {
     }
 
     public static void showWelcome(ServerPlayer player) {
+        boostChatHeight(player);
         sendWelcome(player::sendSystemMessage);
     }
 
     public static void showModeMenu(ServerPlayer player) {
+        boostChatHeight(player);
         sendModeMenu(player::sendSystemMessage);
     }
 
     public static void showRaceModeMenu(ServerPlayer player) {
+        boostChatHeight(player);
         sendRaceModeMenu(player::sendSystemMessage);
     }
 
     public static void showDifficultyMenu(
             ServerPlayer player
     ) {
+        boostChatHeight(player);
+
         MessageSender sender =
                 player::sendSystemMessage;
 
@@ -118,6 +128,8 @@ public final class ChallengeMenuMessages {
             boolean dayRaidManual,
             boolean resetWorldTime
     ) {
+        boostChatHeight(player);
+
         MessageSender sender =
                 player::sendSystemMessage;
 
@@ -715,6 +727,21 @@ public final class ChallengeMenuMessages {
                 )
         );
         sender.send(separator());
+    }
+
+    private static void boostChatHeight(
+            ServerPlayer player
+    ) {
+        if (player == null) {
+            return;
+        }
+
+        ServerPlayNetworking.send(
+                player,
+                new ChatHeightBoostPayload(
+                        CHAT_HEIGHT_BOOST_TICKS
+                )
+        );
     }
 
     private static MutableComponent sectionTitle(
