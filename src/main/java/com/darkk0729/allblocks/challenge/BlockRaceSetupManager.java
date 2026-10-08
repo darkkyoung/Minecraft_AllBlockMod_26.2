@@ -1,5 +1,8 @@
 package com.darkk0729.allblocks.challenge;
 
+import com.darkk0729.allblocks.network.ClearMenuChatPayload;
+import com.darkk0729.allblocks.network.CloseSetupScreenPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -152,6 +155,8 @@ public final class BlockRaceSetupManager {
                 ).withStyle(ChatFormatting.GREEN)
         );
 
+        hideChatForCountdown(server);
+
         showCountdownTitle(
                 server,
                 COUNTDOWN_SECONDS
@@ -221,6 +226,37 @@ public final class BlockRaceSetupManager {
         }
 
         completeSetup();
+    }
+
+    private static void hideChatForCountdown(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            if (!participantNames.containsKey(
+                    player.getUUID()
+            )) {
+                continue;
+            }
+
+            ServerPlayNetworking.send(
+                    player,
+                    new ClearMenuChatPayload(
+                            true
+                    )
+            );
+
+            ServerPlayNetworking.send(
+                    player,
+                    new CloseSetupScreenPayload(
+                            true
+                    )
+            );
+        }
     }
 
     private static void finishCountdown(

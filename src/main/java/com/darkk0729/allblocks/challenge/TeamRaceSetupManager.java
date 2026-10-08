@@ -2,6 +2,7 @@ package com.darkk0729.allblocks.challenge;
 
 import com.darkk0729.allblocks.network.TeamRevealPayload;
 import com.darkk0729.allblocks.network.CloseSetupScreenPayload;
+import com.darkk0729.allblocks.network.ClearMenuChatPayload;
 import com.darkk0729.allblocks.command.ChallengeMenuMessages;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
@@ -528,6 +529,8 @@ public final class TeamRaceSetupManager {
                 ).withStyle(ChatFormatting.GREEN)
         );
 
+        hideChatForCountdown(server);
+
         showCountdownTitle(
                 server,
                 COUNTDOWN_SECONDS
@@ -616,6 +619,37 @@ public final class TeamRaceSetupManager {
 
         showStartTitle(server);
         completeSetup();
+    }
+
+    private static void hideChatForCountdown(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            if (!participantNames.containsKey(
+                    player.getUUID()
+            )) {
+                continue;
+            }
+
+            ServerPlayNetworking.send(
+                    player,
+                    new ClearMenuChatPayload(
+                            true
+                    )
+            );
+
+            ServerPlayNetworking.send(
+                    player,
+                    new CloseSetupScreenPayload(
+                            true
+                    )
+            );
+        }
     }
 
     private static void clearParticipantInventories(
