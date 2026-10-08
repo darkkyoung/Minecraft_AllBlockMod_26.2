@@ -17,6 +17,8 @@ public final class AllBlocksClientNetworking {
     private static int chatHeightBoostTicksRemaining = 0;
     private static double originalChatHeightFocused = 1.0D;
     private static double originalChatHeightUnfocused = 1.0D;
+    private static double originalChatScale = 1.0D;
+    private static double originalChatWidth = 1.0D;
 
     private AllBlocksClientNetworking() {
     }
@@ -125,6 +127,16 @@ public final class AllBlocksClientNetworking {
                             .chatHeightUnfocused()
                             .get();
 
+            originalChatScale =
+                    client.options
+                            .chatScale()
+                            .get();
+
+            originalChatWidth =
+                    client.options
+                            .chatWidth()
+                            .get();
+
             chatHeightBoostActive = true;
         }
 
@@ -135,6 +147,19 @@ public final class AllBlocksClientNetworking {
         client.options
                 .chatHeightUnfocused()
                 .set(1.0D);
+
+        client.options
+                .chatWidth()
+                .set(1.0D);
+
+        client.options
+                .chatScale()
+                .set(
+                        Math.min(
+                                originalChatScale,
+                                0.75D
+                        )
+                );
 
         chatHeightBoostTicksRemaining =
                 Math.max(
@@ -161,6 +186,14 @@ public final class AllBlocksClientNetworking {
         client.options
                 .chatHeightUnfocused()
                 .set(originalChatHeightUnfocused);
+
+        client.options
+                .chatScale()
+                .set(originalChatScale);
+
+        client.options
+                .chatWidth()
+                .set(originalChatWidth);
 
         chatHeightBoostActive = false;
         chatHeightBoostTicksRemaining = 0;
