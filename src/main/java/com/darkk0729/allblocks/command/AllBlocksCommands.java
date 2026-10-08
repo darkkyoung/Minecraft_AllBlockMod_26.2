@@ -453,6 +453,13 @@ public final class AllBlocksCommands {
             ) ? 1 : 0;
         }
 
+        if (action.equals("@설정 돌아가기")) {
+            return ChallengeSetupManager
+                    .backFromSettings(
+                            player
+                    ) ? 1 : 0;
+        }
+
         if (action.equals("@설정 완료")) {
             return ChallengeSetupManager.finishSettings(
                     source.getServer(),

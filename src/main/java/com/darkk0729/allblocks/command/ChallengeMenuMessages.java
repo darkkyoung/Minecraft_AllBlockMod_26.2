@@ -9,6 +9,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 
 public final class ChallengeMenuMessages {
@@ -63,6 +64,12 @@ public final class ChallengeMenuMessages {
                                 ChatFormatting.WHITE,
                                 ChatFormatting.BOLD
                         )
+        );
+        sender.send(Component.literal(""));
+        sender.send(
+                plain(
+                        "아래 항목을 클릭해서 설정을 변경할 수 있습니다."
+                )
         );
         sender.send(Component.literal(""));
 
@@ -428,10 +435,15 @@ public final class ChallengeMenuMessages {
 
         sender.send(Component.literal(""));
         sender.send(
-                clickable(
-                        "[설정 완료]",
-                        ChatFormatting.GREEN,
-                        "/올블록 @설정 완료"
+                row(
+                        primaryActionButton(
+                                "[설정 완료]",
+                                "/올블록 @설정 완료"
+                        ),
+                        primaryActionButton(
+                                "[돌아가기]",
+                                "/올블록 @설정 돌아가기"
+                        )
                 )
         );
         sender.send(separator());
@@ -716,6 +728,36 @@ public final class ChallengeMenuMessages {
         );
     }
 
+    private static MutableComponent manualValue(
+            String text
+    ) {
+        return Component.literal(text)
+                .withStyle(
+                        ChatFormatting.YELLOW,
+                        ChatFormatting.BOLD
+                );
+    }
+
+    private static MutableComponent primaryActionButton(
+            String text,
+            String command
+    ) {
+        return Component.literal(text)
+                .withStyle(style -> style
+                        .withColor(
+                                TextColor.fromRgb(
+                                        0xB6FF66
+                                )
+                        )
+                        .withBold(true)
+                        .withClickEvent(
+                                new ClickEvent.RunCommand(
+                                        command
+                                )
+                        )
+                );
+    }
+
     private static MutableComponent row(
             MutableComponent... components
     ) {
@@ -760,7 +802,7 @@ public final class ChallengeMenuMessages {
                                 + actionName
                                 + " -1"
                 ),
-                plain(valueText),
+                manualValue(valueText),
                 actionButton(
                         "[+1]",
                         "/올블록 @설정 "

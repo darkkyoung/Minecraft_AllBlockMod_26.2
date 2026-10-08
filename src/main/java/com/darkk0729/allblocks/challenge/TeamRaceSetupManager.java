@@ -1,6 +1,7 @@
 package com.darkk0729.allblocks.challenge;
 
 import com.darkk0729.allblocks.network.TeamRevealPayload;
+import com.darkk0729.allblocks.network.CloseSetupScreenPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -41,6 +42,7 @@ public final class TeamRaceSetupManager {
 
     private static UUID controllerUuid;
     private static int revealTicksRemaining = 0;
+    private static int revealElapsedTicks = 0;
     private static int countdownTicksRemaining = 0;
     private static int lastCountdownSecond = -1;
 
@@ -94,6 +96,14 @@ public final class TeamRaceSetupManager {
     private static void tickReveal(
             MinecraftServer server
     ) {
+        revealElapsedTicks++;
+
+        if (shouldPlayRevealTickSound(
+                revealElapsedTicks
+        )) {
+            playRevealTickSound(server);
+        }
+
         if (revealTicksRemaining > 0) {
             revealTicksRemaining--;
         }
@@ -487,6 +497,9 @@ public final class TeamRaceSetupManager {
         }
 
         applyScoreboardTeams(server);
+        closeControllerSetupScreen(
+                server
+        );
         startCountdown(server);
         return true;
     }
@@ -707,6 +720,7 @@ public final class TeamRaceSetupManager {
         resetWorldTime = true;
         controllerUuid = null;
         revealTicksRemaining = 0;
+        revealElapsedTicks = 0;
         countdownTicksRemaining = 0;
         lastCountdownSecond = -1;
         participantNames.clear();
@@ -819,8 +833,13 @@ public final class TeamRaceSetupManager {
     ) {
         phase = SetupPhase.REVEALING;
         revealTicksRemaining = REVEAL_TICKS;
+        revealElapsedTicks = 0;
 
+        closeControllerSetupScreen(
+                server
+        );
         clearScoreboardMembers(server);
+        playRevealTickSound(server);
 
         for (ServerPlayer player :
                 server.getPlayerList().getPlayers()) {
@@ -840,6 +859,69 @@ public final class TeamRaceSetupManager {
                             team.name()
                     )
             );
+        }
+    }
+
+    private static boolean shouldPlayRevealTickSound(
+            int elapsedTicks
+    ) {
+        if (elapsedTicks <= 60) {
+            return elapsedTicks % 3 == 0;
+        }
+
+        return elapsedTicks == 65
+                || elapsedTicks == 71
+                || elapsedTicks == 78
+                || elapsedTicks == 86
+                || elapsedTicks == 96
+                || elapsedTicks == 108
+                || elapsedTicks == 122
+                || elapsedTicks == 140;
+    }
+
+    private static void playRevealTickSound(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (String playerName :
+                participantNames.values()) {
+            runCommand(
+                    server,
+                    "execute as "
+                            + playerName
+                            + " at @s run playsound "
+                            + "minecraft:block.comparator.click "
+                            + "master @s ~ ~ ~ 0.7 1.4"
+            );
+        }
+    }
+
+    private static void closeControllerSetupScreen(
+            MinecraftServer server
+    ) {
+        if (server == null
+                || controllerUuid == null) {
+            return;
+        }
+
+        for (ServerPlayer player :
+                server.getPlayerList().getPlayers()) {
+            if (!controllerUuid.equals(
+                    player.getUUID()
+            )) {
+                continue;
+            }
+
+            ServerPlayNetworking.send(
+                    player,
+                    new CloseSetupScreenPayload(
+                            true
+                    )
+            );
+            return;
         }
     }
 

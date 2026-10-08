@@ -27,6 +27,11 @@ public final class AllBlocksNetworking {
                 TeamRevealPayload.CODEC
         );
 
+        PayloadTypeRegistry.clientboundPlay().register(
+                CloseSetupScreenPayload.TYPE,
+                CloseSetupScreenPayload.CODEC
+        );
+
         // 클라이언트 -> 서버
         PayloadTypeRegistry.serverboundPlay().register(
                 PlayerColorChangePayload.TYPE,

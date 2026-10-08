@@ -7,6 +7,7 @@ import com.darkk0729.allblocks.network.ChallengeStatusPayload;
 import com.darkk0729.allblocks.client.hud.TeamRevealHud;
 import com.darkk0729.allblocks.network.TeamRevealPayload;
 import com.darkk0729.allblocks.network.PlayerColorChangePayload;
+import com.darkk0729.allblocks.network.CloseSetupScreenPayload;
 
 
 public final class AllBlocksClientNetworking {
@@ -47,6 +48,15 @@ public final class AllBlocksClientNetworking {
                 (payload, context) -> context.client().execute(() ->
                         TeamRevealHud.start(payload.finalTeam())
                 )
+        );
+
+        ClientPlayNetworking.registerGlobalReceiver(
+                CloseSetupScreenPayload.TYPE,
+                (payload, context) -> context.client().execute(() -> {
+                    if (payload.close()) {
+                        context.client().gui.setScreen(null);
+                    }
+                })
         );
     }
 }

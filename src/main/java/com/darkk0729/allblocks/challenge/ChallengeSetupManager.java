@@ -406,6 +406,32 @@ public final class ChallengeSetupManager {
         return true;
     }
 
+    public static boolean backFromSettings(
+            ServerPlayer player
+    ) {
+        if (!isSettingsController(player)) {
+            return false;
+        }
+
+        ChallengeMode previousMode = mode;
+        mode = null;
+        phase = SetupPhase.MODE;
+
+        if (previousMode == ChallengeMode.TEAM_RACE
+                || previousMode
+                == ChallengeMode.BLOCK_RACE) {
+            ChallengeMenuMessages.showRaceModeMenu(
+                    player
+            );
+        } else {
+            ChallengeMenuMessages.showModeMenu(
+                    player
+            );
+        }
+
+        return true;
+    }
+
     public static boolean finishSettings(
             MinecraftServer server,
             ServerPlayer player
