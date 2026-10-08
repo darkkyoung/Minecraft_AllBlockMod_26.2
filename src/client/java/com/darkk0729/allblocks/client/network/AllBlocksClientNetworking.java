@@ -46,9 +46,15 @@ public final class AllBlocksClientNetworking {
 
         ClientPlayNetworking.registerGlobalReceiver(
                 TeamRevealPayload.TYPE,
-                (payload, context) -> context.client().execute(() ->
-                        TeamRevealHud.start(payload.finalTeam())
-                )
+                (payload, context) -> context.client().execute(() -> {
+                    context.client()
+                            .gui
+                            .setScreen(null);
+
+                    TeamRevealHud.start(
+                            payload.finalTeam()
+                    );
+                })
         );
 
         ClientPlayNetworking.registerGlobalReceiver(
