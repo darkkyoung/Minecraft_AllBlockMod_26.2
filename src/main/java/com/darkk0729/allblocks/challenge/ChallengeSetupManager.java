@@ -103,8 +103,10 @@ public final class ChallengeSetupManager {
         }
 
         mode = selectedMode;
-        phase = SetupPhase.SETTINGS;
-        showSettings(player);
+        phase = SetupPhase.DIFFICULTY;
+        ChallengeMenuMessages.showDifficultyMenu(
+                player
+        );
         return true;
     }
 
@@ -125,13 +127,40 @@ public final class ChallengeSetupManager {
             ServerPlayer player,
             ChallengeDifficulty selectedDifficulty
     ) {
-        if (!isSettingsController(player)
+        if (!isDifficultyController(player)
                 || selectedDifficulty == null) {
             return false;
         }
 
         difficulty = selectedDifficulty;
+        phase = SetupPhase.SETTINGS;
         showSettings(player);
+        return true;
+    }
+
+    public static boolean backFromDifficulty(
+            ServerPlayer player
+    ) {
+        if (!isDifficultyController(player)) {
+            return false;
+        }
+
+        ChallengeMode previousMode = mode;
+        mode = null;
+        phase = SetupPhase.MODE;
+
+        if (previousMode == ChallengeMode.TEAM_RACE
+                || previousMode
+                == ChallengeMode.BLOCK_RACE) {
+            ChallengeMenuMessages.showRaceModeMenu(
+                    player
+            );
+        } else {
+            ChallengeMenuMessages.showModeMenu(
+                    player
+            );
+        }
+
         return true;
     }
 
@@ -413,22 +442,10 @@ public final class ChallengeSetupManager {
             return false;
         }
 
-        ChallengeMode previousMode = mode;
-        mode = null;
-        phase = SetupPhase.MODE;
-
-        if (previousMode == ChallengeMode.TEAM_RACE
-                || previousMode
-                == ChallengeMode.BLOCK_RACE) {
-            ChallengeMenuMessages.showRaceModeMenu(
-                    player
-            );
-        } else {
-            ChallengeMenuMessages.showModeMenu(
-                    player
-            );
-        }
-
+        phase = SetupPhase.DIFFICULTY;
+        ChallengeMenuMessages.showDifficultyMenu(
+                player
+        );
         return true;
     }
 
@@ -539,6 +556,14 @@ public final class ChallengeSetupManager {
         completeSetup();
     }
 
+    private static boolean isDifficultyController(
+            ServerPlayer player
+    ) {
+        return canControl(player)
+                && phase == SetupPhase.DIFFICULTY
+                && mode != null;
+    }
+
     private static boolean isSettingsController(
             ServerPlayer player
     ) {
@@ -615,6 +640,7 @@ public final class ChallengeSetupManager {
     private enum SetupPhase {
         IDLE,
         MODE,
+        DIFFICULTY,
         SETTINGS
     }
 }

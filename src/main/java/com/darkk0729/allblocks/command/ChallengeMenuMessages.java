@@ -32,6 +32,80 @@ public final class ChallengeMenuMessages {
         sendRaceModeMenu(player::sendSystemMessage);
     }
 
+    public static void showDifficultyMenu(
+            ServerPlayer player
+    ) {
+        MessageSender sender =
+                player::sendSystemMessage;
+
+        sender.send(separator());
+        sender.send(
+                Component.literal("[ 난이도 선택 ]")
+                        .withStyle(
+                                ChatFormatting.WHITE,
+                                ChatFormatting.BOLD
+                        )
+        );
+        sender.send(Component.literal(""));
+        sender.send(
+                plain(
+                        "난이도는 이벤트와 레이드의 종류 및 강도를 결정합니다."
+                )
+        );
+        sender.send(Component.literal(""));
+
+        sender.send(
+                clickable(
+                        "[쉬움]",
+                        ChatFormatting.GREEN,
+                        "/올블록 @난이도 쉬움"
+                ).append(
+                        Component.literal(
+                                " 진행률 이벤트와 Day 레이드 없이 플레이합니다."
+                        ).withStyle(
+                                ChatFormatting.WHITE
+                        )
+                )
+        );
+
+        sender.send(
+                clickable(
+                        "[보통]",
+                        ChatFormatting.YELLOW,
+                        "/올블록 @난이도 보통"
+                ).append(
+                        Component.literal(
+                                " 기본 진행률 이벤트와 기본 레이드가 적용됩니다."
+                        ).withStyle(
+                                ChatFormatting.WHITE
+                        )
+                )
+        );
+
+        sender.send(
+                clickable(
+                        "[어려움]",
+                        ChatFormatting.RED,
+                        "/올블록 @난이도 어려움"
+                ).append(
+                        Component.literal(
+                                " 강화된 진행률 이벤트와 강화 레이드가 적용됩니다."
+                        ).withStyle(
+                                ChatFormatting.WHITE
+                        )
+                )
+        );
+
+        sender.send(Component.literal(""));
+        sender.send(
+                primaryActionButton(
+                        "[돌아가기]",
+                        "/올블록 @난이도 돌아가기"
+                )
+        );
+        sender.send(separator());
+    }
+
     public static void showGameSettings(
             ServerPlayer player,
             ChallengeDifficulty difficulty,
@@ -73,36 +147,6 @@ public final class ChallengeMenuMessages {
         );
         sender.send(Component.literal(""));
 
-        sender.send(sectionTitle("난이도"));
-        sender.send(
-                plain(
-                        "이벤트와 레이드의 종류 및 강도를 설정합니다."
-                )
-        );
-        sender.send(
-                row(
-                        selectable(
-                                "[쉬움]",
-                                safeDifficulty
-                                        == ChallengeDifficulty.EASY,
-                                "/올블록 @난이도 쉬움"
-                        ),
-                        selectable(
-                                "[보통]",
-                                safeDifficulty
-                                        == ChallengeDifficulty.NORMAL,
-                                "/올블록 @난이도 보통"
-                        ),
-                        selectable(
-                                "[어려움]",
-                                safeDifficulty
-                                        == ChallengeDifficulty.HARD,
-                                "/올블록 @난이도 어려움"
-                        )
-                )
-        );
-
-        sender.send(Component.literal(""));
         sender.send(sectionTitle("시간 제한"));
         sender.send(
                 plain(
