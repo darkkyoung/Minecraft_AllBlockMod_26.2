@@ -22,7 +22,11 @@
 		]
 	},
   "mixins": [
-    "allblocks.mixins.json"
+    "allblocks.mixins.json",
+    {
+      "config": "allblocks.client.mixins.json",
+      "environment": "client"
+    }
   ],
 	"depends": {
 		"fabricloader": ">=0.19.3",
