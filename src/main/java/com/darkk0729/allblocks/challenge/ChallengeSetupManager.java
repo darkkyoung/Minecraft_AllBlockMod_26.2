@@ -23,8 +23,10 @@ public final class ChallengeSetupManager {
 
     private static final int COUNTDOWN_SECONDS = 5;
     private static final int COUNTDOWN_TICKS =
-            COUNTDOWN_SECONDS
-                    * ChallengeState.TICKS_PER_SECOND;
+            (int) (
+                    COUNTDOWN_SECONDS
+                            * ChallengeState.TICKS_PER_SECOND
+            );
 
     private static SetupPhase phase = SetupPhase.IDLE;
     private static UUID controllerUuid;
