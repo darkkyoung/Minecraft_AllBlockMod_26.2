@@ -1,7 +1,11 @@
 package com.darkk0729.allblocks.challenge;
 
 import com.darkk0729.allblocks.command.ChallengeMenuMessages;
+import com.darkk0729.allblocks.network.ClearMenuChatPayload;
+import com.darkk0729.allblocks.network.CloseSetupScreenPayload;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,6 +20,11 @@ public final class ChallengeSetupManager {
     private static final int DEFAULT_DAY_RAID_INTERVAL = 10;
     private static final int MAX_MANUAL_TIME_VALUE = 10000;
     private static final int MAX_MANUAL_DAY_INTERVAL = 10000;
+
+    private static final int COUNTDOWN_SECONDS = 5;
+    private static final int COUNTDOWN_TICKS =
+            COUNTDOWN_SECONDS
+                    * ChallengeState.TICKS_PER_SECOND;
 
     private static SetupPhase phase = SetupPhase.IDLE;
     private static UUID controllerUuid;
@@ -40,6 +49,9 @@ public final class ChallengeSetupManager {
     private static boolean dayRaidManual = false;
 
     private static boolean resetWorldTime = false;
+
+    private static int countdownTicksRemaining = 0;
+    private static int lastCountdownSecond = -1;
 
     private ChallengeSetupManager() {
     }
@@ -69,6 +81,15 @@ public final class ChallengeSetupManager {
 
         if (ChallengeManager.isFinished()) {
             ChallengeManager.stop(server);
+        }
+
+        if (phase == SetupPhase.COUNTDOWN) {
+            player.sendSystemMessage(
+                    Component.literal(
+                            "[올블록 챌린지] 게임 시작 카운트다운이 진행 중입니다."
+                    ).withStyle(ChatFormatting.YELLOW)
+            );
+            return false;
         }
 
         if (isActive()
@@ -465,28 +486,18 @@ public final class ChallengeSetupManager {
         boolean selectedResetWorldTime =
                 resetWorldTime;
 
+        if (selectedMode == ChallengeMode.SOLO
+                || selectedMode == ChallengeMode.CO_OP) {
+            startCountdown(server);
+            return true;
+        }
+
         completeSetup();
 
         switch (selectedMode) {
-            case SOLO -> ChallengeManager.startSingle(
-                    server,
-                    selectedDifficulty,
-                    selectedTimeLimitType,
-                    selectedTimeLimitTicks,
-                    selectedProgressEventInterval,
-                    selectedDayRaidInterval,
-                    selectedResetWorldTime
-            );
-
-            case CO_OP -> ChallengeManager.startCoop(
-                    server,
-                    selectedDifficulty,
-                    selectedTimeLimitType,
-                    selectedTimeLimitTicks,
-                    selectedProgressEventInterval,
-                    selectedDayRaidInterval,
-                    selectedResetWorldTime
-            );
+            case SOLO, CO_OP -> {
+                // Solo/Co-op are handled by the shared countdown above.
+            }
 
             case BLOCK_RACE -> {
                 boolean started =
@@ -533,6 +544,229 @@ public final class ChallengeSetupManager {
         }
 
         return true;
+    }
+
+    public static void tick(
+            MinecraftServer server
+    ) {
+        if (server == null
+                || phase != SetupPhase.COUNTDOWN) {
+            return;
+        }
+
+        if (countdownTicksRemaining > 0) {
+            countdownTicksRemaining--;
+        }
+
+        if (countdownTicksRemaining <= 0) {
+            finishCountdown(server);
+            return;
+        }
+
+        int second =
+                (countdownTicksRemaining + 19) / 20;
+
+        if (second > 0
+                && second != lastCountdownSecond) {
+            lastCountdownSecond = second;
+            showCountdownTitle(
+                    server,
+                    second
+            );
+        }
+    }
+
+    private static void startCountdown(
+            MinecraftServer server
+    ) {
+        phase = SetupPhase.COUNTDOWN;
+        countdownTicksRemaining = COUNTDOWN_TICKS;
+        lastCountdownSecond = COUNTDOWN_SECONDS;
+
+        hideChatForCountdown(server);
+
+        showCountdownTitle(
+                server,
+                COUNTDOWN_SECONDS
+        );
+    }
+
+    private static void finishCountdown(
+            MinecraftServer server
+    ) {
+        ChallengeMode finalMode = mode;
+        ChallengeDifficulty finalDifficulty =
+                difficulty;
+        ChallengeTimeLimitType finalTimeLimitType =
+                timeLimitType;
+        long finalTimeLimitTicks =
+                timeLimitTicks;
+
+        int finalProgressEventInterval =
+                finalDifficulty
+                        == ChallengeDifficulty.EASY
+                        ? 0
+                        : progressEventIntervalPercent;
+
+        int finalDayRaidInterval =
+                finalDifficulty
+                        == ChallengeDifficulty.EASY
+                        ? 0
+                        : dayRaidIntervalDays;
+
+        boolean finalResetWorldTime =
+                resetWorldTime;
+
+        if (finalMode == ChallengeMode.SOLO) {
+            ChallengeManager.startSingle(
+                    server,
+                    finalDifficulty,
+                    finalTimeLimitType,
+                    finalTimeLimitTicks,
+                    finalProgressEventInterval,
+                    finalDayRaidInterval,
+                    finalResetWorldTime
+            );
+        } else if (finalMode == ChallengeMode.CO_OP) {
+            ChallengeManager.startCoop(
+                    server,
+                    finalDifficulty,
+                    finalTimeLimitType,
+                    finalTimeLimitTicks,
+                    finalProgressEventInterval,
+                    finalDayRaidInterval,
+                    finalResetWorldTime
+            );
+        } else {
+            completeSetup();
+            return;
+        }
+
+        showStartTitle(server);
+        completeSetup();
+    }
+
+    private static void hideChatForCountdown(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        for (ServerPlayer target :
+                server.getPlayerList().getPlayers()) {
+            ServerPlayNetworking.send(
+                    target,
+                    new ClearMenuChatPayload(
+                            true
+                    )
+            );
+
+            ServerPlayNetworking.send(
+                    target,
+                    new CloseSetupScreenPayload(
+                            true
+                    )
+            );
+        }
+    }
+
+    private static void showCountdownTitle(
+            MinecraftServer server,
+            int second
+    ) {
+        playCountdownSound(
+                server,
+                second
+        );
+
+        runCommand(
+                server,
+                "title @a times 0 20 0"
+        );
+
+        runCommand(
+                server,
+                "title @a title "
+                        + "{\"text\":\""
+                        + second
+                        + "\",\"color\":\"gold\",\"bold\":true}"
+        );
+    }
+
+    private static void showStartTitle(
+            MinecraftServer server
+    ) {
+        playStartSound(server);
+
+        runCommand(
+                server,
+                "title @a times 0 30 10"
+        );
+
+        runCommand(
+                server,
+                "title @a title "
+                        + "{\"text\":\"시작!\",\"color\":\"green\",\"bold\":true}"
+        );
+    }
+
+    private static void playCountdownSound(
+            MinecraftServer server,
+            int second
+    ) {
+        float pitch =
+                switch (second) {
+                    case 5 -> 0.65F;
+                    case 4 -> 0.78F;
+                    case 3 -> 0.93F;
+                    case 2 -> 1.10F;
+                    case 1 -> 1.30F;
+                    default -> 1.0F;
+                };
+
+        runCommand(
+                server,
+                "execute as @a at @s run playsound "
+                        + "minecraft:block.note_block.pling "
+                        + "master @s ~ ~ ~ 0.9 "
+                        + pitch
+        );
+    }
+
+    private static void playStartSound(
+            MinecraftServer server
+    ) {
+        runCommand(
+                server,
+                "execute as @a at @s run playsound "
+                        + "minecraft:block.note_block.pling "
+                        + "master @s ~ ~ ~ 1.0 1.65"
+        );
+    }
+
+    private static void runCommand(
+            MinecraftServer server,
+            String command
+    ) {
+        if (server == null
+                || command == null
+                || command.isBlank()) {
+            return;
+        }
+
+        try {
+            CommandSourceStack source =
+                    server.createCommandSourceStack()
+                            .withSuppressedOutput();
+
+            server.getCommands()
+                    .performPrefixedCommand(
+                            source,
+                            command
+                    );
+        } catch (Exception ignored) {
+        }
     }
 
     public static void reset() {
@@ -609,12 +843,15 @@ public final class ChallengeSetupManager {
         phase = SetupPhase.IDLE;
         controllerUuid = null;
         mode = null;
+        countdownTicksRemaining = 0;
+        lastCountdownSecond = -1;
         resetSettings();
     }
 
     private enum SetupPhase {
         IDLE,
         MODE,
-        SETTINGS
+        SETTINGS,
+        COUNTDOWN
     }
 }

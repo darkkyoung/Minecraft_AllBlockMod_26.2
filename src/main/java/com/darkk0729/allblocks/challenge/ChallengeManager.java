@@ -1194,6 +1194,7 @@ public final class ChallengeManager {
     }
 
     public static void tick(MinecraftServer server) {
+        ChallengeSetupManager.tick(server);
         TeamRaceSetupManager.tick(server);
         BlockRaceSetupManager.tick(server);
 
