@@ -21,7 +21,7 @@ public final class ChallengeSetupManager {
     private static final int MAX_MANUAL_TIME_VALUE = 10000;
     private static final int MAX_MANUAL_DAY_INTERVAL = 10000;
 
-    private static final int COUNTDOWN_SECONDS = 5;
+    private static final int COUNTDOWN_SECONDS = 3;
     private static final int COUNTDOWN_TICKS =
             (int) (
                     COUNTDOWN_SECONDS

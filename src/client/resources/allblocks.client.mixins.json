@@ -4,7 +4,8 @@
   "compatibilityLevel": "JAVA_25",
   "client": [
     "ExampleClientMixin",
-    "RecipeButtonMixin"
+    "RecipeButtonMixin",
+    "StonecutterScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
