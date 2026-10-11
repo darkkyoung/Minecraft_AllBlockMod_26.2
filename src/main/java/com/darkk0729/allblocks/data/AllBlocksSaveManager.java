@@ -14,7 +14,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 
@@ -95,6 +97,14 @@ public final class AllBlocksSaveManager {
                             : data.participants
             );
 
+            state.loadStatistics(
+                    data.statisticsInitialized,
+                    data.lastStatisticsProgressTier,
+                    data.lastStatisticsRecordedDay,
+                    data.progressStatistics,
+                    data.dayStatistics
+            );
+
             AllBlocksMod.LOGGER.info("Loaded AllBlocks challenge state from {}", path);
             return state;
 
@@ -145,6 +155,21 @@ public final class AllBlocksSaveManager {
             data.lastDayRaidEventDay = state.getLastDayRaidEventDay();
             data.collectedBlocks = new HashMap<>(state.getCollectedBlocks());
             data.participants = new LinkedHashMap<>(state.getParticipants());
+
+            data.statisticsInitialized =
+                    state.isStatisticsInitialized();
+            data.lastStatisticsProgressTier =
+                    state.getLastStatisticsProgressTier();
+            data.lastStatisticsRecordedDay =
+                    state.getLastStatisticsRecordedDay();
+            data.progressStatistics =
+                    new ArrayList<>(
+                            state.getProgressStatistics()
+                    );
+            data.dayStatistics =
+                    new ArrayList<>(
+                            state.getDayStatistics()
+                    );
 
             try (Writer writer = Files.newBufferedWriter(path)) {
                 GSON.toJson(data, writer);
@@ -290,5 +315,11 @@ public final class AllBlocksSaveManager {
         int lastDayRaidEventDay;
         Map<String, ChallengeState.CollectedBlockData> collectedBlocks;
         Map<String, ChallengeState.ParticipantData> participants;
+
+        Boolean statisticsInitialized;
+        Integer lastStatisticsProgressTier;
+        Integer lastStatisticsRecordedDay;
+        List<ChallengeState.ProgressStatisticStamp> progressStatistics;
+        List<ChallengeState.DayStatisticStamp> dayStatistics;
     }
 }

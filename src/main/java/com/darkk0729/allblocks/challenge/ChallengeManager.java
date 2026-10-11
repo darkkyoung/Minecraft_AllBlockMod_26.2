@@ -331,6 +331,24 @@ public final class ChallengeManager {
         return (getCollectedCount() * 100.0D) / total;
     }
 
+    public static ChallengeMode getMode() {
+        return state.getMode();
+    }
+
+    public static ChallengeDifficulty getDifficulty() {
+        return state.getDifficulty();
+    }
+
+    public static List<ChallengeState.ProgressStatisticStamp>
+    getProgressStatistics() {
+        return state.getProgressStatistics();
+    }
+
+    public static List<ChallengeState.DayStatisticStamp>
+    getDayStatistics() {
+        return state.getDayStatistics();
+    }
+
     public static ChallengeState.CollectedBlockData getBlockCollectionData(String blockId) {
         if (blockId == null) {
             return null;
@@ -531,6 +549,13 @@ public final class ChallengeManager {
 
     public static void load(MinecraftServer server) {
         state = AllBlocksSaveManager.load(server);
+
+        if (!state.isStatisticsInitialized()) {
+            state.initializeStatisticsBaseline(
+                    getProgressPercent(),
+                    state.getCurrentDay()
+            );
+        }
 
         if (state.isRunning()) {
             state.resetWorldClockTracker(getCurrentWorldTime(server));
@@ -1206,6 +1231,8 @@ public final class ChallengeManager {
 
         boolean shouldEnd = state.tick(getCurrentWorldTime(server));
 
+        updateStatistics(server);
+
         BlockCollectionTracker.tick(server);
 
         if (rules.progressEventsEnabled()
@@ -1304,6 +1331,7 @@ public final class ChallengeManager {
 
         if (collected) {
             sendCodexToast(player, blockId);
+            updateStatistics(server);
 
             if (getCollectedCount() >= getTotalTargetCount()) {
                 if (state.getMode() == ChallengeMode.TEAM_RACE) {
@@ -1324,6 +1352,33 @@ public final class ChallengeManager {
         }
 
         return collected;
+    }
+
+    private static void updateStatistics(
+            MinecraftServer server
+    ) {
+        if (server == null) {
+            return;
+        }
+
+        if (!state.isStatisticsInitialized()) {
+            state.initializeStatisticsBaseline(
+                    getProgressPercent(),
+                    state.getCurrentDay()
+            );
+            return;
+        }
+
+        boolean changed =
+                state.updateStatistics(
+                        getProgressPercent(),
+                        getCollectedCount(),
+                        getTotalTargetCount()
+                );
+
+        if (changed) {
+            save(server);
+        }
     }
 
     private static void sendCodexToast(ServerPlayer player, String blockId) {
@@ -1378,6 +1433,8 @@ public final class ChallengeManager {
                 break;
             }
         }
+
+        updateStatistics(server);
 
         if (getCollectedCount() >= getTotalTargetCount()) {
             if (state.getMode() == ChallengeMode.TEAM_RACE) {

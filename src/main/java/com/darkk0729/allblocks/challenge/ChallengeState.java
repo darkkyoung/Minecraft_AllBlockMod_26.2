@@ -42,6 +42,16 @@ public class ChallengeState {
     private final Map<String, CollectedBlockData> collectedBlocks = new HashMap<>();
     private final Map<String, ParticipantData> participants = new LinkedHashMap<>();
 
+    // 데드라인 밸런싱용 플레이 통계.
+    // 진행률은 5% 최초 도달 시점, Day는 하루가 끝나는 시점마다 기록한다.
+    private boolean statisticsInitialized;
+    private int lastStatisticsProgressTier;
+    private int lastStatisticsRecordedDay;
+    private final List<ProgressStatisticStamp> progressStatistics =
+            new ArrayList<>();
+    private final List<DayStatisticStamp> dayStatistics =
+            new ArrayList<>();
+
     public ChallengeState() {
         this.running = false;
         this.finished = false;
@@ -60,6 +70,9 @@ public class ChallengeState {
         this.blueTeamLastProgressEventTier = 0;
         this.redTeamLastProgressEventTier = 0;
         this.lastDayRaidEventDay = 0;
+        this.statisticsInitialized = false;
+        this.lastStatisticsProgressTier = 0;
+        this.lastStatisticsRecordedDay = 0;
     }
 
     public boolean isRunning() {
@@ -321,6 +334,7 @@ public class ChallengeState {
         this.lastDayRaidEventDay = 0;
         this.collectedBlocks.clear();
         this.participants.clear();
+        resetStatistics();
     }
 
     public void stop() {
@@ -479,6 +493,304 @@ public class ChallengeState {
                             )
                     );
         }
+    }
+
+    public boolean isStatisticsInitialized() {
+        return statisticsInitialized;
+    }
+
+    public int getLastStatisticsProgressTier() {
+        return lastStatisticsProgressTier;
+    }
+
+    public int getLastStatisticsRecordedDay() {
+        return lastStatisticsRecordedDay;
+    }
+
+    public List<ProgressStatisticStamp> getProgressStatistics() {
+        return Collections.unmodifiableList(progressStatistics);
+    }
+
+    public List<DayStatisticStamp> getDayStatistics() {
+        return Collections.unmodifiableList(dayStatistics);
+    }
+
+    public void resetStatistics() {
+        statisticsInitialized = true;
+        lastStatisticsProgressTier = 0;
+        lastStatisticsRecordedDay = 0;
+        progressStatistics.clear();
+        dayStatistics.clear();
+    }
+
+    public void initializeStatisticsBaseline(
+            double progressPercent,
+            int completedDays
+    ) {
+        if (statisticsInitialized) {
+            return;
+        }
+
+        double safeProgress =
+                Math.max(
+                        0.0D,
+                        Math.min(
+                                100.0D,
+                                progressPercent
+                        )
+                );
+
+        lastStatisticsProgressTier =
+                Math.min(
+                        100,
+                        ((int) Math.floor(
+                                safeProgress / 5.0D
+                        )) * 5
+                );
+
+        lastStatisticsRecordedDay =
+                Math.max(
+                        0,
+                        completedDays
+                );
+
+        statisticsInitialized = true;
+    }
+
+    public boolean updateStatistics(
+            double progressPercent,
+            int collectedCount,
+            int totalTargetCount
+    ) {
+        if (!statisticsInitialized) {
+            return false;
+        }
+
+        double safeProgress =
+                Math.max(
+                        0.0D,
+                        Math.min(
+                                100.0D,
+                                progressPercent
+                        )
+                );
+
+        int safeCollected =
+                Math.max(
+                        0,
+                        collectedCount
+                );
+
+        int safeTotal =
+                Math.max(
+                        0,
+                        totalTargetCount
+                );
+
+        boolean changed = false;
+
+        int reachedTier =
+                Math.min(
+                        100,
+                        ((int) Math.floor(
+                                safeProgress / 5.0D
+                        )) * 5
+                );
+
+        while (lastStatisticsProgressTier + 5
+                <= reachedTier) {
+            lastStatisticsProgressTier += 5;
+
+            progressStatistics.add(
+                    new ProgressStatisticStamp(
+                            lastStatisticsProgressTier,
+                            getCurrentDay() + 1,
+                            elapsedTicks,
+                            safeCollected,
+                            safeTotal
+                    )
+            );
+
+            changed = true;
+        }
+
+        int completedDays =
+                Math.max(
+                        0,
+                        getCurrentDay()
+                );
+
+        while (lastStatisticsRecordedDay
+                < completedDays) {
+            lastStatisticsRecordedDay++;
+
+            dayStatistics.add(
+                    new DayStatisticStamp(
+                            lastStatisticsRecordedDay,
+                            safeProgress,
+                            elapsedTicks,
+                            safeCollected,
+                            safeTotal
+                    )
+            );
+
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    public void loadStatistics(
+            Boolean initialized,
+            Integer loadedLastProgressTier,
+            Integer loadedLastRecordedDay,
+            List<ProgressStatisticStamp> loadedProgressStatistics,
+            List<DayStatisticStamp> loadedDayStatistics
+    ) {
+        progressStatistics.clear();
+        dayStatistics.clear();
+
+        if (loadedProgressStatistics != null) {
+            for (ProgressStatisticStamp stamp :
+                    loadedProgressStatistics) {
+                if (stamp == null) {
+                    continue;
+                }
+
+                stamp.percent =
+                        Math.max(
+                                5,
+                                Math.min(
+                                        100,
+                                        stamp.percent
+                                )
+                        );
+
+                stamp.day =
+                        Math.max(
+                                1,
+                                stamp.day
+                        );
+
+                stamp.elapsedTicks =
+                        Math.max(
+                                0L,
+                                stamp.elapsedTicks
+                        );
+
+                stamp.collectedCount =
+                        Math.max(
+                                0,
+                                stamp.collectedCount
+                        );
+
+                stamp.totalTargetCount =
+                        Math.max(
+                                0,
+                                stamp.totalTargetCount
+                        );
+
+                progressStatistics.add(stamp);
+            }
+        }
+
+        if (loadedDayStatistics != null) {
+            for (DayStatisticStamp stamp :
+                    loadedDayStatistics) {
+                if (stamp == null) {
+                    continue;
+                }
+
+                stamp.day =
+                        Math.max(
+                                1,
+                                stamp.day
+                        );
+
+                stamp.progressPercent =
+                        Math.max(
+                                0.0D,
+                                Math.min(
+                                        100.0D,
+                                        stamp.progressPercent
+                                )
+                        );
+
+                stamp.elapsedTicks =
+                        Math.max(
+                                0L,
+                                stamp.elapsedTicks
+                        );
+
+                stamp.collectedCount =
+                        Math.max(
+                                0,
+                                stamp.collectedCount
+                        );
+
+                stamp.totalTargetCount =
+                        Math.max(
+                                0,
+                                stamp.totalTargetCount
+                        );
+
+                dayStatistics.add(stamp);
+            }
+        }
+
+        int derivedProgressTier = 0;
+
+        for (ProgressStatisticStamp stamp :
+                progressStatistics) {
+            derivedProgressTier =
+                    Math.max(
+                            derivedProgressTier,
+                            stamp.percent
+                    );
+        }
+
+        int derivedRecordedDay = 0;
+
+        for (DayStatisticStamp stamp :
+                dayStatistics) {
+            derivedRecordedDay =
+                    Math.max(
+                            derivedRecordedDay,
+                            stamp.day
+                    );
+        }
+
+        lastStatisticsProgressTier =
+                Math.max(
+                        derivedProgressTier,
+                        Math.max(
+                                0,
+                                Math.min(
+                                        100,
+                                        loadedLastProgressTier == null
+                                                ? 0
+                                                : loadedLastProgressTier
+                                )
+                        )
+                );
+
+        lastStatisticsRecordedDay =
+                Math.max(
+                        derivedRecordedDay,
+                        Math.max(
+                                0,
+                                loadedLastRecordedDay == null
+                                        ? 0
+                                        : loadedLastRecordedDay
+                        )
+                );
+
+        // 이전 버전 저장 파일에는 통계 필드가 없다.
+        // 그런 세이브는 Manager가 현재 진행률/Day를 baseline으로 잡고
+        // 그 이후부터 새 스탬프만 기록한다.
+        statisticsInitialized =
+                initialized != null
+                        && initialized;
     }
 
     public void setWorldElapsedTicks(long worldElapsedTicks) {
@@ -943,6 +1255,56 @@ public class ChallengeState {
             this.ownerId = ownerId == null ? "" : ownerId;
             this.ownerName = ownerName == null ? "" : ownerName;
             this.state = state;
+        }
+    }
+
+    public static class ProgressStatisticStamp {
+        public int percent;
+        public int day;
+        public long elapsedTicks;
+        public int collectedCount;
+        public int totalTargetCount;
+
+        public ProgressStatisticStamp() {
+        }
+
+        public ProgressStatisticStamp(
+                int percent,
+                int day,
+                long elapsedTicks,
+                int collectedCount,
+                int totalTargetCount
+        ) {
+            this.percent = percent;
+            this.day = day;
+            this.elapsedTicks = elapsedTicks;
+            this.collectedCount = collectedCount;
+            this.totalTargetCount = totalTargetCount;
+        }
+    }
+
+    public static class DayStatisticStamp {
+        public int day;
+        public double progressPercent;
+        public long elapsedTicks;
+        public int collectedCount;
+        public int totalTargetCount;
+
+        public DayStatisticStamp() {
+        }
+
+        public DayStatisticStamp(
+                int day,
+                double progressPercent,
+                long elapsedTicks,
+                int collectedCount,
+                int totalTargetCount
+        ) {
+            this.day = day;
+            this.progressPercent = progressPercent;
+            this.elapsedTicks = elapsedTicks;
+            this.collectedCount = collectedCount;
+            this.totalTargetCount = totalTargetCount;
         }
     }
 

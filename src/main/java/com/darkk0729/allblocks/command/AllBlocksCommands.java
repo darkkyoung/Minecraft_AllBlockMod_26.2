@@ -45,6 +45,14 @@ public final class AllBlocksCommands {
                                                                 )
                                                         )
                                                         .then(
+                                                                Commands.literal("통계")
+                                                                        .executes(context ->
+                                                                                showDebugStatistics(
+                                                                                        context.getSource()
+                                                                                )
+                                                                        )
+                                                        )
+                                                        .then(
                                                                 Commands.literal("레이드")
                                                                         .then(
                                                                                 Commands.argument(
@@ -140,6 +148,35 @@ public final class AllBlocksCommands {
                                                         )
                                         )
                                         .then(
+                                                Commands.literal("debug")
+                                                        .requires(
+                                                                Commands.hasPermission(
+                                                                        Commands.LEVEL_GAMEMASTERS
+                                                                )
+                                                        )
+                                                        .executes(context ->
+                                                                showDebugMenu(
+                                                                        context.getSource()
+                                                                )
+                                                        )
+                                                        .then(
+                                                                Commands.literal("static")
+                                                                        .executes(context ->
+                                                                                showDebugStatistics(
+                                                                                        context.getSource()
+                                                                                )
+                                                                        )
+                                                        )
+                                                        .then(
+                                                                Commands.literal("stats")
+                                                                        .executes(context ->
+                                                                                showDebugStatistics(
+                                                                                        context.getSource()
+                                                                                )
+                                                                        )
+                                                        )
+                                        )
+                                        .then(
                                                 Commands.argument(
                                                                 "internal",
                                                                 StringArgumentType.greedyString()
@@ -186,6 +223,18 @@ public final class AllBlocksCommands {
         );
         source.sendSuccess(
                 () -> Component.literal(
+                        "/올블록 디버그 통계  - 5% / Day 플레이 스탬프 확인"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
+                        "/allblocks debug static  - 동일한 통계 확인"
+                ),
+                false
+        );
+        source.sendSuccess(
+                () -> Component.literal(
                         "/올블록 디버그 수집 <개수>  - 블록 강제 수집"
                 ),
                 false
@@ -215,6 +264,194 @@ public final class AllBlocksCommands {
                 false
         );
         return 1;
+    }
+
+    private static int showDebugStatistics(
+            CommandSourceStack source
+    ) {
+        if (source == null) {
+            return 0;
+        }
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "━━━━━━━━━━━━━━━━━━━━"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "[ 올블록 플레이 통계 ]"
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "모드: "
+                                + ChallengeManager.getMode()
+                                .getDisplayName()
+                                + " | 난이도: "
+                                + ChallengeManager.getDifficulty()
+                                .getDisplayName()
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "현재: "
+                                + String.format(
+                                        java.util.Locale.ROOT,
+                                        "%.1f%%",
+                                        ChallengeManager
+                                                .getProgressPercent()
+                                )
+                                + " ("
+                                + ChallengeManager
+                                .getCollectedCount()
+                                + "/"
+                                + ChallengeManager
+                                .getTotalTargetCount()
+                                + ") | Day "
+                                + ChallengeManager
+                                .getDisplayedDay()
+                                + " | "
+                                + ChallengeManager
+                                .getFormattedElapsedTime()
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        ""
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "[ 진행률 기록 - 최초 도달 ]"
+                ),
+                false
+        );
+
+        var progressStatistics =
+                ChallengeManager.getProgressStatistics();
+
+        if (progressStatistics.isEmpty()) {
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "아직 5% 단위 기록이 없습니다."
+                    ),
+                    false
+            );
+        } else {
+            for (var stamp : progressStatistics) {
+                String line =
+                        String.format(
+                                java.util.Locale.ROOT,
+                                "%3d%% | Day %d | %s | %d/%d",
+                                stamp.percent,
+                                stamp.day,
+                                formatStatisticTicks(
+                                        stamp.elapsedTicks
+                                ),
+                                stamp.collectedCount,
+                                stamp.totalTargetCount
+                        );
+
+                source.sendSuccess(
+                        () -> Component.literal(line),
+                        false
+                );
+            }
+        }
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        ""
+                ),
+                false
+        );
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "[ Day 종료 기록 ]"
+                ),
+                false
+        );
+
+        var dayStatistics =
+                ChallengeManager.getDayStatistics();
+
+        if (dayStatistics.isEmpty()) {
+            source.sendSuccess(
+                    () -> Component.literal(
+                            "아직 종료된 Day 기록이 없습니다."
+                    ),
+                    false
+            );
+        } else {
+            for (var stamp : dayStatistics) {
+                String line =
+                        String.format(
+                                java.util.Locale.ROOT,
+                                "Day %d | %.1f%% | %s | %d/%d",
+                                stamp.day,
+                                stamp.progressPercent,
+                                formatStatisticTicks(
+                                        stamp.elapsedTicks
+                                ),
+                                stamp.collectedCount,
+                                stamp.totalTargetCount
+                        );
+
+                source.sendSuccess(
+                        () -> Component.literal(line),
+                        false
+                );
+            }
+        }
+
+        source.sendSuccess(
+                () -> Component.literal(
+                        "━━━━━━━━━━━━━━━━━━━━"
+                ),
+                false
+        );
+
+        return 1;
+    }
+
+    private static String formatStatisticTicks(
+            long ticks
+    ) {
+        long totalSeconds =
+                Math.max(
+                        0L,
+                        ticks
+                ) / 20L;
+
+        long hours =
+                totalSeconds / 3600L;
+
+        long minutes =
+                (totalSeconds % 3600L)
+                        / 60L;
+
+        long seconds =
+                totalSeconds % 60L;
+
+        return String.format(
+                java.util.Locale.ROOT,
+                "%02d:%02d:%02d",
+                hours,
+                minutes,
+                seconds
+        );
     }
 
     private static int showRoot(
