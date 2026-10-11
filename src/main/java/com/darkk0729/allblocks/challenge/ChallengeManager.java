@@ -331,14 +331,6 @@ public final class ChallengeManager {
         return (getCollectedCount() * 100.0D) / total;
     }
 
-    public static ChallengeMode getMode() {
-        return state.getMode();
-    }
-
-    public static ChallengeDifficulty getDifficulty() {
-        return state.getDifficulty();
-    }
-
     public static List<ChallengeState.ProgressStatisticStamp>
     getProgressStatistics() {
         return state.getProgressStatistics();
